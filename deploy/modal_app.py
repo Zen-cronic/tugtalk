@@ -15,11 +15,14 @@ bootstrap_hash = os.environ.get('CONNECTOR_TOKEN_HASH', '')
 if not bootstrap_hash:
     raise RuntimeError('CONNECTOR_TOKEN_HASH is required; use deploy/prepare-and-deploy.py')
 
-@app.function(image=image, volumes={'/data': volume},
+# Provider keys live only in this Modal secret (created from the ignored suite .env); never in the image or repo.
+models_secret = modal.Secret.from_name('synthetic-coaching-models')
+
+@app.function(image=image, volumes={'/data': volume}, secrets=[models_secret],
               env={'CONNECTOR_TOKEN_HASH': bootstrap_hash,
                    'CONNECTOR_PUBLIC_HOST': 'kaungzinhein113--synthetic-coaching-connector-web.us-east.modal.run'},
               min_containers=0, max_containers=1, scaledown_window=30,
-              cpu=0.25, memory=256, timeout=60)
+              cpu=0.25, memory=512, timeout=180)
 @modal.concurrent(max_inputs=1)
 @modal.asgi_app()
 def web():

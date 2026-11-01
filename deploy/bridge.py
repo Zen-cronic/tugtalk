@@ -9,6 +9,11 @@ import json
 import os
 import re
 
+JSON_LIMIT = 16384
+AUDIO_LIMIT = 8 * 1024 * 1024  # matches src/capture.mjs MAX_AUDIO_BYTES
+FORWARDED = ('authorization', 'content-type', 'idempotency-key',
+             'x-goal-id', 'x-language', 'x-capture-device', 'x-occurred-at')
+
 
 def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', database_path='/data/connector.sqlite'):
     lock = asyncio.Lock()
@@ -30,14 +35,22 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
             return
         if scope['type'] != 'http':
             return
+        recording = scope['method'] == 'POST' and scope['path'] == '/v1/recordings'
+        early_headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}
+        # Only a request that at least presents a Bearer credential may buffer a large audio body.
+        # Node still performs the real token check; this keeps anonymous uploads at the JSON limit.
+        if recording and not early_headers.get('authorization', '').startswith('Bearer '):
+            return await respond(send, 401, {'error': 'unauthorized', 'message': 'A valid connector Bearer token is required.'})
+        limit = AUDIO_LIMIT if recording else JSON_LIMIT
         body = bytearray()
         while True:
             event = await receive()
             if event['type'] == 'http.disconnect':
                 return
             body.extend(event.get('body', b''))
-            if len(body) > 16384:
-                return await respond(send, 413, {'error': 'too_large', 'message': 'Maximum JSON request size is 16 KiB.'})
+            if len(body) > limit:
+                message = 'Maximum audio upload is 8 MiB.' if recording else 'Maximum JSON request size is 16 KiB.'
+                return await respond(send, 413, {'error': 'too_large', 'message': message})
             if not event.get('more_body', False):
                 break
         headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}
@@ -46,7 +59,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         if not re.fullmatch(r'[a-z0-9-]+(?:\.[a-z0-9-]+)?\.modal\.run', host):
             return await respond(send, 400, {'error': 'invalid_host'})
         # Only headers used by our API are passed on. Authorization stays in process memory.
-        selected = {k: headers[k] for k in ('authorization', 'content-type', 'idempotency-key') if k in headers}
+        selected = {k: headers[k] for k in FORWARDED if k in headers}
         envelope = {'method': scope['method'], 'path': scope['path'], 'headers': selected,
                     'base_url': 'https://' + host, 'body_b64': base64.b64encode(body).decode()}
         async with lock:
@@ -57,7 +70,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                     'node', worker_path,
                     stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
                     env={**os.environ, 'DB_PATH': database_path})
-                output, _ = await asyncio.wait_for(process.communicate(json.dumps(envelope).encode()), timeout=20)
+                output, _ = await asyncio.wait_for(process.communicate(json.dumps(envelope).encode()), timeout=150 if recording else 20)
                 if process.returncode:
                     raise RuntimeError('Node handler failed')
                 response = json.loads(output)

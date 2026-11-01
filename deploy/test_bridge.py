@@ -86,4 +86,32 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         context = (await self.call('GET','/v1/context'))[1]
         self.assertEqual(len(context['goals']),1)
 
+    async def raw(self, path, body, headers):
+        sent = []
+        async def receive(): return {'type': 'http.request', 'body': body}
+        async def send(event): sent.append(event)
+        base = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer local-test-only')]
+        await self.app({'type': 'http', 'method': 'POST', 'path': path, 'headers': base + headers}, receive, send)
+        return sent[0]['status'], json.loads(sent[1]['body'])
+
+    async def test_recording_route_accepts_audio_beyond_json_limit_and_forwards_capture_headers(self):
+        # 2 s of 24 kHz mono silence: larger than the 16 KiB JSON cap, valid WAV.
+        data = bytes(96000)
+        wav = (b'RIFF' + (36 + len(data)).to_bytes(4, 'little') + b'WAVEfmt ' + (16).to_bytes(4, 'little')
+               + (1).to_bytes(2, 'little') + (1).to_bytes(2, 'little') + (24000).to_bytes(4, 'little')
+               + (48000).to_bytes(4, 'little') + (2).to_bytes(2, 'little') + (16).to_bytes(2, 'little')
+               + b'data' + len(data).to_bytes(4, 'little') + data)
+        os.environ.pop('MODEL_API_KEY', None)  # restored by the setUp patch.dict on teardown
+        status, body = await self.raw('/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'bridge-audio-1'), (b'x-language', b'de')])
+        self.assertEqual(status, 400); self.assertIn('X-Language', body['message'])  # capture header reached Node
+        status, body = await self.raw('/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'bridge-audio-2'), (b'x-language', b'fr')])
+        self.assertEqual(status, 503); self.assertEqual(body['error'], 'transcription_unconfigured')
+        sent = []
+        async def receive(): return {'type': 'http.request', 'body': wav}
+        async def send(event): sent.append(event)
+        await self.app({'type': 'http', 'method': 'POST', 'path': '/v1/recordings', 'headers': [(b'host', b'example--web.us-east.modal.run'), (b'content-type', b'audio/wav')]}, receive, send)
+        self.assertEqual(sent[0]['status'], 401)  # anonymous audio rejected before buffering or spawning Node
+        status, body = await self.raw('/v1/goals', b'x' * 20000, [(b'content-type', b'application/json'), (b'idempotency-key', b'too-large-json')])
+        self.assertEqual(status, 413)
+
 if __name__ == '__main__': unittest.main()
