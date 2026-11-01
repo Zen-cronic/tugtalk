@@ -1,0 +1,5 @@
+Config/Secrets.xcconfig
+*.xcodeproj/
+build/
+DerivedData/
+xcuserdata/
