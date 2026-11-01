@@ -7,7 +7,7 @@ import { createHandler } from '../src/server.mjs';
 let input='';
 for await (const chunk of process.stdin) {
   input+=chunk;
-  if(input.length>65536) throw new Error('Adapter input exceeds 64 KiB');
+  if(input.length>12*1024*1024) throw new Error('Adapter input exceeds 12 MiB'); // base64 of an 8 MiB recording plus envelope
 }
 const envelope=JSON.parse(input);
 const dbPath=process.env.DB_PATH;

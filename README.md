@@ -36,6 +36,7 @@ Setup creates `.data/connector.sqlite` and a private `.data/operator-token.txt`.
 | POST | `/v1/check-ins` | Record one self-reported completion/skipped result for an assigned exercise |
 | PATCH | `/v1/goals/{id}` | Revise a goal with optimistic version checking |
 | PATCH | `/v1/sessions/{id}` | Correct or hide synthetic evidence with a reason and version check |
+| POST | `/v1/recordings` | Capture devices (watch, Mac, phone) upload a mono 16-bit WAV (16/24 kHz, ≤180 s, ≤8 MiB). Meta `muse-voice-transcribe-1.0` transcribes it, code measures habits (en/fr lexicons), Muse Spark Open words one observation, and a measured session is saved. See `docs/capture.md`. |
 
 All `/v1/` paths require `Authorization: Bearer <key>`. Writes additionally require `Idempotency-Key`. An exact retry returns the original receipt; changed content with the same key returns 409. New keys cannot duplicate an exercise's check-in. Use a new assigned exercise for a new attempt. Updates require `expected_version`; stale versions return 409. JSON bodies are limited to 16 KiB. These are this service's limits, not Muse platform limits.
 
