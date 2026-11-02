@@ -1,6 +1,6 @@
 # Mac companion
 
-A small floating companion for macOS. Hold ⌃⌥T and talk, and it answers with a voice reply (see [Voice replies](#voice-replies-hold-t)). When you press ⌃⌥Space or click it, it reads the front window, and only that window, on the Mac. It redacts names, emails, phone numbers, long numbers, links and addresses there too, and sends only the redacted text to `POST /v1/screen-contexts` (see [docs/screen-context.md](../../docs/screen-context.md)). Muse Spark Open writes a short context card into the same shared record that the watch writes to and that Muse reads.
+A small floating companion for macOS. Hold ⌃⌥T and talk, and it answers with a voice reply (see [Voice replies](#voice-replies-hold-t)). When you press ⌃⌥Space or click it, it reads the front window, and only that window, on the Mac. It redacts names, emails, phone numbers, long numbers, links and addresses there too, and sends the redacted text, with the front app's name as macOS reports it (not redacted) and a few labels, to `POST /v1/screen-contexts` (see [docs/screen-context.md](../../docs/screen-context.md)). Muse Spark Open writes a short context card into the same shared record that the watch writes to and that Muse reads.
 
 ## Layout
 

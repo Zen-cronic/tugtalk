@@ -9,7 +9,7 @@ Capture happens only when the person presses the hotkey or clicks the companion.
 | Leaves the Mac (on request only) | Stays on the Mac |
 |---|---|
 | Redacted window text (at most 6,000 characters and 12 KiB) | Screenshot pixels (an in-memory image, never written to disk) |
-| App name, purpose, goal id, language, time | The unredacted text and the original values behind each placeholder |
+| App name as macOS reports it (not redacted), purpose, goal id, language, time | The unredacted text and the original values behind each placeholder |
 | Redaction counts per kind | The window title, other windows and displays, the list of running apps |
 
 ## Request
@@ -26,7 +26,7 @@ Capture happens only when the person presses the hotkey or clicks the companion.
 | `language` | no | `en` (default) or `fr` |
 | `capture_device` | no | `mac`, `watch`, `phone` or `api` (default) |
 | `occurred_at` | no | ISO 8601; stored in UTC |
-| `app_name` | no | Up to 80 printable characters, for example `TextEdit`. Never the window title. |
+| `app_name` | no | Up to 80 printable characters, for example `TextEdit`. The Mac sends the front app's name as macOS reports it, not redacted; it is stored on the card and passed to the model. Never the window title. |
 
 The field names `goal_id`, `language`, `capture_device` and `occurred_at` match `/v1/recordings`, so another product built on this core can reuse the route.
 

@@ -27,6 +27,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `media-download-limit` | Kept-recording downloads per hour | 120 | `MEDIA_DOWNLOAD_LIMIT` (src/media.mjs); test/keep-recordings.test.mjs is refused on the 121st |
 | `retry-no-rebill` | An exact retry calls the models again | no | HTTP: the same Idempotency-Key and audio twice calls each fake model once |
 | `screen-text-max` | Largest redacted screen text accepted | 6000 characters, 12 KiB | HTTP: 6001 characters returns 400 |
+| `screen-sent-fields` | What the Mac sends with a screen context | goal_id, language, capture_device, purpose, occurred_at, app_name, text, redaction; app_name is the front app's name as macOS reports it, not redacted; no window title | The fields of `ScreenContextPayload` (apps/mac/Sources/ScreenContextCore/Payload.swift) against the route's accepted fields (src/screen-context.mjs), and the app name `CaptureFlow` passes in |
 | `screen-text-retained` | Screen text is stored | no | HTTP screen context with a fake model: `text_retained` is false and the text is not in the database file |
 | `screen-rate-limit` | Screen contexts per hour, refused before any model call | 30 | HTTP on a fresh account: 30 are saved, the 31st returns 429 without a model call |
 | `recording-rate-limit` | Recordings per hour, refused before any model call | 30 | HTTP on a fresh account: 30 are saved, the 31st returns 429 without a model call |
