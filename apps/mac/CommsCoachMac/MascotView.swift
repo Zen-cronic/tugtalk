@@ -54,6 +54,7 @@ struct MascotRoot: View {
             model.layoutNeeded()
         }
         .onChange(of: foldKey) { _, _ in scheduleFold() }
+        .environment(\.tugAwake, !model.isPresenting)
     }
 
     private var showsCard: Bool {

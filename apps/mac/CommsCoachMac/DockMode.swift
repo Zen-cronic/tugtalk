@@ -269,6 +269,7 @@ struct DockPanelView: View {
         .frame(width: Self.width)
         .cartLabel()
         .padding(.bottom, 4)
+        .environment(\.tugAwake, !model.isPresenting)
     }
 
     private var status: (word: String, hint: String?) {

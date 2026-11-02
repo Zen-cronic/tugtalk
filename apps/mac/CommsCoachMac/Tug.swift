@@ -1,4 +1,5 @@
 import AppKit
+import ScreenContextCore
 import SwiftUI
 
 // Tug, the tin-can telephone. Drawn in code from the 64-unit traces: a steel can with an open rim,
@@ -252,13 +253,7 @@ enum TugDrawing {
     static func stringPieces(_ mode: TugStringMode, from s: CGPoint, amount: Double, t: Double) -> [Path] {
         switch mode {
         case .slack:
-            let sway = 0.8 * sin(t * 1.6)
-            return [Path { p in
-                p.move(to: s)
-                p.addCurve(to: CGPoint(x: 44, y: 58 + sway * 0.5), control1: CGPoint(x: s.x - 1, y: 61), control2: CGPoint(x: 40, y: 62 + sway))
-                p.addCurve(to: CGPoint(x: 42, y: 54.5), control1: CGPoint(x: 47, y: 55), control2: CGPoint(x: 44, y: 52))
-                p.addCurve(to: end, control1: CGPoint(x: 40, y: 58), control2: CGPoint(x: 49, y: 60.5 - sway))
-            }]
+            return [slack(from: s, sway: 0.8 * sin(t * 1.6))]
         case .taut:
             return [polyline(from: s, to: end) { u in sin(.pi * u) * amount * 0.9 * sin(t * 2 * .pi * 7 + u * 3) }]
         case .ripple:
@@ -307,6 +302,16 @@ enum TugDrawing {
         }
     }
 
+    /// The idle string: a loose loop. `sway` moves its low point and its last bend in opposite ways.
+    static func slack(from s: CGPoint, sway: Double) -> Path {
+        Path { p in
+            p.move(to: s)
+            p.addCurve(to: CGPoint(x: 44, y: 58 + sway * 0.5), control1: CGPoint(x: s.x - 1, y: 61), control2: CGPoint(x: 40, y: 62 + sway))
+            p.addCurve(to: CGPoint(x: 42, y: 54.5), control1: CGPoint(x: 47, y: 55), control2: CGPoint(x: 44, y: 52))
+            p.addCurve(to: end, control1: CGPoint(x: 40, y: 58), control2: CGPoint(x: 49, y: 60.5 - sway))
+        }
+    }
+
     private static func polyline(from a: CGPoint, to b: CGPoint, offset: (Double) -> Double) -> Path {
         Path { p in
             let n = 40
@@ -320,8 +325,7 @@ enum TugDrawing {
 }
 
 extension TugPose {
-    /// States that act something out over time. The rest (idle, hidden, notices, problems, permission cards,
-    /// a card that is not being read aloud) are one still pose, so nothing redraws while Tug waits.
+    /// States that act something out over time, on SwiftUI's clock.
     static func moves(_ phase: MascotPhase, talking: Bool) -> Bool {
         switch phase {
         case .listening, .voiceListening, .thinking, .voiceThinking: true
@@ -331,53 +335,284 @@ extension TugPose {
         case .idle, .hidden, .notice, .blocked, .offline, .voiceError, .permission, .micPermission: false
         }
     }
+
+    /// Resting states that breathe: a slow bob, a blink now and then, the string swaying. Problems (blocked,
+    /// offline, errors) and an opened nudge keep their still, so they read as a stop.
+    static func breathes(_ phase: MascotPhase, talking: Bool) -> Bool {
+        switch phase {
+        case .idle, .notice, .permission, .micPermission: true
+        case .speaking: !talking
+        case .voiceSpeaking(let card): card.finished && card.endsRound
+        case .listening, .voiceListening, .thinking, .voiceThinking, .nudging, .hidden, .blocked, .offline, .voiceError: false
+        }
+    }
 }
 
-/// Tug, animated for its state. Pose changes ease over 0.28 s. The clock runs only while the state moves
-/// (`TugPose.moves`) or a change is easing; a resting state is its still and does not redraw. With Reduce
-/// Motion the clock stops, each state is its still, and a change is a crossfade.
+extension EnvironmentValues {
+    /// False while presenting: Tug neither acts nor breathes, even in a window that is still up.
+    var tugAwake: Bool {
+        get { self[TugAwakeKey.self] }
+        set { self[TugAwakeKey.self] = newValue }
+    }
+}
+
+private struct TugAwakeKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+/// Tug, animated for its state. Pose changes ease over 0.28 s on SwiftUI's clock, which runs only while a state
+/// acts (`TugPose.moves`) or a change is easing. A resting state that breathes (`TugPose.breathes`) hands its loop
+/// to Core Animation (`TugBreathing`), so the app draws nothing while Tug rests. Everything stops while Tug's
+/// window is hidden or covered, or while presenting. With Reduce Motion each state is its still, and a change
+/// is a crossfade.
 struct TugView: View {
     let phase: MascotPhase
     var talking = false
     var facesRight = true
     @Environment(\.reduceMotionOn) private var reduceMotion
+    @Environment(\.tugAwake) private var awake
+    @Environment(\.colorScheme) private var scheme
     @State private var previous: TugPose?
     @State private var changedAt = Date.distantPast
     @State private var shown: MascotPhase?
     @State private var settling = false
+    @State private var onScreen = true
 
     static let ease: TimeInterval = 0.28
     /// The still's moment: the same one the Reduce Motion stills use.
     static let stillT = 0.35
 
-    private var moving: Bool { !reduceMotion && TugPose.moves(phase, talking: talking) }
+    /// Motion is allowed at all: no Reduce Motion, not presenting, and the window can be seen.
+    private var live: Bool { !reduceMotion && awake && onScreen }
+    private var moving: Bool { live && TugPose.moves(phase, talking: talking) }
+    private var breathing: Bool { live && !settling && TugPose.breathes(phase, talking: talking) }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: !(moving || (settling && !reduceMotion)))) { context in
-            let t = moving ? context.date.timeIntervalSinceReferenceDate : Self.stillT
-            let target = TugPose(phase: phase, t: t, talking: talking, animated: moving)
-            let k = reduceMotion || !settling ? 1 : min(1, context.date.timeIntervalSince(changedAt) / Self.ease)
-            let eased = 1 - pow(1 - k, 3)
-            TugCanvas(pose: previous.map { TugPose.lerp($0, target, eased) } ?? target, facesRight: facesRight, t: t)
+        ZStack {
+            if breathing {
+                TugBreathing(pose: TugPose(phase: phase, t: Self.stillT, talking: talking, animated: false), facesRight: facesRight, scheme: scheme)
+                    .allowsHitTesting(false)
+            } else {
+                TimelineView(.animation(minimumInterval: 1 / 30, paused: !(moving || (settling && !reduceMotion)))) { context in
+                    let t = moving ? context.date.timeIntervalSinceReferenceDate : Self.stillT
+                    let target = TugPose(phase: phase, t: t, talking: talking, animated: moving)
+                    let k = reduceMotion || !settling ? 1 : min(1, context.date.timeIntervalSince(changedAt) / Self.ease)
+                    let eased = 1 - pow(1 - k, 3)
+                    TugCanvas(pose: previous.map { TugPose.lerp($0, target, eased) } ?? target, facesRight: facesRight, t: t)
+                }
+            }
         }
+        .background(WindowVisibility(visible: $onScreen))
         .id(reduceMotion ? phase.name + (talking ? "-talking" : "") : "tug")
         .transition(.opacity.animation(Motion.crossfade))
         .onChange(of: phase.name + (talking ? "-talking" : "")) { _, _ in
             let now = Date()
             if let shown {
-                let wasMoving = !reduceMotion && TugPose.moves(shown, talking: false)
+                let wasMoving = live && TugPose.moves(shown, talking: false)
                 previous = TugPose(phase: shown, t: wasMoving ? now.timeIntervalSinceReferenceDate : Self.stillT, talking: false, animated: wasMoving)
             }
             changedAt = now
             shown = phase
             settling = true
-            // The clock stops once the change has eased in, unless the new state moves.
+            // The clock stops once the change has eased in, unless the new state acts; a resting state breathes.
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(Self.ease + 0.05))
                 if Date().timeIntervalSince(changedAt) >= Self.ease { settling = false }
             }
         }
         .onAppear { shown = phase }
+    }
+}
+
+/// Reports whether the view's window is on screen and not fully covered: ordered out, on another Space, behind
+/// a full-screen app, or the app itself occluded all read as not visible.
+struct WindowVisibility: NSViewRepresentable {
+    @Binding var visible: Bool
+
+    func makeNSView(context: Context) -> Probe { Probe() }
+
+    func updateNSView(_ probe: Probe, context: Context) {
+        let binding = $visible
+        probe.onChange = { value in if binding.wrappedValue != value { binding.wrappedValue = value } }
+    }
+
+    final class Probe: NSView {
+        var onChange: (Bool) -> Void = { _ in }
+        private var observers: [NSObjectProtocol] = []
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            // Leaving the window (the view going away) drops the observers.
+            observers.forEach(NotificationCenter.default.removeObserver)
+            observers = []
+            guard let window else { return }
+            let center = NotificationCenter.default
+            for (name, object) in [(NSWindow.didChangeOcclusionStateNotification, window as AnyObject),
+                                   (NSApplication.didChangeOcclusionStateNotification, NSApp as AnyObject)] {
+                observers.append(center.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.report() }
+                })
+            }
+            report()
+        }
+
+        private func report() {
+            guard let window else { return }
+            let value = window.isVisible && window.occlusionState.contains(.visible) && NSApp.occlusionState.contains(.visible)
+            // Never during a SwiftUI update.
+            DispatchQueue.main.async { [weak self] in self?.onChange(value) }
+        }
+    }
+}
+
+/// Tug at rest, breathing on Core Animation: the body bobs, the slack string sways with it, and the eyes blink
+/// at uneven gaps. The loops run on the render server, so the app does no work per frame. The body is drawn
+/// once per eye (open, half shut, shut) by `TugCanvas`; the string is a shape layer with one path per moment.
+struct TugBreathing: NSViewRepresentable {
+    let pose: TugPose
+    let facesRight: Bool
+    let scheme: ColorScheme
+
+    func makeNSView(context: Context) -> TugBreathView { TugBreathView() }
+
+    func updateNSView(_ view: TugBreathView, context: Context) {
+        view.configure(TugBreathView.Look(pose: pose, facesRight: facesRight, dark: scheme == .dark))
+    }
+}
+
+final class TugBreathView: NSView {
+    struct Look: Equatable {
+        var pose: TugPose
+        var facesRight: Bool
+        var dark: Bool
+    }
+
+    private let string = CAShapeLayer()
+    private let body = CALayer()
+    private var look: Look?
+    /// What the layers were last built for; a rebuild restarts the loops.
+    private var built: (look: Look, size: CGSize, scale: CGFloat)?
+
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.addSublayer(string)
+        layer?.addSublayer(body)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    func configure(_ look: Look) {
+        guard look != self.look else { return }
+        self.look = look
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        rebuild()
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        needsLayout = true
+    }
+
+    private func rebuild() {
+        guard let look, bounds.width > 0, bounds.height > 0 else { return }
+        let size = bounds.size, scale = window?.backingScaleFactor ?? 2
+        if let built, built.look == look, built.size == size, built.scale == scale { return }
+        built = (look, size, scale)
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        string.removeAllAnimations(); body.removeAllAnimations()
+
+        // The same square, centring and mirroring as `TugCanvas`.
+        let s = min(size.width, size.height) / 64
+        let ox = (size.width - 64 * s) / 2, oy = (size.height - 64 * s) / 2
+        let toView = look.facesRight
+            ? CGAffineTransform(a: s, b: 0, c: 0, d: s, tx: ox, ty: oy)
+            : CGAffineTransform(a: -s, b: 0, c: 0, d: s, tx: ox + 64 * s, ty: oy)
+
+        var still = look.pose
+        still.string = .none
+        let blinks = still.showFace && !still.happyEyes
+        func image(_ eye: TugEye) -> CGImage? {
+            var pose = still
+            switch eye {
+            case .open: break
+            case .half: pose.eyeOpen = max(0.08, still.eyeOpen * 0.4)
+            case .shut: pose.eyeOpen = 0.08
+            }
+            let appearance = NSAppearance(named: look.dark ? .darkAqua : .aqua) ?? NSAppearance.currentDrawing()
+            var result: CGImage?
+            appearance.performAsCurrentDrawingAppearance {
+                let renderer = ImageRenderer(content: TugCanvas(pose: pose, facesRight: look.facesRight, t: TugView.stillT)
+                    .frame(width: size.width, height: size.height)
+                    .environment(\.colorScheme, look.dark ? .dark : .light))
+                renderer.scale = scale
+                result = renderer.cgImage
+            }
+            return result
+        }
+        let eyes: [TugEye: CGImage] = (blinks ? [TugEye.open, .half, .shut] : [.open]).reduce(into: [:]) { $0[$1] = image($1) }
+
+        body.frame = bounds
+        body.contentsScale = scale
+        body.contents = eyes[.open]
+        string.frame = bounds
+        string.contentsScale = scale
+        string.fillColor = nil
+        string.strokeColor = NSColor(Tok.tugString(look.dark ? .dark : .light)).cgColor
+        string.lineWidth = 3 * s
+        string.lineCap = .round
+        string.lineJoin = .round
+
+        func stringPath(at t: Double) -> CGPath {
+            let start = CGPoint(x: 32, y: 55 + TugBreath.bob(at: t))
+            return TugDrawing.slack(from: start, sway: TugBreath.sway(at: t)).applying(toView).cgPath
+        }
+        string.path = stringPath(at: 0)
+
+        // One loop for the bob and the sway, so the string stays fixed to the base.
+        let moments = TugBreath.moments(count: 48)
+        let keyTimes = moments.map { NSNumber(value: $0 / TugBreath.period) }
+        let begin = CACurrentMediaTime()
+        let bob = CAKeyframeAnimation(keyPath: "transform.translation.y")
+        bob.values = moments.map { TugBreath.bob(at: $0) * s }
+        let sway = CAKeyframeAnimation(keyPath: "path")
+        sway.values = moments.map(stringPath(at:))
+        for loop in [bob, sway] {
+            loop.keyTimes = keyTimes
+            loop.duration = TugBreath.period
+            loop.repeatCount = .infinity
+            loop.beginTime = begin
+            loop.isRemovedOnCompletion = false
+        }
+        body.add(bob, forKey: "bob")
+        string.add(sway, forKey: "sway")
+
+        guard blinks else { return }
+        var rng = SystemRandomNumberGenerator()
+        let schedule = BlinkSchedule.random(using: &rng)
+        let frames = schedule.keyframes
+        let blink = CAKeyframeAnimation(keyPath: "contents")
+        blink.calculationMode = .discrete
+        blink.values = frames.eyes.compactMap { eyes[$0] }
+        blink.keyTimes = frames.keyTimes.map { NSNumber(value: $0) }
+        blink.duration = schedule.loop
+        blink.repeatCount = .infinity
+        blink.beginTime = begin
+        blink.isRemovedOnCompletion = false
+        if blink.values?.count == frames.eyes.count { body.add(blink, forKey: "blink") }
     }
 }
 
