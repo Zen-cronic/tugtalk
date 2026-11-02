@@ -29,13 +29,20 @@ final class MicRecorder: @unchecked Sendable {
             samples.reserveCapacity(limit)
             self.resampler = resampler
         }
-        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in self?.append(buffer) }
+        input.installTap(onBus: 0, bufferSize: 4096, format: format, block: tapBlock())
         engine.prepare()
         do { try engine.start() } catch {
             input.removeTap(onBus: 0)
             throw error
         }
         self.engine = engine
+    }
+
+    /// The tap block is built outside the main actor on purpose. A closure written inside the
+    /// `@MainActor` `start()` inherits main-actor isolation, and Core Audio calls it on its own
+    /// real-time thread, so Swift's runtime isolation check traps (the first live hold crashed).
+    private nonisolated func tapBlock() -> AVAudioNodeTapBlock {
+        { @Sendable [weak self] buffer, _ in self?.append(buffer) }
     }
 
     /// Runs on the audio thread.

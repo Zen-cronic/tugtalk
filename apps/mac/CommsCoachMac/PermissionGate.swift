@@ -61,7 +61,8 @@ enum MicPermission {
             return
         }
         promptedThisLaunch = true
-        AVCaptureDevice.requestAccess(for: .audio) { granted in
+        // @Sendable keeps this closure off the main actor: macOS calls it on a background queue.
+        AVCaptureDevice.requestAccess(for: .audio) { @Sendable granted in
             DispatchQueue.main.async { MainActor.assumeIsolated { done(granted) } }
         }
     }
