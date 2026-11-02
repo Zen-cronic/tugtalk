@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-from bridge import create_bridge
+from bridge import create_bridge, FORWARDED
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -104,8 +104,12 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         os.environ.pop('MODEL_API_KEY', None)  # restored by the setUp patch.dict on teardown
         status, body = await self.raw('/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'bridge-audio-1'), (b'x-language', b'de')])
         self.assertEqual(status, 400); self.assertIn('X-Language', body['message'])  # capture header reached Node
-        status, body = await self.raw('/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'bridge-audio-2'), (b'x-language', b'fr')])
+        # The watch adds consent, attribution and context headers for French; the adapter drops them (allow-list) and the request proceeds.
+        status, body = await self.raw('/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'bridge-audio-2'), (b'x-language', b'fr'),
+                                                              (b'x-consent-basis', b'self_only'), (b'x-attribution', b'self_declared'), (b'x-context', b'everyday')])
         self.assertEqual(status, 503); self.assertEqual(body['error'], 'transcription_unconfigured')
+        for header in ('x-consent-basis', 'x-attribution', 'x-context'):
+            self.assertNotIn(header, FORWARDED)
         sent = []
         async def receive(): return {'type': 'http.request', 'body': wav}
         async def send(event): sent.append(event)

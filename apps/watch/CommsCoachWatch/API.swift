@@ -92,8 +92,30 @@ struct CoachAPI {
         request.setValue(language, forHTTPHeaderField: "X-Language")
         request.setValue(ISO8601DateFormatter().string(from: occurredAt), forHTTPHeaderField: "X-Occurred-At")
         if let goalID { request.setValue(goalID, forHTTPHeaderField: "X-Goal-Id") }
+        if language == "fr" {
+            // The wearer records only their own speech. A French-practice backend requires these;
+            // this backend's hosting adapter does not forward them.
+            request.setValue("self_only", forHTTPHeaderField: "X-Consent-Basis")
+            request.setValue("self_declared", forHTTPHeaderField: "X-Attribution")
+            request.setValue("everyday", forHTTPHeaderField: "X-Context")
+        }
         let (data, response) = try await URLSession.shared.upload(for: request, fromFile: file)
         try check(data, response)
         return try JSONDecoder().decode(CaptureReceipt.self, from: data)
     }
 }
+
+#if DEBUG
+extension CaptureReceipt {
+    /// Fixed sample shown with the -previewResult launch argument. Not a real capture.
+    static let preview = CaptureReceipt(
+        receipt_id: "preview", replayed: false,
+        record: CapturedSession(
+            id: "preview", transcript: "Um, so I think the main point is, uh, ship the smaller version first.",
+            metrics: Metrics(word_count: 58, words_per_minute: 128, filler_count: 3, hedge_count: 1, restart_count: 2),
+            analysis: Analysis(status: "model_observation",
+                               observation: "You reached your main point after three fillers, then restarted twice to sharpen it.",
+                               suggested_exercise: "Answer again in one breath, starting with \"The main point is\".",
+                               reason: nil)))
+}
+#endif

@@ -5,13 +5,27 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 10) { content }
-                    .frame(maxWidth: .infinity)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 10) { content }
+                        .frame(maxWidth: .infinity)
+                }
+                .task {
+                    await model.load()
+                    if model.scrollToObservation {
+                        try? await Task.sleep(for: .milliseconds(400)) // let the result lay out first
+                        proxy.scrollTo("observation", anchor: .bottom)
+                    }
+                }
             }
-            .navigationTitle("Coach")
+            .navigationTitle(model.isPreview ? "Preview" : "Coach")
+            .navigationBarTitleDisplayMode(showingResult ? .inline : .automatic) // the hero number is the headline
         }
-        .task { await model.load() }
+    }
+
+    private var showingResult: Bool {
+        if case .done = model.phase { return true }
+        return false
     }
 
     @ViewBuilder private var content: some View {
@@ -59,27 +73,77 @@ struct ContentView: View {
         .pickerStyle(.navigationLink)
     }
 
+    /// One hero number, three secondary numbers, then the model's words.
+    /// The hero is always fillers so the screen reads the same way after every capture.
     private func result(_ receipt: CaptureReceipt) -> some View {
         let m = receipt.record.metrics
-        return VStack(alignment: .leading, spacing: 6) {
-            Text("Saved").font(.headline)
-            Grid(alignment: .leading) {
-                GridRow { Text("Fillers"); Text("\(m.filler_count)").bold() }
-                GridRow { Text("Hedges"); Text("\(m.hedge_count)").bold() }
-                GridRow { Text("Restarts"); Text("\(m.restart_count)").bold() }
-                GridRow { Text("Pace"); Text(m.words_per_minute.map { "\($0) wpm" } ?? "–").bold() }
+        let analysis = receipt.record.analysis
+        return VStack(spacing: 6) {
+            VStack(spacing: 0) {
+                Text("\(m.filler_count)")
+                    .font(.system(size: 64, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.filler)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                    .padding(.vertical, -8) // trim the font's line padding so the secondary row stays above the fold
+                Text(m.filler_count == 1 ? "FILLER" : "FILLERS")
+                    .font(.caption2.weight(.semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Palette.filler)
+                Text("in \(m.word_count) words")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
-            .font(.footnote)
-            if let observation = receipt.record.analysis.observation {
-                Text(observation).font(.footnote)
+            .accessibilityElement(children: .combine)
+
+            HStack(spacing: 4) {
+                SmallMetric(value: "\(m.hedge_count)", label: "hedges", color: Palette.hedge)
+                SmallMetric(value: "\(m.restart_count)", label: "restarts", color: Palette.restart)
+                SmallMetric(value: m.words_per_minute.map(String.init) ?? "–", label: "wpm", color: .white)
             }
-            if let exercise = receipt.record.analysis.suggested_exercise {
-                Text("Try: \(exercise)").font(.footnote).foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                if let observation = analysis.observation {
+                    Text(observation).font(.footnote)
+                } else {
+                    Text("No observation this time; the counts are saved.").font(.footnote).foregroundStyle(.secondary)
+                }
+                if let exercise = analysis.suggested_exercise {
+                    Text("Try: \(exercise)").font(.footnote).foregroundStyle(.secondary)
+                }
+                Text("Also in Muse on your phone and Mac.").font(.caption2).foregroundStyle(.secondary)
             }
-            Text("Also in Muse on your phone and Mac.").font(.caption2).foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .id("observation")
         }
     }
 
+}
+
+/// Habit colours shared with the landing page (site/styles.css).
+enum Palette {
+    static let filler = Color(red: 1.0, green: 0.835, blue: 0.290)   // #FFD54A
+    static let hedge = Color(red: 0.663, green: 0.824, blue: 1.0)    // #A9D2FF
+    static let restart = Color(red: 1.0, green: 0.690, blue: 0.769)  // #FFB0C4
+}
+
+private struct SmallMetric: View {
+    let value: String
+    let label: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(value)
+                .font(.system(.title3, design: .rounded).weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(color)
+            Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
 }
 
 /// Observes the recorder itself: a nested ObservableObject's changes do not

@@ -27,8 +27,20 @@ final class CaptureModel: ObservableObject {
     @Published var language = "en"
     let recorder = Recorder()
     private var pending: PendingCapture?
+    private(set) var isPreview = false
+    private(set) var scrollToObservation = false
 
     func load() async {
+        #if DEBUG
+        // Debug builds only: show the result screen with fixed sample data, without recording or uploading.
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-previewResult") {
+            isPreview = true
+            scrollToObservation = arguments.contains("-scrollToObservation")
+            phase = .done(.preview)
+            return
+        }
+        #endif
         phase = .loading
         do {
             goals = try await CoachAPI.fromBundle().goals()
