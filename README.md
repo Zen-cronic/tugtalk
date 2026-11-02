@@ -13,6 +13,7 @@ Requires Node.js 24. No third-party runtime packages.
 ```sh
 npm run setup
 npm test
+npm run eval   # recompute the measurement eval
 npm start
 ```
 
@@ -46,6 +47,22 @@ Setup creates `.data/connector.sqlite` and a private `.data/operator-token.txt`.
 All `/v1/` paths except `GET /v1/eval` require `Authorization: Bearer <key>`. Writes additionally require `Idempotency-Key`. An exact retry returns the original receipt; changed content with the same key returns 409. New keys cannot duplicate an exercise's check-in. Use a new assigned exercise for a new attempt. Updates require `expected_version`; stale versions return 409. JSON bodies are limited to 16 KiB. These are this service's limits, not Muse platform limits.
 
 The authenticated identity comes only from the token. Clients cannot choose another user in the request. Record IDs and receipts are scoped by account. Tokens are stored hashed in SQLite; the bootstrap file holds the only local plaintext copy.
+
+## What we'll tell you before you find it
+
+- **One synthetic account.** The hosted service has a single account (`synthetic-operator`) and a single Bearer key. There is no sign-up or onboarding. This is a single-user prototype.
+- **The watch carries that key.** The watch app reads the key from a Git-ignored `Secrets.xcconfig` at build time. A product would issue each device its own revocable token.
+- **Some records are simulated.** The two seeded sessions (`session-before`, `session-after`) are fictional, and their pause values are made up. Exercise completions are self-reported. Only sessions with `source: capture` were measured from audio.
+- **Nothing is pushed.** Muse reads the shared record when a chat or a scheduled Muse task calls the API. The backend never wakes Muse, the phone or the watch.
+- **Only the watch captures today.** The API accepts `mac` and `phone` as device labels, but the watch app is the only capture client in this repository. Our watch captures so far ran in the watchOS simulator using the Mac microphone.
+- **The counts come from a fixed lexicon.** On our [eval](eval/README.md) the counter is exact on ordinary disfluent speech. It counts content uses such as "what kind of report" or "du coup de fil" as habits. It misses habits we chose not to list, such as filler "like", "quoi" and "genre", and spellings such as "Umm". "Sorry, let me restart" counts as two restarts.
+- **The eval corpus is ours.** We wrote and labelled all 70 transcripts ourselves. It is not real speech and nobody independent checked it.
+- **Transcripts can be wrong.** Meta's transcription can drop or invent words (a repeat run of one clip dropped an "uh"). Speakers are not separated. Audio is not kept, so nobody can re-check a transcript against it.
+- **No improvement score.** `measured_improvement` is always `null`. One session cannot show change, and we have no comparison method yet.
+- **The observation is model-written.** Muse Spark Open words it from the transcript and the counts; code never takes numbers from it. If the model fails, the session is saved with `analysis.status: "unavailable"`.
+- **One small container.** Hosting is one scale-to-zero Modal container, so the first request after idle is slow and requests queue. There is no rate limiting.
+
+The limits, model names, eval numbers and test counts we state are listed in [FACTS.md](FACTS.md), and a test checks each one against the code.
 
 ## Evidence and limits
 

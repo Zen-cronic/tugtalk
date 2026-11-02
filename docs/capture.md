@@ -14,7 +14,7 @@
 2. Check the goal exists and the WAV header is supported; failures return 4xx without inference.
 3. Meta Model API `POST /v1/asr/transcribe`, `muse-voice-transcribe-1.0`, `ENDPOINTING`, language bias from `X-Language`. A failure returns 502 and saves nothing.
 4. Code computes `word_count`, `words_per_minute`, fillers, hedges, restarts and immediate repeats from a conservative per-language lexicon (`lexicon-en-v1`, `lexicon-fr-v1`).
-5. Baseten `meta-models/muse-spark-open-1026` returns `{observation, suggested_exercise}` with about 1500 max tokens (it is a reasoning model). Code never takes numbers from it. An empty, malformed or failed reply saves the session with `analysis.status: "unavailable"`.
+5. Baseten `meta-models/muse-spark-open-1026` returns `{observation, suggested_exercise}`. It is a reasoning model, so it gets 4000 max tokens and, if it runs out before answering, one retry with 8000. Code never takes numbers from it. An empty, malformed or failed reply saves the session with `analysis.status: "unavailable"`.
 6. One receipt and a `sessions` record: `source: capture`, `measurement_status: measured`, `goal_id`, `language`, `capture_device`, `metrics`, `analysis`, `transcription`, `audio_retained: false`, `audio_sha256`.
 
 Fresh reads add per-goal `measured_sessions` and `latest_measurement`, plus `linked_sessions` in focused context. `measured_improvement` stays `null`: one session cannot show change, and no comparison method exists yet.
@@ -23,7 +23,7 @@ Fresh reads add per-goal `measured_sessions` and `latest_measurement`, plus `lin
 
 - Automatic transcripts can drop or invent words (a repeat run of the same clip dropped one "uh").
 - Speakers are not separated.
-- Lexicon counts are not judgments. One restart event can match two phrases ("Sorry, let me restart" counts 2).
+- Lexicon counts are not judgments. One restart event can match two phrases ("Sorry, let me restart" counts 2). Measured accuracy on a synthetic labelled corpus is in `eval/README.md`.
 - Audio is not retained, so pronunciation cannot be re-checked.
-- On Modal, the single serialized container holds the request lock during inference (about 15 s), so concurrent requests wait.
+- On Modal, one container serializes database access. A recording releases the lock during its model calls, so reads are not queued behind inference, but writes are serialized.
 - If the storage commit fails after inference, a retry re-runs inference because the receipt was not persisted.
