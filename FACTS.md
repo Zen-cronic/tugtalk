@@ -22,6 +22,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `screen-text-max` | Largest redacted screen text accepted | 6000 characters, 12 KiB | HTTP: 6001 characters returns 400 |
 | `screen-text-retained` | Screen text is stored | no | HTTP screen context with a fake model: `text_retained` is false and the text is not in the database file |
 | `screen-rate-limit` | Screen contexts per hour, refused before any model call | 30 | HTTP on a fresh account: 30 are saved, the 31st returns 429 without a model call |
+| `seed-sessions` | Seeded sessions: fictional fixtures and their dates | 2, simulated, 2026-10-30 and 2026-10-31 | `Store.seed` on a new account: `source` synthetic_fixture, `measurement_status` simulated |
 | `measured-improvement` | Improvement score we compute | none (null) | `measured_improvement` in the fresh overview |
 | `unauthenticated` | `/v1/overview` without a token | 401 | HTTP |
 | `eval-measure` | Habit-count precision / recall | 0.788 / 0.852 | `eval/results.json`, regenerated |

@@ -45,9 +45,10 @@ export class Store {
   }
   seed(user) {
     if (this.list(user,'sessions').length) return;
+    // Fictional fixtures (source synthetic_fixture, simulated pauses), dated inside the build window.
     const sessions=[
-      {id:'session-before',occurred_at:'2026-10-28T17:00:00Z',transcript:'I answered immediately and talked over the final part of the question.',pause_before_answer_ms:120},
-      {id:'session-after',occurred_at:'2026-10-29T17:00:00Z',transcript:'I waited briefly before answering and asked whether I understood the question.',pause_before_answer_ms:820}
+      {id:'session-before',occurred_at:'2026-10-30T17:00:00Z',transcript:'I answered immediately and talked over the final part of the question.',pause_before_answer_ms:120},
+      {id:'session-after',occurred_at:'2026-10-31T17:00:00Z',transcript:'I waited briefly before answering and asked whether I understood the question.',pause_before_answer_ms:820}
     ];
     for (const s of sessions) this.put(user,'sessions',{...s,version:1,source:'synthetic_fixture',measurement_status:'simulated',deleted:false,updated_at:new Date().toISOString()});
   }

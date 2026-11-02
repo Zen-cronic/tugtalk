@@ -1,10 +1,23 @@
-**Measured habit counts: precision 0.788, recall 0.852 on 70 synthetic, self-labelled en/fr transcripts (flat word-list baseline 0.754 / 0.852); 0 false counts on 12 clean controls. Recompute with `npm run eval` or `GET /v1/eval`; method and limits in [eval/README.md](eval/README.md).**
-
 # Comms Coach
 
-Cross-device communication practice. Tap to capture a short answer on Apple Watch; Meta `muse-voice-transcribe-1.0` transcribes it, code measures speaking habits (fillers, hedges, restarts, pace), Muse Spark Open writes one observation, and the result becomes one shared record that Muse reads fresh in any chat, on any device, including scheduled practice suggestions. Goals, exercises and check-ins live in the same authenticated API.
+For anyone practising how they answer out loud (an interview question, a stand-up update, a point in a meeting) who already asks Muse, Meta's assistant, for help on more than one device. When practice lives in its own app, the assistant never sees it, so each new chat starts from nothing and you explain again what you were working on. Comms Coach saves each practice to one record that Muse reads fresh in any chat, on any device.
+
+<!-- FOUNDER: one or two sentences in your own words -->
+
+Tap to capture a short answer on Apple Watch; Meta `muse-voice-transcribe-1.0` transcribes it, code measures speaking habits (fillers, hedges, restarts, pace), Muse Spark Open writes one observation, and the result joins the shared record, including scheduled practice suggestions. On the Mac, a hotkey sends the text of the window in front, redacted on the Mac, for a short context card in the same record. Goals, exercises and check-ins live in the same authenticated API.
 
 Seeded fixtures are fictional. This is a hackathon prototype, not a validated coaching or speech-assessment product; see Evidence and limits.
+
+## Built during the event (Oct 30 – Nov 4, 2026)
+
+From this repository's commit dates (US Eastern time). The first commit is dated Oct 30.
+
+- **Oct 30:** the authenticated goals, exercises and check-ins API with fresh overview reads, and Modal hosting.
+- **Nov 1:** the recording route (Meta transcription, code-measured habits, a Muse Spark Open observation), the Apple Watch app, the landing page, the measurement eval, the claims ledger, and reuse hooks for a sister French-practice profile.
+- **Nov 1–2, overnight:** the Mac companion: the screen-context route, the on-device redaction core, the menu-bar app, capture, undo, polling and the Ask Muse hand-off.
+- **Nov 2:** a hosting adapter that takes several requests at once, the watch's time-cap fix, a guard for malformed transcription replies, and claims checked against behaviour.
+
+**Measured habit counts: precision 0.788, recall 0.852 on 70 synthetic, self-labelled en/fr transcripts (flat word-list baseline 0.754 / 0.852); 0 false counts on 12 clean controls. Recompute with `npm run eval` or `GET /v1/eval`; method and limits in [eval/README.md](eval/README.md).**
 
 ## Run
 
@@ -54,7 +67,7 @@ The authenticated identity comes only from the token. Clients cannot choose anot
 
 - **One synthetic account.** The hosted service has a single account (`synthetic-operator`) and a single Bearer key. There is no sign-up or onboarding. This is a single-user prototype.
 - **The watch carries that key.** The watch app reads the key from a Git-ignored `Secrets.xcconfig` at build time. A product would issue each device its own revocable token.
-- **Some records are simulated.** The two seeded sessions (`session-before`, `session-after`) are fictional, and their pause values are made up. Exercise completions are self-reported. Only sessions with `source: capture` were measured from audio.
+- **Some records are simulated.** The two seeded sessions (`session-before`, `session-after`, dated Oct 30 and 31) are fictional, and their pause values are made up. Exercise completions are self-reported. Only sessions with `source: capture` were measured from audio.
 - **Nothing is pushed.** Muse reads the shared record when a chat or a scheduled Muse task calls the API. The backend never wakes Muse, the phone or the watch.
 - **Two capture clients, at different stages.** The watch app records speech; our watch captures so far ran in the watchOS simulator using the Mac microphone. The Mac companion (`apps/mac`) reads one window's text when asked. Its tests and our end-to-end runs used a synthetic fixture image and a local server with stub models; two live calls to the hosted route used the fixture's redacted text. The API also accepts `phone` as a label, but there is no phone client.
 - **The Mac companion can be seen in screen shares.** macOS offers no public way to hide a window from screen sharing or to know that sharing is on. Hide it with ⌃⌥H; it also hides itself while a known meeting app is in front.

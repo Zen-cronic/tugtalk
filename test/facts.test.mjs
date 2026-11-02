@@ -172,6 +172,11 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.equal((await post(saved + 1)).status, 429); assert.equal(calls.describe, before, 'refused before any model call');
         return String(saved);
       },
+      'seed-sessions': () => {
+        const seeded = store.list('facts-user', 'sessions').filter(x => x.source === 'synthetic_fixture');
+        assert.ok(seeded.every(x => x.measurement_status === 'simulated'));
+        return `${seeded.length}, simulated, ${seeded.map(x => x.occurred_at.slice(0, 10)).sort().join(' and ')}`;
+      },
       'measured-improvement': async () => {
         const overview = await (await fetch(base + '/v1/overview', { headers: auth })).json();
         assert.equal(overview.totals.measured_improvement, null);
