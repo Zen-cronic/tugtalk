@@ -188,3 +188,22 @@ final class PointingGateTests: XCTestCase {
         XCTAssertEqual(PointingGate.evaluate(target: target, expectedPID: 42, expectedBounds: bounds, above: [dock, invisible, elsewhere], ring: ring), .clear)
     }
 }
+
+final class CardAvoidanceTests: XCTestCase {
+    private let visible = CGRect(x: 0, y: 0, width: 1440, height: 900)
+
+    func testTheCardMovesUpFirstThenDownAndStaysOnScreen() {
+        let ring = CGRect(x: 100, y: 300, width: 400, height: 40)
+        XCTAssertEqual(CardAvoidance.verticalShift(card: CGRect(x: 120, y: 280, width: 300, height: 200), avoid: ring, visible: visible), 60, "up until its bottom clears the ring")
+        // No room above: down until its top clears the ring.
+        let high = CGRect(x: 100, y: 820, width: 400, height: 40)
+        XCTAssertEqual(CardAvoidance.verticalShift(card: CGRect(x: 120, y: 700, width: 300, height: 190), avoid: high, visible: visible), -(890 - 820))
+        XCTAssertEqual(CardAvoidance.verticalShift(card: CGRect(x: 600, y: 280, width: 300, height: 200), avoid: ring, visible: visible), 0, "no overlap, no move")
+    }
+
+    func testNoShiftWhenTheCardCannotClearTheLineOnThisDisplay() {
+        // A card taller than the room above and below the ring: skip the ring rather than cover the line.
+        let ring = CGRect(x: 100, y: 400, width: 400, height: 40)
+        XCTAssertNil(CardAvoidance.verticalShift(card: CGRect(x: 120, y: 100, width: 300, height: 600), avoid: ring, visible: visible))
+    }
+}

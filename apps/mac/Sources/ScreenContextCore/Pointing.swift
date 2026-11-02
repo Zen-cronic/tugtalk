@@ -177,3 +177,18 @@ public enum PointingGate {
         return .clear
     }
 }
+
+/// Moving our own floating card off a ring, for the time the ring shows. AppKit coordinates (y up).
+public enum CardAvoidance {
+    /// The vertical shift that clears `avoid`: up first, else down, keeping the card inside `visible`.
+    /// Zero when they do not overlap; nil when no shift on this display clears it, so the ring is skipped
+    /// rather than drawn under our card.
+    public static func verticalShift(card: CGRect, avoid: CGRect, visible: CGRect) -> CGFloat? {
+        guard card.intersects(avoid) else { return 0 }
+        let up = avoid.maxY - card.minY
+        if card.maxY + up <= visible.maxY { return up }
+        let down = card.maxY - avoid.minY
+        if card.minY - down >= visible.minY { return -down }
+        return nil
+    }
+}

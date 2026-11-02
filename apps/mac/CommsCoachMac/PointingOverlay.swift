@@ -62,8 +62,13 @@ final class PointingController {
     static let maximumSeconds: TimeInterval = 12
     static let afterSpeech: TimeInterval = 1
 
-    /// Moves the floating card off the ring, if it covers it (AppKit rectangle). Set by the app.
-    var avoid: (CGRect) -> Void = { _ in }
+    /// Moves the floating card off the ring, if it covers it (AppKit rectangle); false when it cannot. Set by the app.
+    var avoid: (CGRect) -> Bool = { _ in true }
+    /// The ring went away: the card goes back to where the person left it. Set by the app.
+    var onDismiss: () -> Void = {}
+    /// The ring's rectangle (AppKit, with room) that our card must stay off while it shows.
+    private var keepClear: CGRect?
+    private var adjusting = false
 
     init(model: CompanionModel) { self.model = model }
 
@@ -76,19 +81,33 @@ final class PointingController {
             captureLog.notice("no ring: presenting")
             return
         }
+        // The card was set just now: let SwiftUI lay the panel out at its speaking size before measuring it.
+        let token = generation
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.generation == token, !self.model.isPresenting else { return }
+            self.place(request, speak: speak)
+        }
+    }
+
+    private func place(_ request: PointingRequest, speak: Bool) {
         guard let main = NSScreen.screens.first else { return }
         let mainHeight = main.frame.height
         let windowRect = request.windowBounds.map { ScreenMapping.appKitRect(fromGlobalTopLeft: $0, mainDisplayHeight: mainHeight) }
         let ring = ScreenMapping.ringRect(around: ScreenMapping.appKitRect(fromGlobalTopLeft: request.line, mainDisplayHeight: mainHeight), inside: windowRect)
         let screen = NSScreen.screens.first(where: { $0.frame.intersects(ring) }) ?? main
         let ringRect = ScreenMapping.pixelAligned(ring, scale: screen.backingScaleFactor)
-        // Our own card must not sit on the line: move it aside first. Then check, fail-closed, that the
-        // window is the one we read, unmoved, and that nothing else covers the line.
-        avoid(ringRect.insetBy(dx: -12, dy: -12))
+        // Our own card must not sit on the line: move it aside first, or skip the ring if it cannot move far
+        // enough. Then check, fail-closed, that the window is the one we read, unmoved, and uncovered.
+        let clear = ringRect.insetBy(dx: -12, dy: -12)
+        guard avoid(clear) else {
+            captureLog.notice("no ring: our card would cover the line")
+            return
+        }
         ringGlobal = ScreenMapping.appKitRect(fromGlobalTopLeft: ringRect, mainDisplayHeight: mainHeight) // the same flip both ways
         let verdict = gate(request, ignoring: [])
         guard verdict == .clear else {
             captureLog.notice("no ring: \(String(describing: verdict), privacy: .public)")
+            onDismiss()
             return
         }
         // The label goes beside the end of the line when there is room on that display (it covers the
@@ -143,6 +162,7 @@ final class PointingController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { [weak panel] in panel?.alphaValue = 1 }
         self.panel = panel
         self.request = request
+        keepClear = clear
         shownAt = Date()
         spokenUntil = nil
         model.pointing = true
@@ -151,6 +171,17 @@ final class PointingController {
         watchDismissInput()
         watch = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.tick() } }
         if speak { say(request.sentence) }
+    }
+
+    /// Our floating card changed size or place while the ring shows: keep it off the line, or remove the ring.
+    func companionMoved() {
+        guard isShowing, !adjusting, let keepClear else { return }
+        adjusting = true
+        defer { adjusting = false }
+        if !avoid(keepClear) {
+            captureLog.notice("ring removed: our card would cover the line")
+            dismiss()
+        }
     }
 
     private func say(_ sentence: String) {
@@ -209,10 +240,13 @@ final class PointingController {
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor); self.keyMonitor = nil }
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor); self.clickMonitor = nil }
         if model.talking { speaker.stop(); model.talking = false }
+        let hadRing = panel != nil
         panel?.orderOut(nil)
         panel = nil
         request = nil
+        keepClear = nil
         if model.pointing { model.pointing = false }
+        if hadRing { onDismiss() }
     }
 
     /// Only while the ring is showing. Esc is passed on, so our own windows still see it.
