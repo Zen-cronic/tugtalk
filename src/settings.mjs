@@ -10,10 +10,14 @@ export const DEFAULT_SETTINGS = Object.freeze({ keep_recordings: false });
 export const KEEP_LABEL = 'Keep my recordings';
 const FIELDS = ['expected_version', 'keep_recordings', 'delete_kept_recordings'];
 
-// The stored record, or the default one (version 1, never saved).
+// The stored record, or null for an account that never changed the setting.
+export const savedSettings = (store, user) => store.list(user, SETTINGS_KIND).find(s => s.id === SETTINGS_ID) ?? null;
+// What an account that never changed the setting reads: version 1, never saved.
+export const defaultSettings = () => ({ id: SETTINGS_ID, version: 1, ...DEFAULT_SETTINGS, updated_at: null });
+
+// The stored record, or the default one.
 export function readSettings(store, user) {
-  const saved = store.list(user, SETTINGS_KIND).find(s => s.id === SETTINGS_ID);
-  return saved ?? { id: SETTINGS_ID, version: 1, ...DEFAULT_SETTINGS, updated_at: null };
+  return savedSettings(store, user) ?? defaultSettings();
 }
 
 export const keepRecordingsOn = (store, user) => readSettings(store, user).keep_recordings === true;

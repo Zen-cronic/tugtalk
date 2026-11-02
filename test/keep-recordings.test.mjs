@@ -243,3 +243,21 @@ test('re-measure: the code metrics are recomputed as a new version and the old o
     assert.equal(v.media.kept, true, 'the recording stays kept');
   });
 });
+
+test('keep recordings: the overview reads the setting and the kept counts from the same functions as GET /v1/settings', async () => {
+  await withServer(async ({ call, post, setKeep }) => {
+    const same = async () => {
+      const overview = (await call('GET', '/v1/overview')).data.settings, settings = (await call('GET', '/v1/settings')).data.settings;
+      assert.deepEqual(overview, { keep_recordings: settings.keep_recordings, version: settings.version, kept_recordings: settings.kept.recordings, kept_bytes: settings.kept.bytes });
+      return overview;
+    };
+    assert.deepEqual(await same(), { keep_recordings: false, version: 1, kept_recordings: 0, kept_bytes: 0 });
+    await setKeep(true);
+    const audio = wav(1.2);
+    const { data } = await post('/v1/recordings', audio, { key: 'kept-same-1' });
+    // A hidden session still holds its kept audio until it is deleted, so it still counts.
+    const hidden = await call('PATCH', `/v1/sessions/${data.record.id}`, { body: { expected_version: data.record.version, deleted: true, correction_reason: 'Hide it.' } });
+    assert.equal(hidden.status, 200);
+    assert.deepEqual(await same(), { keep_recordings: true, version: 2, kept_recordings: 1, kept_bytes: audio.length });
+  });
+});
