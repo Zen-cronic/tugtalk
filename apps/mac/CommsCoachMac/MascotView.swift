@@ -108,7 +108,9 @@ extension View {
     }
 }
 
-/// The plain-word status attached to Tug: an icon and one word, never colour alone.
+
+/// The plain-word status attached to Tug: an icon and one word, never colour alone. Each turn state has
+/// its own mark: a red record light while listening, soft dots while thinking, a small wave while speaking.
 struct StatusPill: View {
     let phase: MascotPhase
     var talking = false
@@ -116,51 +118,98 @@ struct StatusPill: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let pill = talking ? ("Speaking", nil) : phase.pill(now: context.date)
+            let listening: Bool = { if case .voiceListening = phase { return true } else { return false } }()
             HStack(spacing: 7) {
-                if case .voiceListening = phase { RecordDot() } else {
-                    Image(systemName: talking ? "speaker.wave.2.fill" : phase.symbol).font(.system(size: 12, weight: .bold))
-                }
-                Text(pill.0).font(TypeFace.body(14, weight: 650)).lineLimit(1)
+                mark
+                ShortcutLine(text: pill.0, font: TypeFace.body(14, weight: 650))
                 if let detail = pill.1 { Text(detail).font(TypeFace.mono(12)).foregroundStyle(Color(Tok.muted)) }
             }
             .foregroundStyle(Color(Tok.ink))
             .padding(.horizontal, 12).frame(height: 32)
-            .cartLabel(radius: 10, lip: 2.5)
+            .thinEdge(radius: 10, fill: Tok.surface, edge: listening ? Tok.record : Tok.edge)
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(Tok.record).opacity(listening ? 0.10 : 0)).allowsHitTesting(false))
             .fixedSize()
         }
         .accessibilityHidden(true)
     }
+
+    @ViewBuilder private var mark: some View {
+        switch phase {
+        case .voiceListening: RecordDot()
+        case .thinking, .voiceThinking: ThinkingDots()
+        case .voiceSpeaking(let card) where !card.finished: SpeakingWave()
+        default:
+            if talking { SpeakingWave() } else { Image(systemName: phase.symbol).font(.system(size: 12, weight: .bold)) }
+        }
+    }
 }
 
-/// The record dot: ink, lit while the microphone is open. A slow pulse; still with Reduce Motion.
+/// The record light: red, the one red outside fillers, lit while the microphone is open. A slow pulse of
+/// its ring; still with Reduce Motion.
 struct RecordDot: View {
-    var color: NSColor = Tok.ink
+    var color: NSColor = Tok.record
     @Environment(\.reduceMotionOn) private var reduceMotion
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             let pulse = reduceMotion ? 0.5 : 0.5 + 0.5 * sin(t * 2 * .pi / 1.2)
             ZStack {
-                Circle().stroke(Color(color).opacity(0.25 + 0.35 * pulse), lineWidth: 2).frame(width: 14, height: 14)
-                Circle().fill(Color(color)).frame(width: 8, height: 8)
+                Circle().stroke(Color(color).opacity(0.25 + 0.45 * pulse), lineWidth: 2).frame(width: 15, height: 15)
+                Circle().fill(Color(color)).frame(width: 9, height: 9)
             }
         }
-        .frame(width: 14, height: 14)
+        .frame(width: 15, height: 15)
+        .accessibilityLabel("Recording")
+    }
+}
+
+/// Three soft dots that brighten in turn: Tug is thinking. Still dots with Reduce Motion.
+struct ThinkingDots: View {
+    @Environment(\.reduceMotionOn) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            HStack(spacing: 3) {
+                ForEach(0..<3, id: \.self) { i in
+                    let wave = reduceMotion ? 0.6 : 0.5 + 0.5 * sin(t * 2 * .pi / 1.4 - Double(i) * 0.9)
+                    Circle().fill(Color(Tok.ink)).frame(width: 5, height: 5).opacity(0.25 + 0.6 * wave)
+                }
+            }
+        }
+        .frame(width: 21, height: 12)
+    }
+}
+
+/// A small wave of three bars while Tug speaks. Still bars with Reduce Motion.
+struct SpeakingWave: View {
+    var color: NSColor = Tok.ink
+    @Environment(\.reduceMotionOn) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 24, paused: reduceMotion)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            HStack(alignment: .center, spacing: 2.5) {
+                ForEach(0..<3, id: \.self) { i in
+                    let h = reduceMotion ? [7.0, 11.0, 7.0][i] : 5 + 7 * abs(sin(t * 7 + Double(i) * 1.3))
+                    Capsule().fill(Color(color)).frame(width: 3, height: h)
+                }
+            }
+        }
+        .frame(width: 15, height: 13)
     }
 }
 
 extension View {
-    /// A white label on a cart shell: a hairline edge and a darker lip along the bottom.
+    /// The cartridge shell, for cards only: a thin edge and a darker lip along the bottom.
     func cartLabel(radius: CGFloat = MascotLayout.radius, lip: CGFloat = 3, fill: NSColor = Tok.surface, edge: NSColor = Tok.cardEdge, lipColor: NSColor = Tok.inkFixed) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return background(shape.fill(Color(fill)))
             .clipShape(shape)
-            .overlay(shape.strokeBorder(Color(edge), lineWidth: 1.5))
+            .overlay(shape.strokeBorder(Color(edge), lineWidth: 1))
             .background(shape.fill(Color(lipColor)).offset(y: lip))
     }
 }
 
-/// Buttons are at least 32 pt tall. The primary one is ink with white text; the rest are outlined.
+/// Buttons are at least 32 pt tall. The primary one is ink with white text; the rest have a thin edge.
 struct CartButtonStyle: ButtonStyle {
     var primary = true
     /// Stretch to the row's width, for a grid of equal buttons.
@@ -168,23 +217,60 @@ struct CartButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
         configuration.label
             .font(TypeFace.body(14, weight: 650))
             .foregroundStyle(Color(primary ? Tok.onAction : Tok.ink))
-            .padding(.horizontal, 14).frame(maxWidth: fill ? .infinity : nil, minHeight: 34)
+            .padding(.horizontal, 14).frame(maxWidth: fill ? .infinity : nil, minHeight: 32)
             .background(shape.fill(Color(primary ? Tok.action : Tok.surface)))
-            .overlay(shape.strokeBorder(Color(Tok.action), lineWidth: primary ? 0 : 1.5))
-            .offset(y: configuration.isPressed ? 1 : 0)
-            .opacity(enabled ? 1 : 0.45)
+            .overlay(shape.strokeBorder(Color(Tok.edge), lineWidth: primary ? 0 : 1))
+            .opacity(configuration.isPressed ? 0.8 : (enabled ? 1 : 0.45))
             .contentShape(shape)
     }
 }
 
-/// A card: Tug in a coloured header (sunflower, or graphite when something stopped), then the body.
+/// A small text button for a quiet action ("Hide").
+struct TextButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(TypeFace.body(13, weight: 600)).foregroundStyle(Color(Tok.muted))
+            .padding(.horizontal, 6).frame(minHeight: 32).contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+/// Where a card came from, behind a small info button (shown on hover), not printed on the card.
+struct InfoButton: View {
+    let text: String
+    var body: some View {
+        Image(systemName: "info.circle").font(.system(size: 13, weight: .regular)).foregroundStyle(Color(Tok.muted))
+            .frame(width: 32, height: 32).contentShape(Rectangle())
+            .help(text)
+            .accessibilityLabel("About this card")
+            .accessibilityValue(text)
+    }
+}
+
+/// The card's header band: sunflower for news, graphite when something stopped, neutral for setup.
+enum CardTone {
+    case news, problem, setup
+
+    init(_ phase: MascotPhase) {
+        switch phase {
+        case .offline, .voiceError, .blocked: self = .problem
+        case .permission, .micPermission: self = .setup
+        default: self = .news
+        }
+    }
+
+    var band: NSColor { switch self { case .news: Tok.field; case .problem: Tok.problemBand; case .setup: Tok.setupBand } }
+    var text: NSColor { switch self { case .news: Tok.inkFixed; case .problem: Tok.onGraphite; case .setup: Tok.ink } }
+}
+
+/// A card: Tug in a coloured header, then the body.
 struct CardView: View {
     @ObservedObject var model: CompanionModel
     var onDrag: (DragGesture.Value?) -> Void
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -194,28 +280,30 @@ struct CardView: View {
         .cartLabel()
     }
 
-    private var problem: Bool { model.phase.isProblem }
+    private var tone: CardTone { CardTone(model.phase) }
 
     private var header: some View {
-        let onBand = problem ? Tok.onGraphite : Tok.inkFixed
+        let onBand = tone.text
         return HStack(alignment: .center, spacing: 10) {
             TugView(phase: model.phase, talking: model.talking, facesRight: true)
                 .frame(width: MascotLayout.headerTug, height: MascotLayout.headerTug)
                 .contentShape(Rectangle())
                 .onTapGesture { model.clicked() }
                 .tugAccessibility(model)
-                // On the graphite band the string turns cream, like the dark HUD.
-                .environment(\.colorScheme, problem ? .dark : .light)
-            VStack(alignment: .leading, spacing: 2) {
+                // On sunflower the string is ink; on graphite it is cream, like the dark HUD.
+                .environment(\.colorScheme, tone == .news ? .light : (tone == .problem ? .dark : scheme))
+            VStack(alignment: .leading, spacing: 3) {
                 Text(noWidow(model.phase.heading)).font(TypeFace.display(17, weight: 800)).lineLimit(2)
-                if let status = statusLine { Text(status).font(TypeFace.body(13, weight: 550)).opacity(0.85) }
+                if speaking {
+                    HStack(spacing: 6) { SpeakingWave(color: onBand); Text("Speaking").font(TypeFace.body(13, weight: 600)) }
+                }
             }
             .foregroundStyle(Color(onBand))
             Spacer(minLength: 4)
             if let round = roundLabel {
-                Text(round).font(TypeFace.mono(12, weight: 600)).foregroundStyle(Color(onBand))
+                Text(round).font(TypeFace.body(12, weight: 650)).foregroundStyle(Color(onBand))
                     .padding(.horizontal, 8).frame(height: 24)
-                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(onBand), lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(onBand).opacity(0.45), lineWidth: 1))
                     .accessibilityLabel(round)
             }
             Button { model.dismiss() } label: {
@@ -226,17 +314,17 @@ struct CardView: View {
         }
         .padding(.leading, 10).padding(.trailing, 8).padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(problem ? Tok.problemBand : Tok.field))
-        .overlay(alignment: .bottom) { Rectangle().fill(Color(Tok.cardEdge)).frame(height: 1.5) }
+        .background(Color(tone.band))
+        .overlay(alignment: .bottom) { Rectangle().fill(Color(Tok.cardEdge).opacity(0.5)).frame(height: 1) }
         .gesture(DragGesture(minimumDistance: 3, coordinateSpace: .global).onChanged { onDrag($0) }.onEnded { _ in onDrag(nil) })
     }
 
-    /// The live turn word under the heading, for voice replies.
-    private var statusLine: String? {
+    /// Tug's voice is playing (a spoken question, or the sentence about a circled line).
+    private var speaking: Bool {
         switch model.phase {
-        case .voiceSpeaking(let card): card.endsRound && card.finished ? nil : model.phase.pill().word
-        case .speaking: model.talking ? "Speaking" : nil
-        default: nil
+        case .voiceSpeaking(let card): !card.finished
+        case .speaking: model.talking
+        default: false
         }
     }
 
@@ -246,8 +334,8 @@ struct CardView: View {
     }
 }
 
-/// What a card says. One main line in Hanken Grotesk 15/22 semibold, an instruction as a ruled quote,
-/// a small source line, and at most two buttons.
+/// What a card says: one main line in Hanken Grotesk 15/22 semibold, an instruction as a ruled quote,
+/// and at most two actions. Where it came from sits behind the info button.
 struct CardBody: View {
     @ObservedObject var model: CompanionModel
 
@@ -262,28 +350,31 @@ struct CardBody: View {
                         icon: { Image(systemName: "circle.circle") }
                         .foregroundStyle(Color(Tok.ink))
                 }
-                SourceLine(card.isPreview ? "Sample card" : "\(card.appName) · \(card.modelLabel) · receipt \(card.receiptID.prefix(8))")
                 HStack(spacing: 8) {
-                    Button("Ask Muse") { model.onAskMuse() }.buttonStyle(CartButtonStyle())
-                    Button("Undo") { model.onUndo() }.buttonStyle(CartButtonStyle(primary: false))
+                    // Only actions that can work: a sample card has no record to open or undo.
+                    if !card.isPreview {
+                        Button("Ask Muse") { model.onAskMuse() }.buttonStyle(CartButtonStyle())
+                        Button("Undo") { model.onUndo() }.buttonStyle(CartButtonStyle(primary: false))
+                    }
+                    SampleTag(isPreview: card.isPreview, text: "Sample card")
                     Spacer()
+                    if !card.isPreview { InfoButton(text: "\(card.appName) · \(card.modelLabel) · receipt \(card.receiptID.prefix(8))") }
                 }
             }
         case .nudging(let nudge, _):
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 CoachText(nudge.detail)
-                SourceLine("Goal: \(nudge.goalTitle) · from the shared record")
+                Text("Goal: \(nudge.goalTitle)").font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted))
             }
         case .offline(let reason, let retryable):
             VStack(alignment: .leading, spacing: 12) {
                 CoachText(reason)
-                if retryable {
-                    Button("Retry") { model.onRetry() }.buttonStyle(CartButtonStyle())
-                }
+                if retryable { Button("Retry") { model.onRetry() }.buttonStyle(CartButtonStyle()) }
             }
         case .permission:
             VStack(alignment: .leading, spacing: 12) {
-                CoachText("\(MascotName) reads only the front window, only when you press ⌃⌥Space. The picture never leaves this Mac.")
+                CoachText("\(MascotName) reads only the front window, and only when you ask. The picture never leaves this Mac.")
+                ShortcutLine(text: "Read a window: ⌃⌥Space", font: TypeFace.body(13, weight: 550), ink: Tok.muted)
                 HStack(spacing: 8) {
                     Button("Continue") { model.onPermissionContinue() }.buttonStyle(CartButtonStyle())
                     Button("Open System Settings") { model.onOpenSettings() }.buttonStyle(CartButtonStyle(primary: false))
@@ -291,21 +382,22 @@ struct CardBody: View {
                 }
             }
         case .voiceSpeaking(let card):
-            VoiceCardView(card: card)
+            VoiceCardView(card: card, onLayout: { model.layoutNeeded() })
         case .voiceError(let message, let retryable):
             VStack(alignment: .leading, spacing: 12) {
                 CoachText(message)
                 HStack(spacing: 8) {
                     if retryable { Button("Retry") { model.onVoiceRetry() }.buttonStyle(CartButtonStyle()) }
-                    Text(retryable ? "The recording waits on this Mac." : "The recording was deleted.")
+                    Text(retryable ? "Your recording waits on this Mac." : "Your recording was deleted.")
                         .font(TypeFace.body(13, weight: 450)).foregroundStyle(Color(Tok.muted))
                     Spacer()
                 }
             }
         case .micPermission(let denied):
             VStack(alignment: .leading, spacing: 12) {
-                CoachText(denied ? "Turn it on in Privacy & Security › Microphone, then hold ⌃⌥T again."
-                                 : "\(MascotName) listens only while you hold ⌃⌥T. Each recording is deleted once it's sent.")
+                CoachText(denied ? "Turn it on in Privacy & Security › Microphone, then try again."
+                                 : "\(MascotName) listens only while you hold the talk keys, and deletes each recording once it's sent.")
+                ShortcutLine(text: "Talk: hold ⌃⌥T", font: TypeFace.body(13, weight: 550), ink: Tok.muted)
                 HStack(spacing: 8) {
                     if !denied { Button("Continue") { model.onMicContinue() }.buttonStyle(CartButtonStyle()) }
                     Button("Open System Settings") { model.onOpenMicSettings() }.buttonStyle(CartButtonStyle(primary: denied))
@@ -315,6 +407,17 @@ struct CardBody: View {
         default:
             EmptyView()
         }
+    }
+}
+
+/// "Sample card" / "Sample numbers": in DEBUG previews only, never in a normal or filming build.
+struct SampleTag: View {
+    let isPreview: Bool
+    let text: String
+    var body: some View {
+        #if DEBUG
+        if isPreview { Text(text).font(TypeFace.body(12, weight: 550)).foregroundStyle(Color(Tok.muted)) }
+        #endif
     }
 }
 
@@ -346,36 +449,64 @@ struct Instruction: View {
     }
 }
 
-struct SourceLine: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-    var body: some View {
-        Text(text).font(TypeFace.mono(11, weight: 450)).foregroundStyle(Color(Tok.muted)).fixedSize(horizontal: false, vertical: true)
-    }
-}
-
-/// A spoken-round card: the words of yours it pressed on, the question, what it heard, and the measured habits.
-/// On a wrap-up, the round's one big number instead.
+/// A spoken-round card, cut to what matters: the words of yours it pressed on, the question, one measured
+/// number, and what to do next. What you said is one click away; where it came from is behind the info button.
 struct VoiceCardView: View {
     let card: VoiceCard
+    var onLayout: () -> Void = {}
+    @State private var showTranscript = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let summary = card.summary { BigNumber(summary: summary) }
-            if let quote = card.quote { QuoteTag(quote: quote) }
-            CoachText(card.question, size: card.summary == nil ? 16 : 15)
-                .accessibilityLabel("Question: \(card.question)")
-            if !card.transcriptSnippet.isEmpty, card.summary == nil {
-                Transcript(text: card.transcriptSnippet, mark: card.quote)
+            if let summary = card.summary {
+                BigNumberTile(number: LatestRoundNumber.make(summary: summary, latest: nil)!)
             }
-            if card.summary == nil, let m = card.metrics { MetricRow(metrics: m) }
-            VStack(alignment: .leading, spacing: 3) {
-                if let line = [card.voiceNote, card.shortLatency].compactMap({ $0 }).joined(separator: " · ").nonEmpty {
-                    Text(noWidow(line)).font(TypeFace.body(12, weight: 500)).foregroundStyle(Color(Tok.muted)).fixedSize(horizontal: false, vertical: true)
+            if let quote = card.quote { QuoteTag(quote: quote) }
+            CoachText(card.question, size: 16).accessibilityLabel("Question: \(card.question)")
+            if card.summary == nil, let stat = LatestRoundNumber.make(summary: nil, latest: card.metrics) {
+                HabitChip(count: stat.value, habit: stat.habit, caption: "in this answer")
+            }
+            if !card.transcript.isEmpty, card.summary == nil {
+                DisclosureGroup(isExpanded: $showTranscript) {
+                    Transcript(text: card.transcriptSnippet, mark: card.quote).padding(.top, 4)
+                } label: {
+                    Text("What you said").font(TypeFace.body(13, weight: 600)).foregroundStyle(Color(Tok.muted))
                 }
-                SourceLine(card.sampleSource ?? "\(card.modelLabel) · receipt \(card.receiptID.prefix(8))\(card.replayed ? " · already saved" : "")")
+                .onChange(of: showTranscript) { _, _ in onLayout() }
+            }
+            HStack(spacing: 8) {
+                if card.finished && !card.endsRound { YourTurnBar() }
+                else if card.finished { ShortcutLine(text: "Hold ⌃⌥T to start again", font: TypeFace.body(13, weight: 600), ink: Tok.muted) }
+                SampleTag(isPreview: card.isPreview, text: card.summary == nil ? "Sample answer" : "Sample numbers")
+                Spacer(minLength: 0)
+                if !card.isPreview { InfoButton(text: provenance) }
             }
         }
+    }
+
+    private var provenance: String {
+        [card.voiceNote, card.shortLatency, "\(card.modelLabel) · receipt \(card.receiptID.prefix(8))\(card.replayed ? " · already saved" : "")"]
+            .compactMap { $0 }.joined(separator: "\n")
+    }
+}
+
+/// "Your turn": the cue that the question has been asked, with the keys to hold. Its edge pulses gently;
+/// still with Reduce Motion.
+struct YourTurnBar: View {
+    @Environment(\.reduceMotionOn) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
+            let pulse = reduceMotion ? 1 : 0.55 + 0.45 * sin(context.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.6)
+            HStack(spacing: 8) {
+                Text("Your turn").font(TypeFace.body(14, weight: 700)).foregroundStyle(Color(Tok.inkFixed))
+                ShortcutLine(text: "hold ⌃⌥T", font: TypeFace.body(13, weight: 600), ink: Tok.inkFixed)
+            }
+            .padding(.horizontal, 12).frame(minHeight: 34)
+            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(Tok.field)))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color(Tok.inkFixed).opacity(0.25 + 0.5 * pulse), lineWidth: 1.5))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Your turn. Hold Control Option T to answer.")
     }
 }
 
@@ -392,18 +523,18 @@ struct QuoteTag: View {
             Text("\u{201C}\(quote)\u{201D}").font(TypeFace.body(15, weight: 700)).foregroundStyle(Color(Tok.ink))
         }
         .padding(.horizontal, 10).frame(height: 30)
-        .cartLabel(radius: 9, lip: 2.5)
+        .thinEdge(radius: 9)
         .accessibilityElement(children: .combine)
     }
 }
 
-/// What it heard, in mono, with the pressed words marked in sunflower.
+/// What it heard, in the body face, with the pressed words marked in sunflower.
 struct Transcript: View {
     let text: String
     let mark: String?
     var body: some View {
-        Text(attributed).font(TypeFace.mono(12, weight: 450)).lineSpacing(3).foregroundStyle(Color(Tok.muted))
-            .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+        Text(attributed).font(TypeFace.body(13, weight: 450)).lineSpacing(3).foregroundStyle(Color(Tok.muted))
+            .fixedSize(horizontal: false, vertical: true)
             .accessibilityLabel("You said: \(text)")
     }
     private var attributed: AttributedString {
@@ -416,54 +547,80 @@ struct Transcript: View {
     }
 }
 
-/// One chip per measured habit, each in its own token, with plain singular and plural labels.
-struct MetricRow: View {
-    let metrics: VoiceMetrics
-    var body: some View {
-        HStack(spacing: 6) {
-            if let n = metrics.filler_count { chip(n, n == 1 ? "filler" : "fillers", fill: Tok.filler, lip: Tok.fillerEdge) }
-            if let n = metrics.hedge_count { chip(n, n == 1 ? "hedge" : "hedges", fill: Tok.hedge, lip: Tok.hedgeEdge) }
-            if let n = metrics.restart_count { chip(n, n == 1 ? "restart" : "restarts", fill: Tok.restart, lip: Tok.restartEdge) }
-            if let wpm = metrics.words_per_minute { chip(Int(wpm.rounded()), "wpm", fill: Tok.surface, lip: Tok.inkFixed, neutral: true) }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Measured by code")
-    }
+/// A measured habit as a chip in its own colour, always with its word ("2 fillers"), so the colour has a
+/// visible reason. Lighter fills on the dark HUD.
+struct HabitChip: View {
+    let count: Int
+    let habit: RoundSummary.Habit
+    var caption: String? = nil
+    @Environment(\.colorScheme) private var scheme
 
-    private func chip(_ n: Int, _ label: String, fill: NSColor, lip: NSColor, neutral: Bool = false) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text("\(n)").font(TypeFace.display(17, weight: 800))
-            Text(label).font(TypeFace.body(12, weight: 600))
-        }
-        .foregroundStyle(Color(neutral ? Tok.ink : Tok.inkFixed))
-        .padding(.horizontal, 9).frame(height: 30)
-        .cartLabel(radius: 8, lip: 3, fill: fill, edge: neutral ? Tok.cardEdge : lip, lipColor: lip)
-    }
-}
-
-/// The round summary: one big number, from code.
-struct BigNumber: View {
-    let summary: RoundSummary
-    var body: some View {
-        let (fill, lip): (NSColor, NSColor) = switch summary.habit {
+    static func colours(_ habit: RoundSummary.Habit) -> (fill: NSColor, edge: NSColor) {
+        switch habit {
         case .filler: (Tok.filler, Tok.fillerEdge)
         case .hedge: (Tok.hedge, Tok.hedgeEdge)
         case .restart: (Tok.restart, Tok.restartEdge)
         }
+    }
+
+    var body: some View {
+        let (fill, edge) = Self.colours(habit)
+        let dark = scheme == .dark
+        HStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(count)").font(TypeFace.display(17, weight: 800))
+                Text(count == 1 ? habit.rawValue : habit.rawValue + "s").font(TypeFace.body(13, weight: 650))
+            }
+            .foregroundStyle(Color(dark ? Tok.ink : Tok.inkFixed))
+            .padding(.horizontal, 9).frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(dark ? edge : fill).opacity(dark ? 0.3 : 1)))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(edge).opacity(dark ? 0.8 : 0.6), lineWidth: 1))
+            if let caption { Text(caption).font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted)) }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Measured by code: \(RoundSummary.count(count, habit))\(caption.map { " \($0)" } ?? "")")
+    }
+}
+
+/// The round's one big number. An improvement sits on sunflower, with the change in words; no alarm colour.
+/// Otherwise a neutral tile, with the habit's chip naming what it counts.
+struct BigNumberTile: View {
+    let number: LatestRoundNumber
+    var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            Text("\(summary.last)").font(TypeFace.display(58, weight: 850)).monospacedDigit()
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary.last == 1 ? summary.habit.rawValue : summary.habit.rawValue + "s").font(TypeFace.display(19, weight: 800))
-                Text(summary.dropped ? "down from \(summary.first) in your first answer" : "in your last answer (\(summary.first) in the first)")
-                    .font(TypeFace.body(13, weight: 550)).fixedSize(horizontal: false, vertical: true)
+            Text("\(number.value)").font(TypeFace.display(54, weight: 850)).monospacedDigit()
+            VStack(alignment: .leading, spacing: 4) {
+                // Good news reads as words on sunflower; otherwise the habit's own coloured tag.
+                if number.improved {
+                    Text(number.value == 1 ? number.habit.rawValue : number.habit.rawValue + "s").font(TypeFace.display(18, weight: 800))
+                } else {
+                    HabitChipWord(habit: number.habit, count: number.value)
+                }
+                Text(number.caption).font(TypeFace.body(13, weight: 550)).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
-        .foregroundStyle(Color(Tok.inkFixed))
+        .foregroundStyle(Color(number.improved ? Tok.inkFixed : Tok.ink))
         .padding(.horizontal, 16).padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cartLabel(radius: 12, lip: 4, fill: fill, edge: lip, lipColor: lip)
+        .thinEdge(radius: 12, fill: number.improved ? Tok.field : Tok.surface, edge: number.improved ? Tok.inkFixed.withAlphaComponent(0.25) : Tok.edge)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(RoundSummary.count(summary.last, summary.habit)) in your last answer, \(summary.first) in your first, over \(summary.answers) answers.")
+        .accessibilityLabel("\(RoundSummary.count(number.value, number.habit)) \(number.caption)")
+    }
+}
+
+/// The habit's word in its colour, as a small tag.
+struct HabitChipWord: View {
+    let habit: RoundSummary.Habit
+    let count: Int
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let (fill, edge) = HabitChip.colours(habit)
+        let dark = scheme == .dark
+        Text(count == 1 ? habit.rawValue : habit.rawValue + "s").font(TypeFace.display(16, weight: 800))
+            .foregroundStyle(Color(dark ? Tok.ink : Tok.inkFixed))
+            .padding(.horizontal, 8).frame(height: 24)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(dark ? edge : fill).opacity(dark ? 0.3 : 1)))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color(edge).opacity(0.6), lineWidth: 1))
     }
 }

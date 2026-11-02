@@ -131,7 +131,7 @@ struct TugCanvas: View {
             if !facesRight { ctx.translateBy(x: size.width, y: 0); ctx.scaleBy(x: -1, y: 1) }
             ctx.translateBy(x: (size.width - 64 * s) / 2 * (facesRight ? 1 : 1), y: (size.height - 64 * s) / 2)
             ctx.scaleBy(x: s, y: s)
-            TugDrawing.draw(in: ctx, pose: pose, t: t, string: Tok.tugString(scheme))
+            TugDrawing.draw(in: ctx, pose: pose, t: t, string: Tok.tugString(scheme), halo: scheme == .dark)
         }
         .accessibilityHidden(true)
     }
@@ -142,7 +142,8 @@ enum TugDrawing {
     /// The body's pivot: the middle of the base.
     static let pivot = CGPoint(x: 32, y: 56)
 
-    static func draw(in ctx: GraphicsContext, pose: TugPose, t: Double, string: Color) {
+    /// `halo` draws a light rim around the can, so its ink outline still reads on a dark ground.
+    static func draw(in ctx: GraphicsContext, pose: TugPose, t: Double, string: Color, halo: Bool = false) {
         let ink = Color(Tok.metalOutline)
         var body = ctx
         body.translateBy(x: 0, y: pose.bob)
@@ -167,6 +168,11 @@ enum TugDrawing {
             p.addQuadCurve(to: CGPoint(x: 32, y: 56), control: CGPoint(x: 14, y: 56))
             p.addQuadCurve(to: CGPoint(x: 50, y: 47), control: CGPoint(x: 50, y: 56))
             p.addLine(to: CGPoint(x: 50, y: 18)); p.closeSubpath()
+        }
+        if halo {
+            let light = Color(Tok.metalLight).opacity(0.55)
+            body.stroke(can, with: .color(light), style: StrokeStyle(lineWidth: outline + 3, lineJoin: .round))
+            body.stroke(Path(ellipseIn: CGRect(x: 14 + pose.turn * 1.4, y: 12.5, width: 36, height: 11)), with: .color(light), lineWidth: outline + 3)
         }
         body.fill(can, with: .color(Color(Tok.metal)))
         let bands = Path { p in

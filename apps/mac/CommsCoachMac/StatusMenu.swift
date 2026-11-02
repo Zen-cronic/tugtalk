@@ -73,14 +73,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(submenu("Voice Reply Language", VoiceLanguage.allCases.map { language in
             toggle(language.title, on: Settings.voiceLanguage == language) { Settings.voiceLanguage = language }
         }))
+        // Sample states are for Debug builds only, so no sample content reaches a normal or filming build.
+        #if DEBUG
         var previews = PreviewSamples.named.map { item in action(item.name.capitalized) { [weak self] in self?.onPreview(item.phase) } }
         previews.append(.separator())
         previews.append(action("Cycle All States") { [weak self] in self?.onPreview(nil) })
-        #if DEBUG
         previews.append(action("Pointing on the Fixture Window") { [weak self] in self?.onPreviewPointing() })
         previews.append(action("Tug Small Sizes") { [weak self] in self?.onGlyphSheet() })
-        #endif
         menu.addItem(submenu("Preview States", previews))
+        #endif
         menu.addItem(.separator())
         menu.addItem(action("Screen Recording Settings…") { PermissionGate.openSettings() })
         menu.addItem(action("Microphone Settings…") { MicPermission.openSettings() })

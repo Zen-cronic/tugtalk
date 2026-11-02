@@ -208,9 +208,10 @@ enum MascotPhase: Equatable {
 
     /// The plain-word status beside Tug, and an optional small detail (a timer, shown after 2 s).
     func pill(now: Date = Date()) -> (word: String, detail: String?) {
+        // One timer format everywhere, m:ss, shown once a wait passes 2 s.
         func elapsed(_ since: Date) -> String? {
             let s = now.timeIntervalSince(since)
-            return s >= 2 ? "\(Int(s)) s" : nil
+            return s >= 2 ? Self.clock(s) : nil
         }
         switch self {
         case .idle: return ("Hold ⌃⌥T and talk", nil)
@@ -247,7 +248,7 @@ enum MascotPhase: Equatable {
         }
     }
 
-    private static func clock(_ seconds: TimeInterval) -> String {
+    static func clock(_ seconds: TimeInterval) -> String {
         let s = max(0, Int(seconds))
         return "\(s / 60):\(String(format: "%02d", s % 60))"
     }
@@ -331,7 +332,7 @@ enum PreviewSamples {
         ("voice listening", .voiceListening(since: Date().addingTimeInterval(-4))), ("voice thinking", .voiceThinking(since: Date().addingTimeInterval(-2))),
         ("voice speaking", .voiceSpeaking(voiceCard())), ("voice follow-up", .voiceSpeaking(voiceCard(finished: true))),
         ("voice round summary", .voiceSpeaking(summaryCard)),
-        ("voice error", .voiceError("The coach couldn't reply (503).", retryable: true)), ("needs microphone", .micPermission(denied: false)),
+        ("voice error", .voiceError("The coach couldn't reply just now. Try again.", retryable: true)), ("needs microphone", .micPermission(denied: false)),
         ("microphone off", .micPermission(denied: true)),
     ]
 

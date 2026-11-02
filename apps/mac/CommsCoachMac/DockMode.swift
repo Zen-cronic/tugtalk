@@ -265,10 +265,14 @@ struct DockPanelView: View {
             .accessibilityLabel("\(MascotName), \(status.word)")
             VStack(alignment: .leading, spacing: 4) {
                 Text(noWidow(status.word)).font(TypeFace.display(22, weight: 800)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                if let hint = status.hint { Text(hint).font(TypeFace.body(14, weight: 600)).fixedSize(horizontal: false, vertical: true) }
+                if let hint = status.hint {
+                    if hint.contains("⌃⌥") { ShortcutLine(text: hint, font: TypeFace.body(14, weight: 600), ink: Tok.inkFixed) }
+                    else { Text(hint).font(TypeFace.body(14, weight: 600)).fixedSize(horizontal: false, vertical: true) }
+                }
             }
             .foregroundStyle(Color(Tok.inkFixed))
-            Spacer(minLength: 4)
+            .layoutPriority(1)
+            Spacer(minLength: 0)
             Button(action: onClose) {
                 Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).frame(width: 32, height: 32).contentShape(Rectangle())
             }
@@ -277,7 +281,7 @@ struct DockPanelView: View {
         }
         .padding(.leading, 14).padding(.trailing, 10).padding(.vertical, 12)
         .background(Color(Tok.field))
-        .overlay(alignment: .bottom) { Rectangle().fill(Color(Tok.cardEdge)).frame(height: 1.5) }
+        .overlay(alignment: .bottom) { Rectangle().fill(Color(Tok.cardEdge).opacity(0.5)).frame(height: 1) }
     }
 
     @ViewBuilder private var latestRound: some View {
@@ -286,16 +290,16 @@ struct DockPanelView: View {
                 HStack {
                     Text("Latest round").font(TypeFace.body(12, weight: 600)).foregroundStyle(Color(Tok.muted))
                     Spacer()
-                    if let round = card.round { Text("Round \(round)").font(TypeFace.mono(11, weight: 600)).foregroundStyle(Color(Tok.muted)) }
+                    if let round = card.round { Text("Round \(round)").font(TypeFace.body(12, weight: 600)).foregroundStyle(Color(Tok.muted)) }
                 }
                 if let quote = card.quote { QuoteTag(quote: quote) }
                 if let number = LatestRoundNumber.make(summary: card.summary, latest: card.metrics) {
-                    DockBigNumber(number: number)
+                    BigNumberTile(number: number)
                 }
-                SourceLine(card.sampleSource ?? "\(card.modelLabel) · receipt \(card.receiptID.prefix(8))")
+                SampleTag(isPreview: card.isPreview, text: card.summary == nil ? "Sample answer" : "Sample numbers")
             }
         } else {
-            Instruction(label: "No spoken round yet", text: "Hold ⌃⌥T, or hold Talk below, and answer out loud.")
+            Instruction(label: "No spoken round yet", text: "Hold Talk below, or the talk keys, and answer out loud.")
         }
     }
 
@@ -307,9 +311,13 @@ struct DockPanelView: View {
                     .accessibilityHint("Reads the window you were using, like Control-Option-Space.")
             }
             HStack(spacing: 8) {
-                Button("Ask Muse") { model.onAskMuse() }.buttonStyle(CartButtonStyle(primary: false, fill: true)).disabled(model.lastCard == nil)
-                Button(model.presenting ? "Show" : "Hide") { model.presenting.toggle(); if model.presenting { onClose() } }
-                    .buttonStyle(CartButtonStyle(primary: false, fill: true))
+                // Only when there is a card for Muse to open.
+                if model.lastCard != nil {
+                    Button("Ask Muse") { model.onAskMuse() }.buttonStyle(CartButtonStyle(primary: false))
+                }
+                Spacer()
+                Button(model.presenting ? "Show Tug" : "Hide Tug") { model.presenting.toggle(); if model.presenting { onClose() } }
+                    .buttonStyle(TextButtonStyle())
                     .accessibilityHint(model.presenting ? "Shows Tug again." : "Hides Tug, like Control-Option-H.")
             }
         }
@@ -318,12 +326,12 @@ struct DockPanelView: View {
     /// Hold to talk, like holding ⌃⌥T: pressing opens the microphone, letting go sends the answer.
     private var talkButton: some View {
         HStack(spacing: 7) {
-            if holding { RecordDot(color: Tok.onAction) } else { Image(systemName: "mic.fill").font(.system(size: 13, weight: .bold)) }
+            if holding { RecordDot() } else { Image(systemName: "mic.fill").font(.system(size: 13, weight: .bold)) }
             Text(holding ? "Listening" : "Talk").font(TypeFace.body(14, weight: 650))
         }
         .foregroundStyle(Color(Tok.onAction))
-        .padding(.horizontal, 16).frame(maxWidth: .infinity, minHeight: 34)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(Tok.action)))
+        .padding(.horizontal, 16).frame(maxWidth: .infinity, minHeight: 32)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(Tok.action)))
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 0)
             .onChanged { _ in if !holding { holding = true; onTalkDown() } }
@@ -335,34 +343,8 @@ struct DockPanelView: View {
     }
 }
 
-/// The latest round's one number on the docked panel, in its habit's colour.
-struct DockBigNumber: View {
-    let number: LatestRoundNumber
-    var body: some View {
-        let (fill, lip): (NSColor, NSColor) = switch number.habit {
-        case .filler: (Tok.filler, Tok.fillerEdge)
-        case .hedge: (Tok.hedge, Tok.hedgeEdge)
-        case .restart: (Tok.restart, Tok.restartEdge)
-        }
-        HStack(spacing: 14) {
-            Text("\(number.value)").font(TypeFace.display(50, weight: 850))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(number.value == 1 ? number.habit.rawValue : number.habit.rawValue + "s").font(TypeFace.display(18, weight: 800))
-                Text(number.caption).font(TypeFace.body(13, weight: 550))
-            }
-            Spacer(minLength: 0)
-        }
-        .foregroundStyle(Color(Tok.inkFixed))
-        .padding(.horizontal, 14).padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cartLabel(radius: 12, lip: 4, fill: fill, edge: lip, lipColor: lip)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(RoundSummary.count(number.value, number.habit)) \(number.caption)")
-    }
-}
-
-/// The Dock tile: the can-and-string mark on a sunflower tile, Tug in its current state, an ink count
-/// for new changes to the record, and a small live dot while the microphone is open.
+/// The Dock tile: Tug on a sunflower tile in its current state, an ink count for new changes to the
+/// record, and the red record light while the microphone is open (top right; the count moves left of it).
 struct DockTileView: View {
     let phase: MascotPhase
     let badge: String?
@@ -372,20 +354,21 @@ struct DockTileView: View {
         GeometryReader { geo in
             let s = min(geo.size.width, geo.size.height)
             ZStack {
-                DockIconArt(phase: phase).frame(width: s, height: s)
-                if let badge {
-                    Text(badge).font(TypeFace.body(s * 0.2, weight: 800)).foregroundStyle(Color(Tok.labelWhite))
-                        .padding(.horizontal, s * 0.07).frame(minWidth: s * 0.3, minHeight: s * 0.3)
-                        .background(Capsule().fill(Color(Tok.inkFixed)))
-                        .overlay(Capsule().strokeBorder(Color(Tok.labelWhite), lineWidth: s * 0.025))
-                        .position(x: s * 0.82, y: s * 0.17)
-                }
+                DockIconArt(phase: phase, size: s).frame(width: s, height: s)
                 if liveDot {
                     ZStack {
-                        Circle().fill(Color(Tok.labelWhite)).frame(width: s * 0.22, height: s * 0.22)
-                        Circle().fill(Color(Tok.inkFixed)).frame(width: s * 0.13, height: s * 0.13)
+                        Circle().fill(Color(Tok.labelWhite)).frame(width: s * 0.24, height: s * 0.24)
+                        Circle().fill(Color(Tok.record)).frame(width: s * 0.17, height: s * 0.17)
                     }
-                    .position(x: s * 0.18, y: s * 0.17)
+                    .position(x: s * 0.84, y: s * 0.16)
+                    .accessibilityLabel("Recording")
+                }
+                if let badge {
+                    Text(badge).font(TypeFace.body(s * 0.18, weight: 800)).foregroundStyle(Color(Tok.labelWhite))
+                        .padding(.horizontal, s * 0.06).frame(minWidth: s * 0.27, minHeight: s * 0.27)
+                        .background(Capsule().fill(Color(Tok.inkFixed)))
+                        .overlay(Capsule().strokeBorder(Color(Tok.labelWhite), lineWidth: s * 0.02))
+                        .position(x: liveDot ? s * 0.6 : s * 0.84, y: s * 0.16)
                 }
             }
         }
@@ -393,24 +376,26 @@ struct DockTileView: View {
     }
 }
 
-/// The icon art: a rounded sunflower tile with an ink edge, and Tug with its string running off the tile.
+/// The icon art: a sunflower tile on the standard icon grid (no outline, no offset shadow), with the can
+/// centred and its string kept inside the tile. At 32 pt and below it uses the small one-colour Tug.
 struct DockIconArt: View {
     let phase: MascotPhase
+    var size: CGFloat = 128
+
     var body: some View {
-        GeometryReader { geo in
-            let s = min(geo.size.width, geo.size.height)
-            let inset = s * 0.1
-            let shape = RoundedRectangle(cornerRadius: s * 0.2, style: .continuous)
-            ZStack {
-                shape.fill(Color(Tok.inkFixed)).frame(width: s - inset * 2, height: s - inset * 2).offset(y: s * 0.02)
-                shape.fill(Color(Tok.field)).frame(width: s - inset * 2, height: s - inset * 2)
-                    .overlay(shape.strokeBorder(Color(Tok.inkFixed), lineWidth: max(1, s * 0.018)))
+        let tile = size * 0.8125            // the macOS icon grid: an 832 tile on a 1024 canvas
+        let shape = RoundedRectangle(cornerRadius: tile * 0.225, style: .continuous)
+        ZStack {
+            shape.fill(Color(Tok.field)).frame(width: tile, height: tile)
+            if size <= 32 {
+                Image(nsImage: TugGlyph.image(size: tile * 0.72, color: Tok.inkFixed)).frame(width: tile * 0.72, height: tile * 0.72)
+            } else {
+                // The drawing's can is centred in its square, and its string ends inside it.
                 TugCanvas(pose: TugPose(phase: phase, t: 0.35, talking: false, animated: false), facesRight: true)
-                    .frame(width: s * 0.66, height: s * 0.66)
-                    .offset(x: s * 0.02, y: s * 0.01)
+                    .frame(width: tile * 0.82, height: tile * 0.82)
             }
-            .frame(width: s, height: s)
         }
+        .frame(width: size, height: size)
     }
 }
 
@@ -418,7 +403,7 @@ struct DockIconArt: View {
 @MainActor
 enum DockIcon {
     static func image(size: CGFloat) -> NSImage {
-        let renderer = ImageRenderer(content: DockIconArt(phase: .idle).frame(width: size, height: size).environment(\.colorScheme, .light))
+        let renderer = ImageRenderer(content: DockIconArt(phase: .idle, size: size).environment(\.colorScheme, .light))
         renderer.scale = 1
         return renderer.nsImage ?? NSImage(size: NSSize(width: size, height: size))
     }
@@ -448,7 +433,7 @@ enum DockSnapshots {
         }
         // The small sizes the Dock and Finder use.
         for size in [16.0, 32.0, 64.0] {
-            let renderer = ImageRenderer(content: DockIconArt(phase: .idle).frame(width: size, height: size))
+            let renderer = ImageRenderer(content: DockIconArt(phase: .idle, size: size))
             renderer.scale = 2
             if let tiff = renderer.nsImage?.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff), let png = rep.representation(using: .png, properties: [:]) {
                 try? png.write(to: dir.appending(path: "dock-icon-\(Int(size))pt.png"))

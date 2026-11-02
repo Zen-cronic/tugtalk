@@ -210,11 +210,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if defaults.bool(forKey: "dockPanel") { Task { try? await Task.sleep(for: .seconds(1.2)); dock.openPanel() } }
         if let dir = defaults.string(forKey: "dockTileSnapshots") { DockSnapshots.write(to: URL(fileURLWithPath: dir)) }
         #endif
+        #if DEBUG
         if let name = defaults.string(forKey: "previewState"), let phase = PreviewSamples.named.first(where: { $0.name == name })?.phase {
             preview(phase)
         } else if defaults.double(forKey: "previewCycle") > 0 {
             let interval = defaults.double(forKey: "previewCycle")
             Task { try? await Task.sleep(for: .seconds(1)); preview(nil, interval: interval) }
         }
+        #endif
     }
 }

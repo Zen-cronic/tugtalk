@@ -66,7 +66,8 @@ final class PointingController {
         dismiss()
         guard let main = NSScreen.screens.first else { return }
         let mainHeight = main.frame.height
-        let ring = ScreenMapping.ringRect(around: ScreenMapping.appKitRect(fromGlobalTopLeft: request.line, mainDisplayHeight: mainHeight))
+        let windowRect = request.windowBounds.map { ScreenMapping.appKitRect(fromGlobalTopLeft: $0, mainDisplayHeight: mainHeight) }
+        let ring = ScreenMapping.ringRect(around: ScreenMapping.appKitRect(fromGlobalTopLeft: request.line, mainDisplayHeight: mainHeight), inside: windowRect)
         let screen = NSScreen.screens.first(where: { $0.frame.intersects(ring) }) ?? main
         let ringRect = ScreenMapping.pixelAligned(ring, scale: screen.backingScaleFactor)
         // Our own card must not sit on the line: move it aside first. Then check, fail-closed, that the
@@ -94,17 +95,17 @@ final class PointingController {
             placement = .below
             label = CGRect(x: max(room.minX + 8, ringRect.minX + 6), y: ringRect.minY - 22 - labelSize.height, width: labelSize.width, height: labelSize.height)
         }
-        // Tug sits on the window's title bar and lowers the label on its string: decoration in this
-        // overlay only. The real window is never moved.
+        // A brief entrance: Tug and the label come down from the window's title bar together, then Tug
+        // settles into the label. Decoration in this overlay only; the real window is never moved.
         var perch: CGRect?
         if let bounds = request.windowBounds {
             let titleBar = ScreenMapping.appKitRect(fromGlobalTopLeft: CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: Self.titleBarHeight),
                                                     mainDisplayHeight: mainHeight)
-            let side = PointingView.perchSide
-            let spot = CGRect(x: label.midX - side / 2, y: titleBar.minY, width: side, height: side)
-            // Clear of the window buttons, on the title bar, on screen, and above the label.
-            let onBar = spot.minX > titleBar.minX + 80 && spot.maxX < titleBar.maxX - 8
-            if onBar, screen.visibleFrame.contains(spot), spot.minY > label.maxY + 8 { perch = spot }
+            // Where the label starts: its top a short string's length below the title bar.
+            let start = CGRect(x: label.minX, y: titleBar.minY - PointingView.stringLength - label.height, width: label.width,
+                               height: label.height + PointingView.stringLength + PointingView.tugSide)
+            let onBar = label.minX > titleBar.minX + 70 && label.minX + 40 < titleBar.maxX
+            if onBar, screen.visibleFrame.contains(start), start.minY > label.maxY + 4 { perch = start }
         }
         var frame = ringRect.union(label)
         if let perch { frame = frame.union(perch) }
@@ -120,10 +121,14 @@ final class PointingController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
         panel.isExcludedFromWindowsMenu = true
         panel.setAccessibilityElement(false)
-        let view = NSHostingView(rootView: PointingView(ring: local(ringRect), labelRect: local(label), perch: perch.map(local), label: request.label, placement: placement))
+        let view = NSHostingView(rootView: PointingView(ring: local(ringRect), labelRect: local(label), startTop: perch.map { local($0).minY + PointingView.tugSide + PointingView.stringLength },
+                                                  label: request.label, placement: placement))
         view.frame = NSRect(origin: .zero, size: frame.size)
         panel.contentView = view
+        // Shown after its first layout, so no half-drawn frame ever appears.
+        panel.alphaValue = 0
         panel.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { [weak panel] in panel?.alphaValue = 1 }
         self.panel = panel
         self.request = request
         shownAt = Date()
@@ -235,57 +240,67 @@ final class PointingController {
     }
 }
 
-/// The ring and its label. Tug sits on the window's title bar and lowers the label on its string; then the
-/// ring pops in around the line (drawn on, its stroke settling), and the label's string ties it to the ring.
-/// No scale anywhere: the drop overshoots on position only. With Reduce Motion everything is a still that
-/// crossfades in.
+/// The ring and its label. A brief entrance: Tug and the label come down from the window's title bar on a
+/// short string, Tug settles into the label, then the ring draws on around the line and fades out later.
+/// Nothing stays on the title bar. No scale anywhere: the drop overshoots on position only. With Reduce
+/// Motion everything appears at once.
 struct PointingView: View {
     enum Placement { case right, above, below }
     let ring: CGRect
     let labelRect: CGRect
-    /// Where Tug sits on the title bar, in this view's coordinates, or nil when there is no room.
-    let perch: CGRect?
+    /// The label's top at the start of the entrance (just under the title bar), or nil for no entrance.
+    let startTop: CGFloat?
     let label: String
     let placement: Placement
     @Environment(\.reduceMotionOn) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
     @State private var drawn: CGFloat = 0
-    @State private var ringWeight: CGFloat = 6
+    @State private var ringWeight: CGFloat = 5
     @State private var ringShown = false
     @State private var dropped = false
+    @State private var settled = false
 
-    static let perchSide: CGFloat = 30
+    /// Tug's size while it lowers the label, and the string between them: short, thin, mid-contrast.
+    static let tugSide: CGFloat = 26
+    static let stringLength: CGFloat = 34
+    static let stringWidth: CGFloat = 1.25
     /// For measuring only: the system bold face is a little wider than Hanken Grotesk 700, so the label always fits.
     static let labelFont = NSFont.systemFont(ofSize: 14, weight: .bold)
 
-    /// The label's size: the small Tug, the words, the padding and the lip.
+    /// The label's size: the small Tug, the words and the padding.
     static func labelSize(for text: String) -> CGSize {
         let width = (text as NSString).size(withAttributes: [.font: labelFont]).width
-        return CGSize(width: ceil(6 + 22 + 7 + width * 1.04 + 12), height: 35)
+        return CGSize(width: ceil(6 + 22 + 7 + width * 1.04 + 12), height: 32)
     }
 
-    /// Where the label starts: just under Tug on the title bar.
-    private var labelStartY: CGFloat { perch.map { $0.maxY + 2 } ?? labelRect.minY - Motion.slotRise }
-    private var labelY: CGFloat { dropped || reduceMotion ? labelRect.minY : labelStartY }
+    private var dark: Bool { scheme == .dark }
+    private var entrance: Bool { startTop != nil && !reduceMotion }
+    private var labelY: CGFloat { entrance && !dropped ? startTop! : labelRect.minY }
+    /// The string above the label: full length while lowering, none once Tug has settled in.
+    private var hang: CGFloat { entrance && !settled ? Self.stringLength : 0 }
+    private var glyph: CGPoint { CGPoint(x: labelRect.minX + 6 + 11, y: labelY + 16) }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.clear
-            if let perch {
-                HangingString(top: CGPoint(x: perch.midX, y: perch.maxY - 3), bottomY: labelY + 1)
-                    .stroke(Color(Tok.inkFixed), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-                TugCanvas(pose: Self.perchPose, facesRight: true)
-                    .frame(width: perch.width, height: perch.height)
-                    .offset(x: perch.minX, y: perch.minY)
+            if entrance {
+                HangingString(x: glyph.x, topY: labelY - hang, bottomY: labelY)
+                    .stroke(Color(Tok.stringSoft), style: StrokeStyle(lineWidth: Self.stringWidth, lineCap: .round))
+                TugCanvas(pose: Self.lowering, facesRight: true)
+                    .frame(width: Self.tugSide, height: Self.tugSide)
+                    .offset(x: glyph.x - Self.tugSide / 2, y: settled ? glyph.y - Self.tugSide / 2 : labelY - hang - Self.tugSide + 3)
+                    .opacity(settled ? 0 : 1)
             }
-            let shape = RoundedRectangle(cornerRadius: min(ring.height / 2, 16), style: .continuous)
+            let shape = RoundedRectangle(cornerRadius: min(ring.height / 2, 14), style: .continuous)
             Group {
-                shape.trim(from: 0, to: drawn).stroke(Color(Tok.inkFixed), style: StrokeStyle(lineWidth: ringWeight, lineCap: .round))
-                shape.trim(from: 0, to: drawn).stroke(Color(Tok.field), style: StrokeStyle(lineWidth: ringWeight * 0.53, lineCap: .round))
+                shape.trim(from: 0, to: drawn).stroke(Color(dark ? Tok.onGraphite : Tok.inkFixed), style: StrokeStyle(lineWidth: ringWeight, lineCap: .round))
+                shape.trim(from: 0, to: drawn).stroke(Color(Tok.field), style: StrokeStyle(lineWidth: ringWeight * 0.5, lineCap: .round))
             }
             .frame(width: ring.width, height: ring.height).offset(x: ring.minX, y: ring.minY)
             .opacity(ringShown ? 1 : 0)
             leader.opacity(ringShown ? 1 : 0)
-            labelView.offset(x: labelRect.minX, y: labelY).opacity(dropped || perch != nil ? 1 : 0)
+            labelView.offset(x: labelRect.minX, y: labelY + (entrance || ringShown ? 0 : Motion.slotRise))
+                .opacity(entrance || ringShown ? 1 : 0)
         }
         .onAppear(perform: animateIn)
         .accessibilityHidden(true)
@@ -293,20 +308,24 @@ struct PointingView: View {
 
     private func animateIn() {
         if reduceMotion {
-            withAnimation(Motion.crossfade) { dropped = true; ringShown = true; drawn = 1; ringWeight = 6 }
+            withAnimation(Motion.crossfade) { dropped = true; settled = true; ringShown = true; drawn = 1 }
             return
         }
-        // The drop: about 0.45 s, overshooting on position only.
-        withAnimation(.spring(duration: 0.45, bounce: 0.3)) { dropped = true }
-        // The ring: in at once, drawn on over 0.3 s, its stroke settling from heavy to normal.
-        withAnimation(.easeOut(duration: 0.06).delay(0.32)) { ringShown = true }
-        withAnimation(.easeOut(duration: 0.3).delay(0.32)) { drawn = 1 }
-        ringWeight = 9
-        withAnimation(.spring(duration: 0.35, bounce: 0.2).delay(0.4)) { ringWeight = 6 }
+        let ringAt = entrance ? 0.62 : 0.12
+        if entrance {
+            // Down from the title bar together (0.45 s, overshoot on position only), then Tug settles in.
+            withAnimation(.spring(duration: 0.45, bounce: 0.25)) { dropped = true }
+            withAnimation(.easeIn(duration: 0.2).delay(0.42)) { settled = true }
+        }
+        // The ring pops in: shown at once, drawn on over 0.3 s, its stroke settling from heavy to normal.
+        withAnimation(.easeOut(duration: 0.06).delay(ringAt)) { ringShown = true }
+        withAnimation(.easeOut(duration: 0.3).delay(ringAt)) { drawn = 1 }
+        ringWeight = 8
+        withAnimation(.spring(duration: 0.35, bounce: 0.2).delay(ringAt + 0.08)) { ringWeight = 5 }
     }
 
-    /// Tug leaning back as it lowers the label, looking down at the line.
-    static let perchPose: TugPose = {
+    /// Tug lowering the label: leaning back, looking down at the line.
+    static let lowering: TugPose = {
         var p = TugPose(phase: .idle, t: 0, talking: false, animated: false)
         p.string = .none; p.lookY = 2.2; p.lean = -4; p.browNear = 0.8; p.browFar = 0.8; p.smile = 0.55
         return p
@@ -314,47 +333,48 @@ struct PointingView: View {
 
     private var labelView: some View {
         HStack(spacing: 7) {
-            // At this size Tug is the small one-colour drawing.
-            Image(nsImage: TugGlyph.image(size: 22, color: Tok.inkFixed)).frame(width: 22, height: 22)
-            Text(label).font(TypeFace.body(14, weight: 700)).foregroundStyle(Color(Tok.inkFixed)).lineLimit(1)
+            // At this size Tug is the small one-colour drawing; it appears as Tug settles in.
+            Image(nsImage: TugGlyph.image(size: 22, color: dark ? Tok.onGraphite : Tok.inkFixed)).frame(width: 22, height: 22)
+                .opacity(!entrance || settled ? 1 : 0)
+            Text(label).font(TypeFace.body(14, weight: 700)).foregroundStyle(Color(dark ? Tok.onGraphite : Tok.inkFixed)).lineLimit(1)
         }
         .padding(.leading, 6).padding(.trailing, 12).frame(height: 32)
-        .cartLabel(radius: 10, lip: 3, fill: Tok.labelWhite, edge: Tok.inkFixed, lipColor: Tok.inkFixed)
-        .environment(\.colorScheme, .light)
+        .thinEdge(radius: 10, fill: dark ? Tok.graphite : Tok.labelWhite, edge: dark ? Tok.mutedOnGraphite : Tok.inkFixed.withAlphaComponent(0.45))
         .fixedSize()
     }
 
-    /// A short length of Tug's string from the label to the ring.
+    /// A short, thin length of Tug's string from the label to the ring.
     private var leader: some View {
         Path { p in
             switch placement {
             case .right:
-                let a = CGPoint(x: labelRect.minX + 1, y: labelRect.minY + 16), b = CGPoint(x: ring.maxX + 2, y: ring.midY)
+                let a = CGPoint(x: labelRect.minX + 1, y: labelRect.midY), b = CGPoint(x: ring.maxX + 1, y: ring.midY)
                 p.move(to: a)
-                p.addQuadCurve(to: b, control: CGPoint(x: (a.x + b.x) / 2, y: max(a.y, b.y) + 9))
+                p.addQuadCurve(to: b, control: CGPoint(x: (a.x + b.x) / 2, y: max(a.y, b.y) + 6))
             case .above, .below:
-                let a = CGPoint(x: labelRect.minX + 22, y: placement == .above ? labelRect.maxY - 1 : labelRect.minY + 1)
-                let b = CGPoint(x: a.x + 14, y: placement == .above ? ring.minY - 1 : ring.maxY + 1)
+                let a = CGPoint(x: labelRect.minX + 22, y: placement == .above ? labelRect.maxY : labelRect.minY)
+                let b = CGPoint(x: a.x + 10, y: placement == .above ? ring.minY - 1 : ring.maxY + 1)
                 p.move(to: a)
-                p.addQuadCurve(to: b, control: CGPoint(x: a.x - 6, y: (a.y + b.y) / 2 + 4))
+                p.addQuadCurve(to: b, control: CGPoint(x: a.x - 4, y: (a.y + b.y) / 2 + 3))
             }
         }
-        .stroke(Color(Tok.inkFixed), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+        .stroke(Color(Tok.stringSoft), style: StrokeStyle(lineWidth: Self.stringWidth, lineCap: .round))
     }
 }
 
-/// Tug's string hanging straight down to the label; its length animates with the drop.
+/// Tug's string hanging straight down to the label; both ends animate with the entrance.
 struct HangingString: Shape {
-    var top: CGPoint
+    var x: CGFloat
+    var topY: CGFloat
     var bottomY: CGFloat
-    var animatableData: CGFloat {
-        get { bottomY }
-        set { bottomY = newValue }
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(topY, bottomY) }
+        set { topY = newValue.first; bottomY = newValue.second }
     }
     func path(in rect: CGRect) -> Path {
         Path { p in
-            p.move(to: top)
-            p.addLine(to: CGPoint(x: top.x, y: max(top.y, bottomY)))
+            p.move(to: CGPoint(x: x, y: topY))
+            p.addLine(to: CGPoint(x: x, y: max(topY, bottomY)))
         }
     }
 }

@@ -279,7 +279,8 @@ final class VoiceFlow {
         case .server(400, _, let message): "The coach couldn't use that recording: \(message)"
         case .server(409, _, let message): message
         case .server(503, "reply_unconfigured", _): "Voice replies are not set up on this coach yet."
-        case .server(let status, _, _) where status >= 500: "The coach couldn't reply (\(status))."
+        case .server(let status, _, _) where status >= 500: "The coach couldn't reply just now. Try again."
+        case .server(_, _, let message): message
         default: error.localizedDescription
         }
     }

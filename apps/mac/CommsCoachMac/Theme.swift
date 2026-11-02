@@ -37,6 +37,14 @@ enum Tok {
     static let onAction = pair(0xFFFFFF, 0x171411)
     /// Focus rings only.
     static let focus = hex(0x1E5FD8)
+    /// The record light: the one red outside fillers, only on the live recording dot or ring.
+    static let record = hex(0xE5412F)
+    /// Setup and permission headers: neither sunflower (good news) nor graphite (a problem).
+    static let setupBand = pair(0xE8DDC6, 0x4A4238)
+    /// A thin edge for pills, chips and keycaps.
+    static let edge = pair(0xBDB2A2, 0x4A4238)
+    /// Tug's string where it is drawn over someone's window: mid-contrast, so it never shouts.
+    static let stringSoft = pair(0x4A4238, 0xBDB2A2)
 
     // One token per metric. Fillers are the only red on the companion.
     static let filler = pair(0xFF9F8F, 0xFF7A66)
@@ -151,4 +159,68 @@ extension Motion {
 extension EnvironmentValues {
     /// The system's Reduce Motion, or the DEBUG override.
     var reduceMotionOn: Bool { accessibilityReduceMotion || Motion.forced }
+}
+
+/// The keys of a shortcut as small keycaps: "⌃⌥T" reads as three keys, not typed symbols.
+struct KeyCaps: View {
+    let keys: [String]
+    var size: CGFloat = 12
+    var ink: NSColor = Tok.ink
+    init(_ shortcut: String, size: CGFloat = 12, ink: NSColor = Tok.ink) {
+        keys = shortcut.hasSuffix("Space") ? Array(shortcut.dropLast(5)).map(String.init) + ["Space"] : Array(shortcut).map(String.init)
+        self.size = size; self.ink = ink
+    }
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
+                Text(key).font(TypeFace.body(size, weight: 650)).foregroundStyle(Color(ink))
+                    .padding(.horizontal, key.count > 1 ? 5 : 0).frame(minWidth: size + 6, minHeight: size + 7)
+                    .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Color(ink).opacity(0.08)))
+                    .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(Color(ink).opacity(0.35), lineWidth: 1))
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(keys.map { ["⌃": "Control", "⌥": "Option", "⌘": "Command"][$0] ?? $0 }.joined(separator: " "))
+    }
+}
+
+/// One line of text where "⌃⌥T" or "⌃⌥Space" shows as keycaps.
+struct ShortcutLine: View {
+    let text: String
+    var font: Font = TypeFace.body(14, weight: 650)
+    var ink: NSColor = Tok.ink
+    var body: some View {
+        let parts = Self.split(text)
+        HStack(spacing: 5) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
+                if part.isShortcut { KeyCaps(part.text, ink: ink) } else if !part.text.isEmpty {
+                    Text(part.text).font(font).foregroundStyle(Color(ink)).lineLimit(1).fixedSize()
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text.replacingOccurrences(of: "⌃⌥", with: "Control Option "))
+    }
+
+    static func split(_ text: String) -> [(text: String, isShortcut: Bool)] {
+        var out: [(String, Bool)] = []
+        var rest = Substring(text)
+        while let range = rest.range(of: "⌃⌥") {
+            out.append((String(rest[..<range.lowerBound]).trimmingCharacters(in: .whitespaces), false))
+            var end = range.upperBound
+            if rest[end...].hasPrefix("Space") { end = rest.index(end, offsetBy: 5) } else if end < rest.endIndex { end = rest.index(after: end) }
+            out.append((String(rest[range.lowerBound..<end]), true))
+            rest = rest[end...]
+        }
+        out.append((String(rest).trimmingCharacters(in: .whitespaces), false))
+        return out
+    }
+}
+
+extension View {
+    /// A thin edge for pills, chips and tags. The cartridge shell (`cartLabel`) is for cards only.
+    func thinEdge(radius: CGFloat = 9, fill: NSColor = Tok.surface, edge: NSColor = Tok.edge) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return background(shape.fill(Color(fill))).overlay(shape.strokeBorder(Color(edge), lineWidth: 1))
+    }
 }
