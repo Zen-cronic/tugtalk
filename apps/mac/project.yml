@@ -37,7 +37,7 @@ targets:
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: ""
         NSMicrophoneUsageDescription: "Comms Coach listens only while you hold Control-Option-T. That one recording is sent for a voice reply, then deleted from this Mac."
-        NSCameraUsageDescription: "Only if you turn on Use the Camera During Practice: while you hold Control-Option-T, Comms Coach checks on this Mac which way your head points. No picture is saved or sent."
+        NSCameraUsageDescription: "Only if you turn on Use the Camera During Practice: while you hold Control-Option-T, Comms Coach checks on this Mac which way your head points. No picture is saved or sent, unless you turn on the hands check for a round: then a short silent clip of that round goes to Meta's SAM 3.1 and only the seconds are kept."
         NSCameraUseContinuityCameraDeviceType: true
     settings:
       base:

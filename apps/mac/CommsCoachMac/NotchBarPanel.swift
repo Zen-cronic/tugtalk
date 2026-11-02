@@ -703,6 +703,7 @@ struct ReplyCard: View {
             if card.summary == nil { EvidenceRow(card: card, onLayout: onLayout) }
             if let camera = card.camera { CameraChip(metrics: camera) }
             RecordingNote(note: card.recordingNote)
+            ReplayRow(card: card, showsCamera: false) // the hands check (ReplayStrip.swift)
         }
     }
 }

@@ -115,6 +115,7 @@ final class CameraSession: ObservableObject {
             return
         }
         let reader = FrameReader(onLive: liveHandler())
+        reader.clipSink = ReplayCheck.shared.sink(forHold: key) // the hands check, only when it is on for this round
         begin(key, reader: reader)
         reader.open(device)
         cameraLog.notice("camera opened (\(device.deviceType == .continuityCamera ? "Continuity Camera" : "built-in or external", privacy: .public))")
@@ -231,6 +232,14 @@ final class FrameReader: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate,
     }
     private var _startedAt: CFTimeInterval = 0
 
+    /// The round's hands-check clip (ReplayCheck), set only when the person turned the check on for this round:
+    /// each frame read is also scaled into that clip before it is dropped. Without it, only head angles are held.
+    var clipSink: ReplayClipWriter? {
+        get { lock.withLock { _clipSink } }
+        set { lock.withLock { _clipSink = newValue } }
+    }
+    private var _clipSink: ReplayClipWriter?
+
     init(onLive: @escaping @Sendable (Bool) -> Void) { self.onLive = onLive }
 
     /// Starts the camera on the reader's queue (starting takes a moment, and must not hold up the key press).
@@ -298,6 +307,7 @@ final class FrameReader: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate,
         let angles = HeadPoseReader.angles(in: pixels)
         let took = CACurrentMediaTime() - now
         lock.withLock { visionSeconds += took }
+        clipSink?.append(pixels)
         feed(HeadPoseSample(t: now - startedAt, yaw: angles.yaw, pitch: angles.pitch))
     }
 }
