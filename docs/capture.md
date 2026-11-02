@@ -1,4 +1,4 @@
-# Capture pipeline (contract 0.7.0)
+# Capture pipeline (contract 0.7.1)
 
 `POST /v1/recordings` turns one short recording from any device into measured session evidence that every other surface (Muse chats, scheduled Muse tasks, the app reader) reads through the same fresh overview. Context is never stored only on the capturing device.
 

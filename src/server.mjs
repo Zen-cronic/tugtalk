@@ -135,9 +135,9 @@ export async function handleRecording(store,models,user,req,key,requestId,phases
 // and long lines are split only at sentence ends. test/connector-doc.test.mjs pins its exact bytes.
 export function connectorDocument(baseUrl) {
   return [
-    `# Synthetic Coaching Connector`,
+    `# Comms Coach`,
     ``,
-    `Private test service. `
+    `Prototype service for spoken-answer practice records that Muse reads. `
       + `Seeded fixtures are synthetic; captured sessions hold transcripts of audio a capture device uploaded. `
       + `Audio is deleted after transcription unless the person turned on Keep my recordings (off by default).`,
     `OpenAPI: ${baseUrl}/openapi.json`,
@@ -153,7 +153,7 @@ export function connectorDocument(baseUrl) {
     `All writes need a fresh Idempotency-Key header (8–128 characters); reuse only to retry the exact request. `
       + `Patches need expected_version from a fresh read. `
       + `A 409 means re-read and explain the conflict; do not blindly overwrite.`,
-    `Contract version 0.7.0: `
+    `Contract version 0.7.1: `
       + `At the start of EVERY goal-related turn fetch GET /v1/overview, even in an existing chat. `
       + `For a goal-specific chat bind to the explicitly selected goal ID and then GET /v1/goals/{id}/context. `
       + `Never infer a goal ID from the most recently used chat. `
@@ -340,6 +340,6 @@ if (process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1]))
   const store=new Store(dbPath); const port=Number(process.env.PORT??4318);
   const server=createApp(store,{baseUrl:process.env.PUBLIC_BASE_URL??`http://127.0.0.1:${port}`});
   server.requestTimeout=15000; server.headersTimeout=10000;
-  server.listen(port,'127.0.0.1',()=>console.log(`Synthetic connector listening on 127.0.0.1:${port}`));
+  server.listen(port,'127.0.0.1',()=>console.log(`Comms Coach listening on 127.0.0.1:${port}`));
   for(const signal of ['SIGINT','SIGTERM']) process.on(signal,()=>server.close(()=>{store.close();process.exit(0);}));
 }

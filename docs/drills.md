@@ -1,4 +1,4 @@
-# Drills set by Muse (contract 0.7.0)
+# Drills set by Muse (contract 0.7.1)
 
 Muse, the person's own assistant, can set the next drill for a goal. It has to give a reason in numbers, and the server checks that reason before saving anything. The watch then shows the drill, and the next capture records one measured result against it.
 
