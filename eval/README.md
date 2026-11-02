@@ -75,9 +75,34 @@ What it shows (`results.json`, `adjudication` and `systems.adjudicated_scripted`
 - The model can only remove proposed hits, so adjudication cannot raise recall. Out-of-lexicon habits ("like", "quoi") stay missed, and "Sorry, let me restart" still counts as two restarts.
 - Clean controls stay at 0.
 
-What it does not show: how often Muse Spark Open itself labels correctly. 28 of our 42 scripted replies give the gold answer because we wrote them that way. Only a live run can measure the model.
+What it does not show: how often Muse Spark Open itself labels correctly. 28 of our 42 scripted replies give the gold answer because we wrote them that way. Only a live run can measure the model; the one we ran is below.
 
-## Live arm (prepared, not run)
+## Live arm: live, one run on 2026-11-02, self-labelled corpus
 
-`npm run eval -- --live` prints the cost of a live run and stops: **42 Muse Spark Open calls** (one per item with candidates), at most 84 if every first reply needs the larger-budget retry. With `--approved` and `BASETEN_API_KEY` set, it runs the production adjudication client on every item and writes `eval/live-results.json` (not compared with the committed file). It has not been run.
+`npm run eval -- --live` prints the cost of a live run and stops: **42 Muse Spark Open calls** (one per item with candidates), at most 84 if every first reply needs the larger-budget retry. With `--approved` and `BASETEN_API_KEY` set, it runs the production adjudication client on every item and writes `eval/live-results.json`. `npm run eval` does not regenerate that file; a new live run overwrites it.
 
+It ran once, on November 2, 2026 (`ran_at` 15:07 UTC), with `reasoning_effort: "low"`. All 42 calls returned HTTP 200 with `finish_reason` `stop` on the first attempt, so there were no retries. The median was 1.56 s per call, from that run's call log; `live-results.json` does not store timings. The corpus is the same self-labelled one as above (the file records its SHA-256).
+
+| System | Precision | Recall | F1 |
+|---|---|---|---|
+| Lexicon only (`measure()`) | 0.788 | 0.852 | 0.819 |
+| Adjudicated, scripted replies | 0.877 | 0.820 | 0.847 |
+| **Adjudicated, live** | **0.953** | **0.672** | **0.788** |
+
+By category, live against the lexicon:
+
+| Category | Live precision | Live recall | Live F1 | Lexicon F1 |
+|---|---|---|---|---|
+| Fillers | 1.000 | 0.800 | 0.889 | 0.800 |
+| Hedges | 1.000 | 0.333 | 0.500 | 0.865 |
+| Restarts | 0.846 | 0.846 | 0.846 | 0.800 |
+
+What it shows:
+
+- **Precision rose and recall fell.** The model labelled all 12 content traps as content, and code removed every one of them. It also labelled 11 real habits as content, and code removed those too.
+- **The model labelled most hedges as content.** Of the 16 hedges the lexicon found correctly, the model called 10 content ("sort of", "kind of", "Maybe", "probably", "I THINK", "Je pense", "un peu", "Peut-être", "Disons", "Je crois"). Hedge recall fell from 0.889 to 0.333. The eleventh wrong label was the restart "What I mean is".
+- **Live overall F1 (0.788) is below the lexicon alone (0.819).** Fillers and restarts improved; hedges lost more than they gained.
+- **The scripted arm's 0.877 / 0.820 did not predict the hedge drop.** We wrote those replies knowing the gold labels, with deliberate format faults. They tested the checking code, not the model's judgement, and none of them reads a hedge as meaning.
+- **Every label passed code's check.** All 51 labels named a proposed candidate once and copied its quote exactly, so no rejection kept a lexicon count. The span check cannot catch a wrong label that quotes correctly; on this run, those are the 11 removed habits.
+
+This run does not change which categories go to the model. Sending only fillers and restarts would raise the F1 on this corpus, but that choice would be tuned on the same 70 transcripts it is scored on. It is an open product decision, not a measured result.

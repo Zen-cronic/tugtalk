@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { Store } from '../src/store.mjs';
 import { createApp, captureParams } from '../src/server.mjs';
 import { MAX_AUDIO_BYTES, MAX_AUDIO_MS, TRANSCRIBE_MODEL, ANALYSIS_MODEL, LANGUAGES, LEXICON, inspectWav, measure, createModelClients } from '../src/capture.mjs';
-import { runEval, parseItem, CORPUS_URL } from '../src/evaluate.mjs';
+import { runEval, parseItem, goldSpans, CORPUS_URL } from '../src/evaluate.mjs';
 import { measurePauses } from '../src/pauses.mjs';
 import { adjudicationCandidates, adjudicateCapture, buildAdjudication, verifyLabels, createAdjudicationModel } from '../src/adjudicate.mjs';
 import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
@@ -278,7 +278,39 @@ function measurementChecks(evalResult) {
     },
     'eval-adjudicated-scripted': () => { assert.match(adj.label, /not live model runs/); return `${a.overall.precision} / ${a.overall.recall}`; },
     'eval-scripted-checks': () => `${adj.labels.rejected} of ${adj.candidates} rejected, ${adj.accepted_labels_against_gold.wrong} wrong accepted`,
-    'eval-live-calls': () => `${adj.live_plan.calls}, at most ${adj.live_plan.max_calls_with_retries} with retries`
+    'eval-live-calls': () => `${adj.live_plan.calls}, at most ${adj.live_plan.max_calls_with_retries} with retries`,
+    ...liveChecks(evalResult)
   };
 }
 
+
+// The one live adjudication run (eval/live-results.json). It is stale if the corpus changed after it ran.
+function liveChecks(evalResult) {
+  const live = JSON.parse(read('eval/live-results.json'));
+  const fixed = x => x.toFixed(3);
+  const stale = () => { assert.equal(live.corpus_sha256, evalResult.corpus_sha256, 'the live run used the current corpus'); assert.match(live.ran_at, /^2026-11-02T/); };
+  return {
+    'eval-adjudicated-live': () => { stale(); const o = live.systems.adjudicated_live.overall; return `${fixed(o.precision)} / ${fixed(o.recall)} / ${fixed(o.f1)}`; },
+    'eval-live-vs-lexicon': () => {
+      const m = live.systems.measure, a = live.systems.adjudicated_live;
+      assert.equal(m.overall.f1, evalResult.systems.measure.overall.f1, 'the live file carries the current lexicon numbers');
+      return `F1 ${fixed(m.overall.f1)}; hedge recall ${fixed(a.by_category.hedges.recall)} against ${fixed(m.by_category.hedges.recall)}`;
+    },
+    'eval-live-attempts': () => `${live.items.length} calls, ${live.items.reduce((n, i) => n + i.attempts - 1, 0)} retries`,
+    'eval-live-labels': () => {
+      const corpus = new Map(JSON.parse(readFileSync(CORPUS_URL, 'utf8')).items.map(i => [i.id, i]));
+      let labels = 0, verified = 0, traps = 0, habits = 0;
+      for (const item of live.items) {
+        const source = corpus.get(item.id), { transcript } = parseItem(source.text), gold = goldSpans(source.text);
+        const { candidates } = adjudicationCandidates(transcript, source.language);
+        for (const label of item.labels) {
+          labels++; if (label.verified) verified++;
+          if (!label.verified || label.label !== 'content') continue;
+          const c = candidates.find(x => x.id === label.id);
+          if (gold.some(g => g.start < c.end && c.start < g.end)) habits++; else traps++;
+        }
+      }
+      return `${verified} of ${labels}; ${traps} on traps, ${habits} on real habits`;
+    }
+  };
+}

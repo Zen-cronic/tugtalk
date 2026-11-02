@@ -51,3 +51,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-adjudicated-scripted` | Adjudicated precision / recall on scripted adjudication outputs, not live model runs | 0.877 / 0.82 | `eval/results.json`, regenerated |
 | `eval-scripted-checks` | Scripted labels code rejected, and wrong labels it accepted | 8 of 51 rejected, 3 wrong accepted | `eval/results.json`, regenerated |
 | `eval-live-calls` | Calls a live adjudication eval would make | 42, at most 84 with retries | `npm run eval -- --live` plan in `eval/results.json` |
+| `eval-adjudicated-live` | Adjudicated precision / recall / F1; live, one run on 2026-11-02, self-labelled corpus | 0.953 / 0.672 / 0.788 | `eval/live-results.json` (its corpus SHA-256 matches `eval/corpus.json`) |
+| `eval-live-vs-lexicon` | Lexicon-only F1 on the same run, and live hedge recall against the lexicon's | F1 0.819; hedge recall 0.333 against 0.889 | `eval/live-results.json` |
+| `eval-live-attempts` | Live run: calls made, and first replies that needed a retry | 42 calls, 0 retries | `attempts` per item in `eval/live-results.json` |
+| `eval-live-labels` | Live labels that passed code's check, and content labels on traps and on real habits | 51 of 51; 12 on traps, 11 on real habits | `eval/live-results.json` labels against the gold spans of `eval/corpus.json` |

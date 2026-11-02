@@ -1,4 +1,4 @@
-// The adjudicated eval arm runs the real checking code on scripted model replies; the live arm is planned, not run.
+// The adjudicated eval arm runs the real checking code on scripted model replies; the live arm ran once (eval/live-results.json).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

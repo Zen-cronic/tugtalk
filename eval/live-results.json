@@ -1,0 +1,1133 @@
+{
+  "eval": "habit-count-adjudication-live",
+  "label": "Live Muse Spark Open adjudication runs.",
+  "corpus": "habit-counts-synthetic-v1",
+  "corpus_sha256": "4a75b9d62d61eb484cb7df166de5e7117c9dbbc2f5d6ed5833af061cbd86b293",
+  "method": "spark-adjudication-v1",
+  "plan": {
+    "model": "meta-models/muse-spark-open-1026",
+    "calls": 42,
+    "max_calls_with_retries": 84,
+    "candidates": 51
+  },
+  "attempts_reported": 42,
+  "systems": {
+    "measure": {
+      "overall": {
+        "tp": 52,
+        "fp": 14,
+        "fn": 9,
+        "precision": 0.788,
+        "recall": 0.852,
+        "f1": 0.819
+      },
+      "by_category": {
+        "fillers": {
+          "tp": 24,
+          "fp": 6,
+          "fn": 6,
+          "precision": 0.8,
+          "recall": 0.8,
+          "f1": 0.8
+        },
+        "hedges": {
+          "tp": 16,
+          "fp": 3,
+          "fn": 2,
+          "precision": 0.842,
+          "recall": 0.889,
+          "f1": 0.865
+        },
+        "restarts": {
+          "tp": 12,
+          "fp": 5,
+          "fn": 1,
+          "precision": 0.706,
+          "recall": 0.923,
+          "f1": 0.8
+        }
+      },
+      "by_language": {
+        "en": {
+          "tp": 30,
+          "fp": 5,
+          "fn": 5,
+          "precision": 0.857,
+          "recall": 0.857,
+          "f1": 0.857
+        },
+        "fr": {
+          "tp": 22,
+          "fp": 9,
+          "fn": 4,
+          "precision": 0.71,
+          "recall": 0.846,
+          "f1": 0.772
+        }
+      },
+      "by_tag": {
+        "apostrophe": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "asr_variant": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "case": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "content_trap": {
+          "tp": 0,
+          "fp": 12,
+          "fn": 0,
+          "precision": 0,
+          "recall": null,
+          "f1": null
+        },
+        "dash": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "mixed": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "multi_phrase_event": {
+          "tp": 2,
+          "fp": 2,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1,
+          "f1": 0.667
+        },
+        "negative_control": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        },
+        "out_of_lexicon": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 6,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "overlap": {
+          "tp": 6,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "plain": {
+          "tp": 34,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "repeat": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "restart": {
+          "tp": 13,
+          "fp": 2,
+          "fn": 1,
+          "precision": 0.867,
+          "recall": 0.929,
+          "f1": 0.897
+        }
+      },
+      "negative_control": {
+        "items": 12,
+        "false_counts": 0
+      }
+    },
+    "adjudicated_live": {
+      "overall": {
+        "tp": 41,
+        "fp": 2,
+        "fn": 20,
+        "precision": 0.953,
+        "recall": 0.672,
+        "f1": 0.788
+      },
+      "by_category": {
+        "fillers": {
+          "tp": 24,
+          "fp": 0,
+          "fn": 6,
+          "precision": 1,
+          "recall": 0.8,
+          "f1": 0.889
+        },
+        "hedges": {
+          "tp": 6,
+          "fp": 0,
+          "fn": 12,
+          "precision": 1,
+          "recall": 0.333,
+          "f1": 0.5
+        },
+        "restarts": {
+          "tp": 11,
+          "fp": 2,
+          "fn": 2,
+          "precision": 0.846,
+          "recall": 0.846,
+          "f1": 0.846
+        }
+      },
+      "by_language": {
+        "en": {
+          "tp": 24,
+          "fp": 1,
+          "fn": 11,
+          "precision": 0.96,
+          "recall": 0.686,
+          "f1": 0.8
+        },
+        "fr": {
+          "tp": 17,
+          "fp": 1,
+          "fn": 9,
+          "precision": 0.944,
+          "recall": 0.654,
+          "f1": 0.773
+        }
+      },
+      "by_tag": {
+        "apostrophe": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "asr_variant": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "case": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1,
+          "recall": 0.5,
+          "f1": 0.667
+        },
+        "content_trap": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        },
+        "dash": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "mixed": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "multi_phrase_event": {
+          "tp": 2,
+          "fp": 2,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1,
+          "f1": 0.667
+        },
+        "negative_control": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        },
+        "out_of_lexicon": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 6,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "overlap": {
+          "tp": 5,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1,
+          "recall": 0.833,
+          "f1": 0.909
+        },
+        "plain": {
+          "tp": 24,
+          "fp": 0,
+          "fn": 10,
+          "precision": 1,
+          "recall": 0.706,
+          "f1": 0.828
+        },
+        "repeat": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "restart": {
+          "tp": 12,
+          "fp": 2,
+          "fn": 2,
+          "precision": 0.857,
+          "recall": 0.857,
+          "f1": 0.857
+        }
+      },
+      "negative_control": {
+        "items": 12,
+        "false_counts": 0
+      }
+    }
+  },
+  "items": [
+    {
+      "id": "en-plain-02",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccba95d7421883d98e01fc53fd9",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "I think",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Epistemic hedge removable without changing core proposition that budget is fine"
+        }
+      ]
+    },
+    {
+      "id": "en-plain-03",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbb21c70b8ac7b98805b9f148e",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "you know",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Parenthetical filler between commas, removable without loss of meaning."
+        }
+      ]
+    },
+    {
+      "id": "en-plain-04",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbba1879d3a7d3d907a1a5eeae",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "sort of",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Modifies 'ready' to mean partially ready, dropping it changes meaning to fully ready"
+        },
+        {
+          "id": "c2",
+          "quote": "kind of",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Qualifies 'rough' as somewhat rough, carries degree meaning not just filler"
+        }
+      ]
+    },
+    {
+      "id": "en-plain-05",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbbfbf7384a740806e6ea17fe4",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Maybe",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Expresses uncertainty about start date, changes truth condition if removed"
+        },
+        {
+          "id": "c2",
+          "quote": "probably",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Expresses likelihood of finish date, carries propositional meaning"
+        }
+      ]
+    },
+    {
+      "id": "en-plain-06",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbc5bc7edcb1221530acb2ea89",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Basically",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Sentence-initial discourse marker removable without changing propositional meaning."
+        }
+      ]
+    },
+    {
+      "id": "en-plain-07",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbcaf57353b067b9d8be46a9cc",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "I guess",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Hedge at sentence start expressing uncertainty, removable without losing core meaning"
+        }
+      ]
+    },
+    {
+      "id": "en-plain-08",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbcfbe7f1c862d0a8ce4145ad5",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "I THINK",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Standalone answer 'I think so' carries propositional meaning, not a removable hedge"
+        }
+      ]
+    },
+    {
+      "id": "en-mixed-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbd46f7cc4afca7c2f244cc7af",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "I think",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Hedge before main clause, droppable without changing proposition."
+        },
+        {
+          "id": "c2",
+          "quote": "you know",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Filler inserted before 'speed', adds no meaning."
+        },
+        {
+          "id": "c3",
+          "quote": "Sorry",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Self-correction marker for restart, droppable."
+        }
+      ]
+    },
+    {
+      "id": "en-restart-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbdb3771eca76642356cee3968",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Sorry",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Self-repair marker for correction, droppable without changing propositional meaning"
+        }
+      ]
+    },
+    {
+      "id": "en-restart-02",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbe4ac7bdf8a0464e1af7b076f",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "let me start again",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Explicit self-restart to correct date, removable without losing core meaning"
+        }
+      ]
+    },
+    {
+      "id": "en-restart-03",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbea0072a895eb6030836b305e",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Sorry",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Apology as part of self-restart meta-commentary, droppable without loss of propositional content."
+        },
+        {
+          "id": "c2",
+          "quote": "let me restart",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Explicit restart marker to retract prior clause, filler not part of message content."
+        }
+      ]
+    },
+    {
+      "id": "en-overlap-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbf39d73d6b987939719a0fb90",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "What I mean is",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Introduces specific clarification of prior statement, not a droppable filler."
+        }
+      ]
+    },
+    {
+      "id": "en-overlap-02",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccbfb697d6a9f2ba6b52b9452d5",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "what I mean is",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Filler discourse marker introducing clarification, removable without changing core meaning"
+        }
+      ]
+    },
+    {
+      "id": "en-overlap-03",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc01c170b9bc0761d565ec80a7",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "I mean",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Sentence-initial hedge/filler, can be removed without changing proposition."
+        },
+        {
+          "id": "c2",
+          "quote": "What I mean is",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Self-restart/clarification filler, droppable without loss of core meaning."
+        }
+      ]
+    },
+    {
+      "id": "en-dash-02",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc09317b4a9b6c6cfaefa684ff",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "I guess",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Parenthetical hedge set off by dashes, removable without losing core meaning of shipping next week"
+        }
+      ]
+    },
+    {
+      "id": "en-trap-kindof-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc135775889c04b4ca3cca2a44",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "kind of",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Asks about type of report, not a filler hedge"
+        }
+      ]
+    },
+    {
+      "id": "en-trap-youknow-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc175c71728482ac1cf6f23397",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "you know",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Main verb phrase of the question, not a parenthetical filler"
+        }
+      ]
+    },
+    {
+      "id": "en-trap-sorry-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc1af77e5dafa26f0b78474068",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "sorry",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Genuine apology for late meeting, not a filler."
+        }
+      ]
+    },
+    {
+      "id": "en-trap-imean-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc20aa7daaae02720922af814e",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "I mean",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Main verb of the clause, carries core meaning and cannot be dropped"
+        }
+      ]
+    },
+    {
+      "id": "en-repeat-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc24af7bf7b9ceb9d4d169a628",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "I think",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Hedge at sentence start that can be dropped without losing core meaning."
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-02",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc2ad670098263f664937bf0d6",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Je pense",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Main clause governing complement; dropping it breaks syntax and removes epistemic meaning"
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-03",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc328676b1b2371797de762812",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "tu vois",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Parenthetical filler that can be removed without changing propositional content."
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-04",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc3653749eb8ed10271aed9266",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "un peu",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Quantifies 'lent' (a little slow), not a removable filler hedge."
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-05",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc3a7f76f0a04ec94a9c0473f7",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Peut-être",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Expresses epistemic uncertainty about finishing Friday, not a removable filler"
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-06",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc3f577e5d8274e94e0c0a4697",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Ben",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Sentence-initial filler, droppable without changing propositional meaning"
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-08",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc42f3759aba58ba416c02ed26",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Du coup",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Sentence-initial discourse marker that can be dropped without changing core proposition"
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-09",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc4d5575f29ffe47db73011e47",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "En fait",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Sentence-initial hedge that can be removed without changing core proposition."
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-10",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc535e7f428e987a348643c66c",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Disons",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Main verb introducing hypothetical clause, not droppable filler."
+        }
+      ]
+    },
+    {
+      "id": "fr-plain-11",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc5b567340b2f8b01eca856bd0",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Je crois",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Main epistemic verb introducing complement clause, carries belief meaning not droppable filler"
+        }
+      ]
+    },
+    {
+      "id": "fr-mixed-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc61bb7da3aa89d9acaf6f710c",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "je crois",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Hedging before du coup, removable without changing core meaning"
+        },
+        {
+          "id": "c2",
+          "quote": "du coup",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Filler linking je crois que to on peut couper, no propositional content"
+        },
+        {
+          "id": "c3",
+          "quote": "Pardon",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Repair marker for self-correction from peut to doit, droppable"
+        }
+      ]
+    },
+    {
+      "id": "fr-restart-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc6a88763a83139b0c56b6ea08",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Pardon",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Self-correction marker introducing repair, removable without loss of meaning"
+        }
+      ]
+    },
+    {
+      "id": "fr-restart-02",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc701474c6b286f94bf72251a0",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "je recommence",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Explicit self-restart marker correcting the date, removable without losing core meaning."
+        }
+      ]
+    },
+    {
+      "id": "fr-restart-03",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc7759798e8f6440ab4a756ed6",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Je veux dire",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Discourse marker clarifying previous statement, droppable without changing propositional content."
+        }
+      ]
+    },
+    {
+      "id": "fr-restart-04",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc7c9178b5ba665ac8309ad4fe",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Pardon",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Meta-apology prefacing restart, droppable without changing proposition."
+        },
+        {
+          "id": "c2",
+          "quote": "je recommence",
+          "label": "habit",
+          "verified": true,
+          "rejection": null,
+          "reason": "Explicit restart announcement, not part of propositional content."
+        }
+      ]
+    },
+    {
+      "id": "fr-trap-ducoup-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc84d679c88f327358c841b52a",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "du coup",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Part of noun phrase 'coup de fil' meaning phone call, not a filler."
+        }
+      ]
+    },
+    {
+      "id": "fr-trap-enfait-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc89c0789994b3c981ef22ceba",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "en fait",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Verb phrase 'en fait trois' meaning 'does three of them', not filler 'in fact'."
+        }
+      ]
+    },
+    {
+      "id": "fr-trap-ben-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc8de173aba8ada4383c36be87",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Ben",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Subject of 'arrive', sentence would lack subject if removed"
+        }
+      ]
+    },
+    {
+      "id": "fr-trap-jeveuxdire-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc965c7a0abbdbf6cc987476d0",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Je veux dire",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Main verb expressing intent to thank, not a filler"
+        }
+      ]
+    },
+    {
+      "id": "fr-trap-pardon-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccc9d6276fcaf6f513b281f434c",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "pardon",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Core lexical object of 'demander' meaning forgiveness, not a filler."
+        }
+      ]
+    },
+    {
+      "id": "fr-trap-disons-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccca2257b0b8c9eb7f83fbebdbb",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "disons",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Main verb 'tell' carries core meaning, not a filler hedge"
+        }
+      ]
+    },
+    {
+      "id": "fr-trap-unpeu-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19ccca7057822b973e345e9d976ec",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "un peu",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Specifies quantity of salt, essential to meaning not a filler"
+        }
+      ]
+    },
+    {
+      "id": "fr-trap-tuvois-01",
+      "status": "adjudicated",
+      "attempts": 1,
+      "provider_request_id": "54ca701a19cccabc47d328b045133006037cd",
+      "reason": null,
+      "labels": [
+        {
+          "id": "c1",
+          "quote": "Tu vois",
+          "label": "content",
+          "verified": true,
+          "rejection": null,
+          "reason": "Literal question about seeing the tower, not a filler."
+        }
+      ]
+    }
+  ],
+  "ran_at": "2026-11-02T15:07:02.430Z"
+}

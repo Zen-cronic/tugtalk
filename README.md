@@ -101,7 +101,9 @@ Two Meta models touch every capture. They work on words; code decides every numb
 
 - A segment boundary is the transcriber's endpoint, not a word timing. Short pauses inside a segment are not seen, and a filled pause is speech, so pauses are a floor. Silence before the first segment includes the time between tapping record and starting to speak.
 - A wrong label that copies the text correctly passes the check. The eval counts these.
-- The adjudication eval runs on scripted adjudication outputs, not live model runs. Code-checked adjudication scores precision 0.877, recall 0.820, against 0.788 / 0.852 for the lexicon alone and 0.754 / 0.852 for the flat word list. That shows what the check does with good and bad replies. It does not measure Spark Open. A live run over the corpus would make 42 Spark calls (at most 84 with retries) and has not been run. See [eval/README.md](eval/README.md).
+- **Live adjudication is below the lexicon on our corpus.** Live, one run on 2026-11-02, self-labelled corpus, 42 Spark calls at low reasoning effort: precision 0.953, recall 0.672, F1 0.788, against 0.788 / 0.852, F1 0.819 for the lexicon alone. Precision rose and recall fell. The model removed all 12 content traps, but it labelled most hedges as content ("Maybe", "probably", "Je pense"), so hedge recall fell from 0.889 to 0.333. Fillers (F1 0.889 against 0.800) and restarts (0.846 against 0.800) improved.
+- The scripted adjudication arm (code-checked scripted replies, not live model runs) scores 0.877 / 0.820. It tests what the check does with good and bad replies, and it did not predict the hedge drop. See [eval/README.md](eval/README.md).
+- Which categories the model labels is unchanged after this run. Keeping hedges out would score higher on this corpus, but it would be tuned on the same transcripts.
 - Adjudication adds one paid Spark call to each capture with ambiguous hits.
 - The observation model still receives the lexicon counts, not the adjudicated counts or the pauses. The watch shows the lexicon filler count.
 
