@@ -34,9 +34,10 @@ import time
 
 JSON_LIMIT = 16384
 AUDIO_LIMIT = 8 * 1024 * 1024  # matches src/capture.mjs MAX_AUDIO_BYTES
+VIDEO_LIMIT = 1 * 1024 * 1024  # the hands-check clip; matches src/replay.mjs REPLAY_MAX_BYTES
 FORWARDED = ('authorization', 'content-type', 'idempotency-key', 'x-exercise-id',
              'x-goal-id', 'x-language', 'x-capture-device', 'x-occurred-at',
-             'x-screen-context-id', 'x-prompt-ended-at', 'x-camera-metrics')
+             'x-screen-context-id', 'x-prompt-ended-at', 'x-camera-metrics', 'x-replay-segments')
 # Requests that call a model get the long deadline; everything else must finish quickly.
 READ_DEADLINE = 20
 MODEL_DEADLINE = 150
@@ -51,6 +52,10 @@ AUDIO_ROUTES = ('/v1/recordings', '/v1/voice-rounds')
 SPEECH_ROUTE = re.compile(r'/v1/voice-rounds/[A-Za-z0-9-]{1,64}/speech')
 # Re-measuring a session may re-transcribe its kept recording (src/remeasure.mjs), so it is a model route too.
 REMEASURE_ROUTE = re.compile(r'/v1/sessions/[A-Za-z0-9-]{1,64}/remeasure')
+# The hands check at round end (src/replay.mjs): a short MP4 body, so a Bearer credential is needed before buffering it.
+# It gets the long deadline and a time budget, but never the model lock: the live round of the next hold takes that
+# lock at key-down, and a check still running must not delay it. Its SAM calls run while the database is released.
+REPLAY_ROUTE = re.compile(r'/v1/voice-rounds/[A-Za-z0-9-]{1,64}/replay')
 # Timing log: one line per request with the route shape (ids replaced), the status and each phase in ms.
 # Never the body, headers, query or ids.
 ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds|media))/(?!live$)[^/]+')
@@ -254,15 +259,16 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
             return
         recording = scope['method'] == 'POST' and scope['path'] in AUDIO_ROUTES
         speech = scope['method'] == 'POST' and SPEECH_ROUTE.fullmatch(scope['path']) is not None
+        replay = scope['method'] == 'POST' and REPLAY_ROUTE.fullmatch(scope['path']) is not None
         # A screen context is a small JSON body (JSON limit) but waits on a reasoning model. The spoken reply gets the
         # long deadline but not the model lock.
-        model_call = scope['method'] == 'POST' and (scope['path'] in MODEL_ROUTES or speech or REMEASURE_ROUTE.fullmatch(scope['path']) is not None)
+        model_call = scope['method'] == 'POST' and (scope['path'] in MODEL_ROUTES or speech or replay or REMEASURE_ROUTE.fullmatch(scope['path']) is not None)
         early_headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}
         # Only a request that at least presents a Bearer credential may buffer a large audio body.
         # Node still performs the real token check; this keeps anonymous uploads at the JSON limit.
-        if recording and not early_headers.get('authorization', '').startswith('Bearer '):
+        if (recording or replay) and not early_headers.get('authorization', '').startswith('Bearer '):
             return await respond(send, 401, {'error': 'unauthorized', 'message': 'A valid connector Bearer token is required.'})
-        limit = AUDIO_LIMIT if recording else JSON_LIMIT
+        limit = AUDIO_LIMIT if recording else VIDEO_LIMIT if replay else JSON_LIMIT
         body = bytearray()
         while True:
             event = await receive()
@@ -270,7 +276,8 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 return
             body.extend(event.get('body', b''))
             if len(body) > limit:
-                message = 'Maximum audio upload is 8 MiB.' if recording else 'Maximum JSON request size is 16 KiB.'
+                message = ('Maximum audio upload is 8 MiB.' if recording else 'Maximum replay clip is 1 MiB.' if replay
+                           else 'Maximum JSON request size is 16 KiB.')
                 return await respond(send, 413, {'error': 'too_large', 'message': message})
             if not event.get('more_body', False):
                 break
@@ -308,7 +315,8 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 except Exception:
                     stream['closed'] = True
 
-        task = loop.create_task(drive(envelope, model_call and not speech, deadline, deadline + GRACE, timing, on_head, on_chunk))
+        task = loop.create_task(drive(envelope, model_call and not (speech or replay), deadline, deadline + GRACE, timing, on_head, on_chunk,
+                                      budgeted=replay))
         try:
             message = await asyncio.wait_for(asyncio.shield(task), timeout=remaining())
         except TimeoutError:
@@ -337,8 +345,9 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         await send({'type': 'http.response.body', 'body': base64.b64decode(response['body_b64'])})
         timing.log(scope, response['status'])
 
-    async def drive(envelope, model_call, deadline, hard_deadline, timing, on_head, on_chunk):
-        """Runs one request on the worker. Returns its final message, or None when no success can be claimed."""
+    async def drive(envelope, model_call, deadline, hard_deadline, timing, on_head, on_chunk, budgeted=False):
+        """Runs one request on the worker. Returns its final message, or None when no success can be claimed.
+        model_call takes the model lock and sends a time budget; budgeted sends the budget without the lock."""
         loop = asyncio.get_running_loop()
         until = lambda limit: max(0.1, limit - loop.time())
         model_held = held = False
@@ -355,7 +364,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
             await ensure_worker(timing)
             rid, queue = worker.open()
             start = {'id': rid, 'envelope': envelope}
-            if model_call:
+            if model_call or budgeted:
                 # The handler's time budget ends before this request's deadline, with room to save and commit.
                 start['budget_ms'] = max(0, int((deadline - loop.time() - COMMIT_RESERVE) * 1000))
             await worker.send(start)

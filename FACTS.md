@@ -37,8 +37,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 144 | A `node --test` run of the other test files (all must pass), plus this one |
-| `python-tests` | Python hosting-adapter tests | 22 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
+| `node-tests` | Node test cases, as `npm test` reports them | 160 | A `node --test` run of the other test files (all must pass), plus this one |
+| `python-tests` | Python hosting-adapter tests | 25 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `hosting-worker` | How the hosting adapter runs requests | one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload | deploy/bridge.py and its tests in deploy/test_bridge.py |
@@ -118,3 +118,13 @@ Every number or name we state about this project, and where it comes from. `test
 | `drill-measured-checkin` | What a capture that names a drill (`X-Exercise-Id`) records | one check-in per drill, evidence_type measured: the capture's hedge count beside the basis count | HTTP with fake models: two captures name the drill, one check-in is written, and its feedback says one measured result, not a trend |
 | `drill-due` | When a drill may be due | optional; at most 7 days ahead, no minimum lead time | `DUE_MAX_DAYS` and `checkDueAt` (src/drills.mjs) |
 | `drill-set-by` | Who writes exercises, so "set by Muse" can be checked | the assistant, through the connector; 0 app source files call POST /v1/exercises | A read of every source file under apps/ for `v1/exercises` |
+
+## Hands check (Mac, opt-in per round)
+
+| ID | Claim | Value | Checked against |
+|---|---|---|---|
+| `replay-method` | How the hands check counts | sam-3.1-boxes-v1: 3 requests (hand, phone, paper); in hand = a phone or paper box sharing area with a hand box in the same frame, counted per frame | `REPLAY_METHOD`, `REPLAY_CONCEPTS` and `overlaps` (src/replay.mjs) on sample boxes, including touching edges |
+| `replay-store-false` | What our server sends Meta for one check, and what it keeps | the clip inline (data URL) with store false and no file upload; only the seconds are kept, never the clip, even with Keep my recordings on | `samRequestBody` (src/replay.mjs); test/replay.test.mjs saves a check with Keep my recordings on and finds no clip file, no clip bytes and no new media |
+| `replay-clip` | The clip the Mac sends | 10 frames a second, at most 150 frames (15 s), at most 1 MiB, no audio | `REPLAY_FPS`, `REPLAY_MAX_FRAMES`, `REPLAY_MAX_BYTES` (src/replay.mjs), `VIDEO_LIMIT` (deploy/bridge.py) and `ReplayClip` (apps/mac/Sources/ScreenContextCore/ReplayClip.swift) |
+| `replay-no-lock` | Whether a hands check can delay the next hold | never takes the model lock; a live hold started during a check waits at most 0.2 s for it (adapter test) | the replay route in deploy/bridge.py and its lock test in deploy/test_bridge.py |
+| `replay-saved-output` | Code's count on saved SAM 3.1 answers (not webcam footage) | synthetic clip: hands right on 100 of 100 frames, paper on 20 of 20, phone on 28 of 30; CC0 photo clip: phone in hand 7 s of 7 s | `test/fixtures/sam` and `synthetic-truth.json`, recounted by `parseBoxes` and `runReplay` |

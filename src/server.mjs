@@ -17,6 +17,7 @@ import { acceptWebSocket } from './ws-server.mjs';
 import { attachMedia } from './media.mjs';
 import { handleKeepRoutes } from './media-routes.mjs';
 import { checkBasis, checkDueAt, drillParams, withDrill } from './drills.mjs';
+import { createReplayModel, handleReplay, REPLAY_PATH } from './replay.mjs';
 
 export const RECORDINGS_PATH = '/v1/recordings';
 // Guards paid calls against a stuck capture button or a leaked key. Counts saved and model-failed recordings in the last hour.
@@ -206,7 +207,7 @@ export function connectorDocument(baseUrl) {
 // screenContextHooks: optional system(ctx) prompt and extendRecord(record, ctx), as for recordings (src/screen-context.mjs).
 // clock: milliseconds for the per-request time budget (a fake clock in tests). Behind the hosting adapter, req.budgetMs
 // carries what is left of the request's own deadline, and the budget never runs past it.
-export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel(),...createVoiceModel(),...createSpeechModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={},clock=()=>performance.now()}={}) {
+export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel(),...createVoiceModel(),...createSpeechModel(),...createReplayModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={},clock=()=>performance.now()}={}) {
   return async(req,res)=>{
     const requestId=randomUUID(), startedAt=performance.now(); let user;
     const budget=()=>createBudget({totalMs:Math.min(MODEL_BUDGET_MS,Number.isFinite(req.budgetMs)?req.budgetMs:Infinity),clock});
@@ -246,6 +247,9 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
         const key=requireIdempotencyKey(req.headers), params=voiceParams(req.headers);
         return send(200,await handleVoiceRound(store,models,user,{params,audio:await audioOf(req),startedAt},key,requestId,phases,budget()));
       }
+      // Hands check at round end (src/replay.mjs). Without REPLAY_ENABLED=1 the route does not exist.
+      const replay=req.method==='POST'&&models.replayEnabled?.()&&path.match(REPLAY_PATH);
+      if(replay) return send(200,await handleReplay(store,models,user,replay[1],req,requireIdempotencyKey(req.headers),requestId,phases,budget()));
       const speech=req.method==='POST'&&path.match(SPEECH_PATH);
       if(speech) return await handleSpeech(store,models,user,speech[1],{res,requestId,phases,audit:(status,label)=>store.audit(requestId,user,req.method,path,status,label)});
       if(await handleKeepRoutes(store,models,user,req,path,{res,send,requestId,phases,budget:budget(),bodyOf,requireIdempotencyKey,audit:(status,label)=>store.audit(requestId,user,req.method,path,status,label)})) return;

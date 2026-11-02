@@ -294,7 +294,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       ...liveVoiceChecks(),
       ...hostedChecks(),
       ...cameraChecks(base),
-      ...drillChecks(base, store)
+      ...drillChecks(base, store),
+      ...await replayChecks()
     };
 
     const facts = parseFacts();
@@ -673,6 +674,59 @@ function drillChecks(base, store) {
       const callers = files.filter(f => readFileSync(f, 'utf8').includes('v1/exercises'));
       assert.deepEqual(callers, []);
       return 'the assistant, through the connector; 0 app source files call POST /v1/exercises';
+    }
+  };
+}
+
+// The hands check: the request sent to Meta, the clip limits on all three sides, and code's count on saved SAM output.
+async function replayChecks() {
+  const replay = await import('../src/replay.mjs');
+  const fixture = name => readFileSync(new URL(`./fixtures/sam/${name}`, import.meta.url));
+  const truth = JSON.parse(fixture('synthetic-truth.json').toString());
+  const has = (ranges, i) => ranges.some(([a, b]) => i >= a && i < b);
+  return {
+    'replay-method': () => {
+      const box = (x1, y1, x2, y2) => ({ x1, y1, x2, y2 });
+      assert.equal(replay.overlaps(box(0, 0, 10, 10), box(5, 5, 15, 15)), true);
+      assert.equal(replay.overlaps(box(0, 0, 10, 10), box(10, 0, 20, 10)), false, 'touching edges do not count');
+      return `${replay.REPLAY_METHOD}: ${replay.REPLAY_CONCEPTS.length} requests (${replay.REPLAY_CONCEPTS.join(', ')}); in hand = a phone or paper box sharing area with a hand box in the same frame, counted per frame`;
+    },
+    'replay-store-false': () => {
+      const body = replay.samRequestBody('data:video/mp4;base64,AAAA', 'phone');
+      assert.equal(body.store, false); assert.equal(body.model, 'sam-3.1');
+      assert.match(body.input[0].content[1].video_url, /^data:video\/mp4;base64,/);
+      assert.ok(!JSON.stringify(body).includes('file_id'));
+      assert.match(read('test/replay.test.mjs'), /never keeps the clip, even with Keep my recordings on/);
+      return 'the clip inline (data URL) with store false and no file upload; only the seconds are kept, never the clip, even with Keep my recordings on';
+    },
+    'replay-clip': () => {
+      const swift = read('apps/mac/Sources/ScreenContextCore/ReplayClip.swift');
+      assert.equal(Number(swift.match(/static let fps: Int32 = (\d+)/)[1]), replay.REPLAY_FPS);
+      assert.equal(Number(swift.match(/static let maxFrames = (\d+)/)[1]), replay.REPLAY_MAX_FRAMES);
+      assert.match(swift, /static let maxBytes = 1024 \* 1024/);
+      assert.equal(replay.REPLAY_MAX_BYTES, MiB);
+      assert.match(read('deploy/bridge.py'), /^VIDEO_LIMIT = 1 \* 1024 \* 1024/m);
+      assert.doesNotMatch(swift, /AVMediaType\.audio|mediaType: \.audio/, 'the writer has no audio input');
+      return `${replay.REPLAY_FPS} frames a second, at most ${replay.REPLAY_MAX_FRAMES} frames (${replay.REPLAY_MAX_FRAMES / replay.REPLAY_FPS} s), at most 1 MiB, no audio`;
+    },
+    'replay-no-lock': () => {
+      const bridge = read('deploy/bridge.py'), tests = read('deploy/test_bridge.py');
+      assert.match(bridge, /drive\(envelope, model_call and not \(speech or replay\),/);
+      assert.match(tests, /def test_a_live_hold_takes_the_model_lock_without_waiting_while_a_replay_runs\(/);
+      const limit = Number(tests.match(/assertLessEqual\(wait_ms, (\d+),/)[1]);
+      return `never takes the model lock; a live hold started during a check waits at most ${limit / 1000} s for it (adapter test)`;
+    },
+    'replay-saved-output': async () => {
+      const hand = replay.parseBoxes(fixture('hand.txt').toString()), phone = replay.parseBoxes(fixture('phone.txt').toString()), paper = replay.parseBoxes(fixture('paper.txt').toString());
+      const frames = Array.from({ length: truth.frames }, (_, i) => i);
+      const handsRight = frames.filter(i => (hand.get(i)?.length ?? 0) === Number(has(truth.visible.left_hand, i)) + Number(has(truth.visible.right_hand, i))).length;
+      const found = (map, ranges) => frames.filter(i => has(ranges, i) && map.get(i)?.length).length;
+      const total = ranges => frames.filter(i => has(ranges, i)).length;
+      const outputs = { hand: fixture('real_hand.txt').toString(), phone: fixture('real_phone.txt').toString(), paper: '' };
+      const real = await replay.runReplay(fixture('real_clip.mp4'), { segments: replay.parseSegments('0-100'), segment: async (u, c) => ({ ok: true, text: outputs[c], frames_processed: 100 }) });
+      const realTruth = 7; // frames 0-39 and 70-99 (test/fixtures/sam/README.md)
+      return `synthetic clip: hands right on ${handsRight} of ${truth.frames} frames, paper on ${found(paper, truth.visible.paper)} of ${total(truth.visible.paper)}, phone on ${found(phone, truth.visible.phone)} of ${total(truth.visible.phone)}; `
+        + `CC0 photo clip: phone in hand ${real.replay.seconds.phone_in_hand} s of ${realTruth} s`;
     }
   };
 }

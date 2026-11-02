@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import contextlib
+import io
 import hashlib
 import json
 import os
@@ -9,7 +11,7 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
-from bridge import create_bridge, FORWARDED, REMEASURE_ROUTE, route_label
+from bridge import create_bridge, FORWARDED, REMEASURE_ROUTE, REPLAY_ROUTE, VIDEO_LIMIT, route_label
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -545,6 +547,64 @@ respond(id, 200, { ok: true }, false);
         self.assertIsNotNone(REMEASURE_ROUTE.fullmatch('/v1/sessions/' + record['id'] + '/remeasure'))
         self.assertEqual(route_label('GET', '/v1/media/' + record['id']), 'GET /v1/media/{id}')
 
+    async def test_replay_route_takes_a_clip_up_to_1_mib_after_a_bearer_and_routes_by_exact_path(self):
+        app = self.bridge(self.volume, worker_path=self.fake('replay-worker.mjs', """
+const size = Buffer.from(env.body_b64, 'base64').length;
+respond(id, 200, { path: env.path, size, budget_ms: m.budget_ms ?? null, segments: env.headers['x-replay-segments'] ?? null,
+  type: env.headers['content-type'] ?? null });
+"""), database_path=self.temp.name + '/replay.sqlite')
+        async def post(path, body, auth=True):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': body}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'content-type', b'video/mp4'), (b'idempotency-key', b'replay-bridge-1'),
+                       (b'x-replay-segments', b'0-40,40-100')] + ([(b'authorization', b'Bearer x')] if auth else [])
+            await app({'type': 'http', 'method': 'POST', 'path': path, 'headers': headers}, receive, send)
+            return sent[0]['status'], json.loads(sent[1]['body'])
+        self.assertEqual(VIDEO_LIMIT, 1024 * 1024)
+        status, body = await post('/v1/voice-rounds/round-1/replay', bytes(VIDEO_LIMIT))
+        self.assertEqual(status, 200); self.assertEqual(body['size'], VIDEO_LIMIT)
+        self.assertEqual(body['segments'], '0-40,40-100', 'X-Replay-Segments reaches Node')
+        self.assertEqual(body['type'], 'video/mp4')
+        self.assertIsNotNone(body['budget_ms'], 'the replay gets a time budget like any model route')
+        status, body = await post('/v1/voice-rounds/round-1/replay', bytes(VIDEO_LIMIT + 1))
+        self.assertEqual((status, body['message']), (413, 'Maximum replay clip is 1 MiB.'))
+        starts = app.worker.starts
+        status, _ = await post('/v1/voice-rounds/round-1/replay', bytes(VIDEO_LIMIT), auth=False)
+        self.assertEqual(status, 401, 'no Bearer, no buffering of a large body')
+        self.assertEqual(app.worker.starts, starts)
+        # Exact paths only: anything else keeps the 16 KiB JSON limit.
+        for path in ('/v1/voice-rounds/round-1/replay/x', '/v1/voice-rounds/round-1/replayx', '/v1/voice-rounds/a/b/replay', '/v1/voice-rounds//replay',
+                     '/v1/voice-rounds/' + 'a' * 65 + '/replay', '/v1/sessions/round-1/replay'):
+            self.assertIsNone(REPLAY_ROUTE.fullmatch(path), path)
+            self.assertEqual((await post(path, bytes(20000)))[0], 413, path)
+        self.assertIsNotNone(REPLAY_ROUTE.fullmatch('/v1/voice-rounds/0b6f-AZ-9/replay'))
+        self.assertEqual(route_label('POST', '/v1/voice-rounds/3f2a-round/replay'), 'POST /v1/voice-rounds/{id}/replay', 'the timing log hides the round id')
+        self.assertIn('x-replay-segments', FORWARDED)
+
+    async def test_a_replay_never_takes_the_model_lock_and_releases_the_database_during_sam_calls(self):
+        app = self.bridge(self.volume, worker_path=self.fake('replay-lock-worker.mjs', """
+if (env.path.endsWith('/replay')) { release(id); await pause(800); await acquire(id); respond(id, 200, { ok: 'replay' }); return; }
+if (env.path === '/v1/recordings') { release(id); await pause(300); await acquire(id); respond(id, 200, { ok: 'recording' }); return; }
+respond(id, 200, { ok: env.path }, env.method !== 'GET');
+"""), database_path=self.temp.name + '/replay-lock.sqlite')
+        finished = []
+        async def request(method, path, body=b''):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': body}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x'), (b'content-type', b'video/mp4'),
+                       (b'idempotency-key', path.encode()[-40:].replace(b'/', b'-'))]
+            await app({'type': 'http', 'method': method, 'path': path, 'headers': headers}, receive, send)
+            finished.append(path)
+        replay = asyncio.create_task(request('POST', '/v1/voice-rounds/round-1/replay', bytes(300000)))
+        await asyncio.sleep(0.15)
+        await request('GET', '/v1/overview')
+        await request('POST', '/v1/recordings')
+        self.assertEqual(finished, ['/v1/overview', '/v1/recordings'], 'a read and a model request both ran while the replay was in its SAM calls')
+        await replay
+        self.assertEqual(finished[-1], '/v1/voice-rounds/round-1/replay')
+
 if __name__ == '__main__': unittest.main()
 
 
@@ -662,6 +722,49 @@ class LiveBridgeTests(BridgeTests):
         self.assertEqual(self.volume.events, [], 'and nothing was committed for it')
         await round_task
         self.assertEqual(self.volume.events, ['commit'])
+
+    def live_model_waits(self, log):
+        """model_wait of each live round in the adapter's timing log, in ms."""
+        lines = [json.loads(l) for l in log.getvalue().splitlines() if l.startswith('{')]
+        return [l['timing'].get('model_wait', 0.0) for l in lines if l.get('route') == 'WS /v1/voice-rounds/live']
+
+    LOCK_WORKER = """
+            if (m.envelope?.live) { await release(id); out({ id, event: { type: 'ready' } }); return; }
+            if (m.end) { await acquire(id); respond(id, 200, { round_id: 'round-2' }); out({ id, closed: true }); return; }
+            if (m.envelope?.path) { release(id); await pause(1200); await acquire(id); respond(id, 200, { ok: m.envelope.path }); }
+        """
+
+    async def held_during(self, path):
+        """Starts a POST to path (a slow model request), opens a live hold 0.2 s later, and returns its model_wait in ms
+        and whether the POST was still running when the hold was saved."""
+        app = self.bridge(self.volume, worker_path=self.fake('live-lock-' + path.split('/')[-1] + '.mjs', self.LOCK_WORKER))
+        done = []
+        async def post():
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': bytes(200000)}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer local-test-only'),
+                       (b'content-type', b'video/mp4' if path.endswith('/replay') else b'audio/wav'), (b'idempotency-key', b'lock-test-1')]
+            await app({'type': 'http', 'method': 'POST', 'path': path, 'headers': headers}, receive, send)
+            done.append(sent[0]['status'])
+        log = io.StringIO()
+        with contextlib.redirect_stdout(log):
+            slow = asyncio.get_running_loop().create_task(post())
+            await asyncio.sleep(0.2)
+            sent = await self.socket(app, [self.START, ('bytes', b'\x00' * 4000), ('text', '{"type":"end"}')])
+            running = not done
+            await slow
+        self.assertIn('saved', [json.loads(e['text'])['type'] for e in sent if 'text' in e])
+        return self.live_model_waits(log)[0], running
+
+    async def test_a_live_hold_takes_the_model_lock_without_waiting_while_a_replay_runs(self):
+        wait_ms, running = await self.held_during('/v1/voice-rounds/round-1/replay')
+        self.assertTrue(running, 'the replay was still in its SAM calls when the hold was saved')
+        self.assertLessEqual(wait_ms, 200, f'the hold waited {wait_ms} ms for the model lock')
+        # Negative control: a model route that does hold the lock (a WAV round) makes the same hold wait.
+        wait_ms, running = await self.held_during('/v1/voice-rounds')
+        self.assertFalse(running, 'the hold could only start after the WAV round finished')
+        self.assertGreater(wait_ms, 500, 'the test can see a hold waiting on the lock')
 
 
 # LiveBridgeTests reuses BridgeTests' setup and helpers; its inherited tests already run once under BridgeTests.
