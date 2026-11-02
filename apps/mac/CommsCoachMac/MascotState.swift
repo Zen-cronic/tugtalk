@@ -118,12 +118,12 @@ struct VoiceCard: Equatable {
         return (cut.lastIndex(of: " ").map { String(cut[..<$0]) } ?? String(cut)) + "…"
     }
 
-    /// "42 words · 132 per minute · 1 filler · 2 hedges", from the code-computed metrics.
+    /// "42 words · 132 per minute · 1 filler · 2 unsure words", from the code-computed metrics.
     var metricsLine: String? {
         guard let m = metrics else { return nil }
         func count(_ n: Int?, _ one: String, _ many: String) -> String? { n.map { "\($0) \($0 == 1 ? one : many)" } }
         let parts = [count(m.word_count, "word", "words"), m.words_per_minute.map { "\(Int($0.rounded())) per minute" },
-                     count(m.filler_count, "filler", "fillers"), count(m.hedge_count, "hedge", "hedges"),
+                     count(m.filler_count, "filler", "fillers"), count(m.hedge_count, "unsure word", "unsure words"),
                      m.restart_count.flatMap { $0 > 0 ? count($0, "restart", "restarts") : nil },
                      m.onset_ms_approx.map { String(format: "started about %.1f s after the question", $0 / 1000) }]
         let line = parts.compactMap { $0 }.joined(separator: " · ")

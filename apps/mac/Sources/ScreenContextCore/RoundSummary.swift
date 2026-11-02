@@ -15,8 +15,11 @@ public struct RoundSummary: Sendable, Equatable {
 
     public var dropped: Bool { last < first }
 
-    /// "2 fillers", "1 hedge".
-    public static func count(_ n: Int, _ habit: Habit) -> String { "\(n) \(n == 1 ? habit.rawValue : habit.rawValue + "s")" }
+    /// "2 fillers", "1 unsure word": hedges are shown as "unsure words".
+    public static func count(_ n: Int, _ habit: Habit) -> String {
+        let word = habit == .hedge ? "unsure word" : habit.rawValue
+        return "\(n) \(n == 1 ? word : word + "s")"
+    }
 
     /// Nil with fewer than two measured answers: a change needs a before and an after.
     public static func make(_ answers: [VoiceMetrics]) -> RoundSummary? {

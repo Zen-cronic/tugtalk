@@ -4,7 +4,7 @@ For anyone practising how they answer out loud (an interview question, a stand-u
 
 <!-- FOUNDER: one or two sentences in your own words -->
 
-Tap to capture a short answer on Apple Watch; Meta `muse-voice-transcribe-1.0` transcribes it, code measures speaking habits (fillers, hedges, restarts, pace), Muse Spark Open writes one observation, and the result joins the shared record, including scheduled practice suggestions. On the Mac, a hotkey sends the text of the window in front, redacted on the Mac, for a short context card in the same record. Goals, exercises and check-ins live in the same authenticated API.
+Tap to capture a short answer on Apple Watch; Meta `muse-voice-transcribe-1.0` transcribes it, code measures speaking habits (fillers, unsure words such as "I think" or "maybe", restarts, pace), Muse Spark Open writes one observation, and the result joins the shared record, including scheduled practice suggestions. On the Mac, a hotkey sends the text of the window in front, redacted on the Mac, for a short context card in the same record. Goals, exercises and check-ins live in the same authenticated API.
 
 Seeded fixtures are fictional. This is a hackathon prototype, not a validated coaching or speech-assessment product; see Evidence and limits.
 

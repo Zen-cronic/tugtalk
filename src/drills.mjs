@@ -13,8 +13,10 @@ export const DUE_MAX_DAYS = 7;
 export const DUE_PAST_GRACE_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ID = /^[A-Za-z0-9-]{1,64}$/;
-const PLURAL = { filler: 'fillers', hedge: 'hedges', restart: 'restarts' };
-export const habitWord = (habit, n) => n === 1 ? habit : PLURAL[habit];
+// Shown to people: hedges are called "unsure words".
+const SINGULAR = { filler: 'filler', hedge: 'unsure word', restart: 'restart' };
+const PLURAL = { filler: 'fillers', hedge: 'unsure words', restart: 'restarts' };
+export const habitWord = (habit, n) => n === 1 ? SINGULAR[habit] : PLURAL[habit];
 
 const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const bad = message => new ApiError(400, 'invalid_value', message);

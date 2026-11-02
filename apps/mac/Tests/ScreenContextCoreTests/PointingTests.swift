@@ -150,7 +150,7 @@ final class RoundSummaryTests: XCTestCase {
     }
 
     func testSingularAndPlural() {
-        XCTAssertEqual(RoundSummary.count(1, .hedge), "1 hedge")
+        XCTAssertEqual(RoundSummary.count(1, .hedge), "1 unsure word")
         XCTAssertEqual(RoundSummary.count(0, .filler), "0 fillers")
         XCTAssertEqual(RoundSummary.count(2, .restart), "2 restarts")
     }

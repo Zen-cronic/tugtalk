@@ -44,8 +44,8 @@ struct DrillOutcome: Decodable {
     /// One capture beside the basis, in code-measured numbers. Never a trend, so it never says "improved".
     var line: String? {
         guard status == "measured", let m = measured else { return nil }
-        let words = ["filler": "fillers", "hedge": "hedges", "restart": "restarts"]
-        let habit = m.capture_count == 1 ? m.habit : (words[m.habit] ?? m.habit)
+        let one = ["hedge": "unsure word"], many = ["filler": "fillers", "hedge": "unsure words", "restart": "restarts"]
+        let habit = m.capture_count == 1 ? (one[m.habit] ?? m.habit) : (many[m.habit] ?? m.habit)
         let sources = m.basis_source_word ?? (m.basis_sources == 1 ? "session" : "sessions")
         return "Drill: \(m.capture_count) \(habit) this capture · basis \(m.basis_count) in \(m.basis_sources) \(sources) · measured by code"
     }

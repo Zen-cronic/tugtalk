@@ -87,7 +87,7 @@ struct ContentView: View {
                     .padding(.bottom, 6)
                 Text("Analyzing").face(.display, 20, relativeTo: .title3)
                     .foregroundStyle(Palette.inkDark)
-                Text("Counting fillers, hedges and restarts")
+                Text("Counting fillers, unsure words and restarts")
                     .face(.text, 14, weight: 500, relativeTo: .footnote)
                     .foregroundStyle(Palette.mutedDark)
                     .multilineTextAlignment(.center)
@@ -205,7 +205,7 @@ struct ContentView: View {
             .slotIn()
 
             HStack(spacing: 6) {
-                SmallMetric(value: m.hedge_count, singular: "hedge", plural: "hedges", fill: Palette.hedge, edge: Palette.hedgeEdge)
+                SmallMetric(value: m.hedge_count, singular: "unsure\nword", plural: "unsure\nwords", fill: Palette.hedge, edge: Palette.hedgeEdge)
                 SmallMetric(value: m.restart_count, singular: "restart", plural: "restarts", fill: Palette.restart, edge: Palette.restartEdge)
                 PaceMetric(wpm: m.words_per_minute)
             }
@@ -302,8 +302,10 @@ private struct SmallMetric: View {
         CartChip(fill: fill, edge: edge) {
             VStack(spacing: 0) {
                 Text("\(value)").face(.display, 22, relativeTo: .title3).monospacedDigit()
+                // Two lines reserved, so "unsure⏎words" sits one word per line and both chips keep one height;
+                // a word shrinks slightly rather than breaking in the middle.
                 Text(value == 1 ? singular : plural).face(.text, 12, weight: 700, relativeTo: .caption2)
-                    .lineLimit(1).minimumScaleFactor(0.8)
+                    .multilineTextAlignment(.center).lineLimit(2, reservesSpace: true).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 6)

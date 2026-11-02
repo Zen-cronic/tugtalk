@@ -158,7 +158,7 @@ test('a capture with X-Exercise-Id records one measured check-in, once; a retry 
     const c = checkIns[0];
     assert.equal(c.id, session.drill.check_in_id); assert.equal(c.exercise_id, ex.id); assert.equal(c.status, 'completed');
     assert.equal(c.evidence_type, 'measured');
-    assert.equal(c.feedback, `Measured by code: 0 hedges in this capture (session ${session.id}). The drill's basis was 3 hedges in 2 sessions. One measured result, not a trend.`);
+    assert.equal(c.feedback, `Measured by code: 0 unsure words in this capture (session ${session.id}). The drill's basis was 3 unsure words in 2 sessions. One measured result, not a trend.`);
     assert.doesNotMatch(c.feedback, /improv/i);
 
     const before = calls.transcribe;
