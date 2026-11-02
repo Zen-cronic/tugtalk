@@ -4,11 +4,14 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { Store } from '../src/store.mjs';
-import { createApp } from '../src/server.mjs';
-import { MAX_AUDIO_BYTES, MAX_AUDIO_MS, TRANSCRIBE_MODEL, ANALYSIS_MODEL, ANALYSIS_BUDGETS, LANGUAGES, DEVICES, inspectWav, measure, createModelClients } from '../src/capture.mjs';
+import { createApp, captureParams } from '../src/server.mjs';
+import { MAX_AUDIO_BYTES, MAX_AUDIO_MS, TRANSCRIBE_MODEL, ANALYSIS_MODEL, LANGUAGES, inspectWav, measure, createModelClients } from '../src/capture.mjs';
 import { runEval } from '../src/evaluate.mjs';
-import { SCREEN_RATE_LIMIT, MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
+import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -23,6 +26,24 @@ function wav(seconds, { rate = 24000, channels = 1 } = {}) {
   return Buffer.concat([h, data]);
 }
 const accepts = buffer => { try { inspectWav(buffer); return true; } catch { return false; } };
+// The values a capture header accepts, read from the handler's own validation: each listed value passes, an unknown one fails.
+function acceptedValues(header) {
+  let message;
+  try { captureParams({ [header]: 'not-a-value' }); } catch (error) { message = error.message; }
+  const values = message.match(/must be one of: (.+)\.$/)[1].split(', ');
+  for (const value of values) assert.doesNotThrow(() => captureParams({ [header]: value }), `${header}: ${value}`);
+  return values.join(', ');
+}
+// Counts this repo's Node tests by running them: every other test file through `node --test`, plus this one.
+async function runNodeTests() {
+  const here = new URL('./', import.meta.url);
+  const files = readdirSync(here).filter(f => f.endsWith('.test.mjs') && f !== 'facts.test.mjs').map(f => fileURLToPath(new URL(f, here)));
+  const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
+  const { stdout } = await promisify(execFile)(process.execPath, ['--test', '--test-reporter=tap', ...files], { env, maxBuffer: 16 * 1024 * 1024 });
+  const count = name => Number(stdout.match(new RegExp(`^# ${name} (\\d+)$`, 'm'))[1]);
+  assert.equal(count('fail'), 0, 'the other test files pass');
+  return count('tests') + 1;
+}
 
 function parseFacts() {
   return read('FACTS.md').split('\n').filter(l => /^\| `[a-z0-9-]+` \|/.test(l))
@@ -92,10 +113,22 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.equal(sent.model, ANALYSIS_MODEL);
         return sent.model;
       },
-      'analysis-budgets': () => `${ANALYSIS_BUDGETS[0]}, then ${ANALYSIS_BUDGETS[1]} on retry`,
-      'contract-version': () => { assert.match(connector, new RegExp(`Contract version ${spec.info.version.replace(/\./g, '\\.')}`)); return spec.info.version; },
-      'languages': () => Object.keys(LANGUAGES).join(', '),
-      'devices': () => DEVICES.join(', '),
+      'analysis-budgets': async () => {
+        // The max_tokens actually sent when the first reply runs out of tokens before answering.
+        const sent = [];
+        const fetchImpl = async (url, init) => { sent.push(JSON.parse(init.body).max_tokens); return new Response(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '' } }] }), { status: 200 }); };
+        const result = await createModelClients({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }).analyze({ goal: null, transcript: 't', metrics: measure('t', 1000, 'en'), language: 'en' });
+        assert.equal(result.status, 'unavailable'); assert.equal(sent.length, 2, 'one retry, then the session is saved without an observation');
+        return `${sent[0]}, then ${sent[1]} on retry`;
+      },
+      'contract-version': () => {
+        const version = spec.info.version.replace(/\./g, '\\.');
+        assert.match(connector, new RegExp(`Contract version ${version}`));
+        assert.match(read('docs/capture.md'), new RegExp(`^# .*\\(contract ${version}\\)$`, 'm'), 'docs/capture.md names the same contract');
+        return spec.info.version;
+      },
+      'languages': () => acceptedValues('x-language'),
+      'devices': () => acceptedValues('x-capture-device'),
       'lexicons': () => Object.keys(LANGUAGES).map(l => measure('x', 1000, l).method).join(', '),
       'audio-retained': async () => {
         const audio = wav(2);
@@ -127,7 +160,18 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.equal(readFileSync(dbPath).includes(Buffer.from('Unique marker 7f3e')), false, 'screen text is not stored');
         return data.record.text_retained === false ? 'no' : 'yes';
       },
-      'screen-rate-limit': () => String(SCREEN_RATE_LIMIT.requests),
+      'screen-rate-limit': async () => {
+        // A separate account, so the count starts at zero: post until the route refuses, then check the refusal cost nothing.
+        store.addToken('facts-rate-secret', 'facts-rate-user');
+        const post = i => fetch(base + '/v1/screen-contexts', { method: 'POST', headers: { Authorization: 'Bearer facts-rate-secret', 'Content-Type': 'application/json', 'Idempotency-Key': `facts-rate-${i}` },
+          body: JSON.stringify({ purpose: 'reading', capture_device: 'mac', text: `Reading note ${i}.`, redaction: { method: 'on-device-v1', counts: {} } }) });
+        let saved = 0, status;
+        while ((status = (await post(saved)).status) === 200 && saved < 100) saved++;
+        assert.equal(status, 429);
+        const before = calls.describe;
+        assert.equal((await post(saved + 1)).status, 429); assert.equal(calls.describe, before, 'refused before any model call');
+        return String(saved);
+      },
       'measured-improvement': async () => {
         const overview = await (await fetch(base + '/v1/overview', { headers: auth })).json();
         assert.equal(overview.totals.measured_improvement, null);
@@ -139,8 +183,7 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       'eval-baseline': () => `${b.overall.precision} / ${b.overall.recall}`,
       'eval-corpus': () => `${evalResult.counts.items} items, ${evalResult.counts.negative_controls} clean controls`,
       'eval-controls': () => String(m.negative_control.false_counts),
-      'node-tests': () => String(readdirSync(new URL('./', import.meta.url)).filter(f => f.endsWith('.test.mjs'))
-        .reduce((n, f) => n + (read(`test/${f}`).match(/^test\(|\bt\.test\(/gm) ?? []).length, 0)),
+      'node-tests': async () => String(await runNodeTests()),
       'python-tests': () => String((read('deploy/test_bridge.py').match(/^\s*(?:async )?def test_/gm) ?? []).length),
       'hosting-concurrency': () => {
         const inputs = modal.match(/^@modal\.concurrent\(max_inputs=(\d+)\)$/m)[1];

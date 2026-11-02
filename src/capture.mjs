@@ -103,10 +103,13 @@ export function createModelClients({ env = process.env, fetchImpl = fetch } = {}
         throw fail('transcription_failed', error.name === 'TimeoutError' ? 'Transcription timed out.' : 'Transcription request failed.');
       }
       if (!response.ok) throw fail('transcription_failed', `Transcription returned HTTP ${response.status}.`);
-      const data = await response.json();
+      // A malformed upstream reply is the provider's failure (502), never a server error.
+      const data = await response.json().catch(() => null);
+      if (!data || typeof data !== 'object') throw fail('transcription_failed', 'Transcription returned a malformed reply.');
       if (typeof data.transcript !== 'string' || !data.transcript.trim()) throw fail('transcription_empty', 'No speech was transcribed.');
-      return { transcript: data.transcript, turns: (data.turns ?? []).map(({ turnId, startMs, endMs, transcript }) => ({ turn_id: turnId, start_ms: startMs, end_ms: endMs, transcript })),
-        audio_duration_ms: data.audioDurationMs ?? null, model: TRANSCRIBE_MODEL, provider_session_id: data.sessionId ?? sessionId };
+      const turns = Array.isArray(data.turns) ? data.turns.filter(turn => turn && typeof turn === 'object') : [];
+      return { transcript: data.transcript, turns: turns.map(({ turnId, startMs, endMs, transcript }) => ({ turn_id: turnId, start_ms: startMs, end_ms: endMs, transcript })),
+        audio_duration_ms: Number.isFinite(data.audioDurationMs) && data.audioDurationMs > 0 ? data.audioDurationMs : null, model: TRANSCRIBE_MODEL, provider_session_id: data.sessionId ?? sessionId };
     },
     // `system` lets another product reuse this pipeline with its own coaching prompt; the reply shape stays the same.
     async analyze({ goal, transcript, metrics, language, system = analysisSystemPrompt(language) }) {
