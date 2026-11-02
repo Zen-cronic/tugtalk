@@ -68,6 +68,30 @@ The authenticated identity comes only from the token. Clients cannot choose anot
 
 The limits, model names, eval numbers and test counts we state are listed in [FACTS.md](FACTS.md), and a test checks each one against the code.
 
+## How Meta's models measure
+
+Two Meta models touch every capture. They work on words; code decides every number that is stored.
+
+| Step | Model | What the model decides | What code does |
+|---|---|---|---|
+| Transcribe | `muse-voice-transcribe-1.0`, ENDPOINTING mode | The words, and the start and end of each speech segment ("turn") | Counts habits from the words with the en/fr lexicons. Measures pauses and speaking-time pace from the turn times. |
+| Adjudicate | Muse Spark Open (`meta-models/muse-spark-open-1026`), temperature 0 | For each ambiguous word-list hit: habit or content, with a one-line reason | Proposes the hits and checks every label before it changes a count. Never lets a count grow. |
+| Observe | Muse Spark Open | One observation and one exercise, in words | Sends it the lexicon counts and the transcript. Never takes a number from it. |
+
+**What transcription gives.** The counts depend on the transcript keeping fillers such as "uh" as words. In a repeat run of one clip, one run kept an "uh" and the other dropped it; we have not measured how often fillers are kept. ENDPOINTING mode also returns each speech segment with start and end times. Code turns the gaps between segments into `metrics.pauses`: pauses from 250 ms, the longest pause, pauses of 1 s or more, silence before the first segment, speaking time against clip time, and words per minute of speaking time.
+
+**What Spark Open decides.** The word list counts every listed phrase, so content uses such as "what kind of report", "I mean it" or "du coup de fil" count as habits. When a transcript has such ambiguous hits, one Spark call gets each hit with its exact text and six words either side, and labels it `habit` or `content`. Pure vocal fillers (um, uh, erm, euh, bah) are counted without asking, and a capture without ambiguous hits makes no call.
+
+**What code verifies.** A label counts only if it names a proposed candidate once, copies that candidate's text exactly as the transcript has it, says `habit` or `content`, and gives a reason. Anything else keeps the word-list count for that hit. So does a failed, truncated or refused call, after the same retry rule every Spark call follows. A content label can only remove a proposed hit. The model cannot add a hit or change a number. The session keeps both numbers: `adjudication.lexicon_count` and `adjudication.adjudicated_count`, with `adjudication.status` (`adjudicated`, `partial`, `fallback` or `no_candidates`) and each candidate's label, reason and rejection. `metrics` stays as it was, all code-measured.
+
+**Limits.**
+
+- A segment boundary is the transcriber's endpoint, not a word timing. Short pauses inside a segment are not seen, and a filled pause is speech, so pauses are a floor. Silence before the first segment includes the time between tapping record and starting to speak.
+- A wrong label that copies the text correctly passes the check. The eval counts these.
+- The adjudication eval runs on scripted adjudication outputs, not live model runs. Code-checked adjudication scores precision 0.877, recall 0.820, against 0.788 / 0.852 for the lexicon alone and 0.754 / 0.852 for the flat word list. That shows what the check does with good and bad replies. It does not measure Spark Open. A live run over the corpus would make 42 Spark calls (at most 84 with retries) and has not been run. See [eval/README.md](eval/README.md).
+- Adjudication adds one paid Spark call to each capture with ambiguous hits.
+- The observation model still receives the lexicon counts, not the adjudicated counts or the pauses. The watch shows the lexicon filler count.
+
 ## Evidence and limits
 
 `npm test` exercises actual HTTP requests and SQLite persistence: authentication, read-only scope, per-user isolation, create/complete/correct flow, schema rejection, retries, duplicate check-ins, stale edits, soft-deleted evidence, request audit, and credential revocation. The test uses a disposable temporary database, separate from the live Muse test database.

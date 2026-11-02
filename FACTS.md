@@ -33,3 +33,19 @@ Every number or name we state about this project, and where it comes from. `test
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `watch-target` | Watch app minimum OS | watchOS 11.0 | apps/watch/project.yml |
 | `mac-target` | Mac companion minimum OS | macOS 14.0 | apps/mac/project.yml |
+
+## Measurement by Meta's models
+
+| ID | Claim | Value | Checked against |
+|---|---|---|---|
+| `pause-source` | Where pause metrics come from | ENDPOINTING turn gaps, turn-gaps-v1 | The transcription request sent to Meta (fake fetch) and `measure()` on the turns it returns |
+| `pause-thresholds` | Shortest gap counted as a pause, and as a long pause | 250 ms, 1000 ms | `measurePauses` probed with every gap from 0 to 2000 ms |
+| `observation-inputs` | Numbers the observation model receives | word_count, words_per_minute, filler_count, hedge_count, restart_count | The request body sent to Baseten (fake fetch) |
+| `adjudication-model` | Model that labels ambiguous hits | meta-models/muse-spark-open-1026, temperature 0 | The request body sent to Baseten (fake fetch) |
+| `adjudication-calls` | Adjudication calls per capture | 1 with ambiguous hits, 2 if the reply is unusable, 0 without | `adjudicateCapture` with a counting fake fetch |
+| `always-habit` | Hits counted without asking the model | um, uh, erm (en); euh, bah (fr) | `adjudicationCandidates` on every lexicon phrase |
+| `adjudication-quote-check` | A label is accepted when its quote differs from the transcript | no | `verifyLabels` with a re-cased and a lengthened quote |
+| `adjudication-never-adds` | Adjudication can raise a count | no | `buildAdjudication` with every label set to habit plus invented candidates, on every eval item |
+| `eval-adjudicated-scripted` | Adjudicated precision / recall on scripted adjudication outputs, not live model runs | 0.877 / 0.82 | `eval/results.json`, regenerated |
+| `eval-scripted-checks` | Scripted labels code rejected, and wrong labels it accepted | 8 of 51 rejected, 3 wrong accepted | `eval/results.json`, regenerated |
+| `eval-live-calls` | Calls a live adjudication eval would make | 42, at most 84 with retries | `npm run eval -- --live` plan in `eval/results.json` |
