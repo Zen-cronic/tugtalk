@@ -50,6 +50,19 @@ Behind the hosting adapter the check gets the long deadline but **never the mode
   - a clip made by panning one CC0 photo of a person texting: phone in hand 7.0 s against 7.0 s.
 - **Real webcam footage, not yet measured.** Neither clip has motion blur, low light or real hands moving. The pass rule: on three 10 s webcam clips in three lighting setups, the counted phone-in-hand and paper-in-hand seconds must each be within 2 s of a hand count, with the three requests done in 15 s or less.
 
+### The webcam check, step by step
+
+```sh
+# 1. Record a 10 s clip in QuickTime Player (File › New Movie Recording) for each lighting setup: desk lamp on, facing
+#    the screen; overhead light only; a window behind or beside you. In each, glance at your phone for a few seconds and
+#    hold a paper note. The clips stay on this Mac.
+# 2. Count by hand, scrubbing each clip in QuickTime: the seconds a phone is in your hand, and the seconds a paper is.
+# 3. Make the same clip the app would send (10 frames a second, 640×360, no audio):
+cd apps/mac && swift run -c release replay-clip --video ~/Desktop/lamp.mov --out /tmp/lamp.mp4
+# 4. Send it to SAM 3.1 (3 requests, MODEL_API_KEY in the environment) and score it. Exit 0 = pass.
+cd ../.. && node scripts/replay-check.mjs --clip /tmp/lamp.mp4 --phone 3 --paper 2 --label lamp
+```
+
 ## Cost
 
 $0.0002 per frame per request, billed for at least 50 frames: 150 frames × 3 requests is $0.09 per check at most. 20 checks an hour at most.

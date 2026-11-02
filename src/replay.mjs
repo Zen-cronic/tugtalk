@@ -107,7 +107,9 @@ export async function samSegment(dataUrl, concept, { env = process.env, fetchImp
   // The request said store: false; a response that says otherwise is not used.
   if (completed.store !== undefined && completed.store !== false) return fail('stored response');
   const frames = completed.usage?.video_frames_processed;
-  return { ok: true, text: deltas.join(''), frames_processed: Number.isInteger(frames) ? frames : null, ms: Math.round(performance.now() - started) };
+  // The response id is returned for a caller's own call log only; runReplay never saves it.
+  return { ok: true, text: deltas.join(''), frames_processed: Number.isInteger(frames) ? frames : null, response_id: typeof completed.id === 'string' ? completed.id : null,
+    ms: Math.round(performance.now() - started) };
 }
 
 // Boxes per frame from SAM's output text, masks ignored: "<12f>0<|box;x1=..;y1=..;x2=..;y2=..;w=..;h=..;c=..|>...".

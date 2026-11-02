@@ -141,9 +141,11 @@ public final class ReplayClipWriter: @unchecked Sendable {
         writer.endSession(atSourceTime: CMTime(value: CMTimeValue(count), timescale: ReplayClip.fps))
         let url = self.url
         writer.finishWriting { [self] in
-            guard writer.status == .completed else {
+            // Read back through this (lock-protected) instance, so the writer itself is not captured.
+            let (status, error) = lock.withLock { (self.writer?.status ?? .failed, self.writer?.error?.localizedDescription) }
+            guard status == .completed else {
                 discard()
-                done(.failure(ReplayClipError.writerFailed(writer.error?.localizedDescription ?? "status \(writer.status.rawValue)")))
+                done(.failure(ReplayClipError.writerFailed(error ?? "status \(status.rawValue)")))
                 return
             }
             let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0

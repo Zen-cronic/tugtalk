@@ -371,3 +371,16 @@ test('fixtures: the clip is CC0 with its credit, and the synthetic truth matches
   assert.equal(TRUTH.frames, 100); assert.equal(TRUTH.fps, 10);
   assert.ok(existsSync(new URL('./fixtures/sam/real_phone.txt', import.meta.url)));
 });
+
+test('webcam check script: reads the frame count from the MP4 and scores against the hand count (2 s, 15 s)', async () => {
+  const { mp4Frames, score, PASS_SECONDS, PASS_WALL_MS } = await import('../scripts/replay-check.mjs');
+  assert.equal(mp4Frames(CLIP), 100);
+  assert.throws(() => mp4Frames(Buffer.from('not a video')));
+  const seconds = (phone, paper) => ({ phone_in_hand: phone, paper_in_hand: paper });
+  assert.equal(score({ seconds: seconds(5, 2), wallMs: 9000 }, { phone: 3, paper: 0 }).pass, true, 'exactly 2 s off passes');
+  assert.deepEqual(score({ seconds: seconds(5.1, 0), wallMs: 9000 }, { phone: 3, paper: 0 }), { error: { phone_in_hand: 2.1, paper_in_hand: 0 }, pass: false });
+  assert.equal(score({ seconds: seconds(3, 0), wallMs: 9000 }, { phone: 3, paper: 2.1 }).pass, false, 'paper counts too');
+  assert.equal(score({ seconds: seconds(3, 0), wallMs: PASS_WALL_MS + 1 }, { phone: 3, paper: 0 }).pass, false, 'too slow');
+  assert.equal(PASS_SECONDS, 2);
+  assert.ok(!readFileSync(new URL('../scripts/replay-check.mjs', import.meta.url), 'utf8').match(/console\.\w+\([^)]*MODEL_API_KEY\b(?! is not set)/), 'the key is never printed');
+});
