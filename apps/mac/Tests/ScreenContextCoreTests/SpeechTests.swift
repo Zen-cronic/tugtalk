@@ -29,16 +29,16 @@ final class SpeechRouterTests: XCTestCase {
         let router = SpeechRouter(remote: remote, fallback: apple)
         speak(router, line)
         XCTAssertEqual(remote.spoken, [line]); XCTAssertEqual(apple.spoken, [])
-        remote.events?.started()
+        remote.events?.started("wit")
         let end = Date(timeIntervalSince1970: 5)
         remote.events?.finished(end)
-        XCTAssertEqual(sources, [.remote]); XCTAssertEqual(finishes, [end], "the finish time feeds X-Prompt-Ended-At")
+        XCTAssertEqual(sources, [.remote(provider: "wit")]); XCTAssertEqual(sources.first?.label, "Wit.ai voice, through the coach"); XCTAssertEqual(finishes, [end], "the finish time feeds X-Prompt-Ended-At")
         XCTAssertFalse(router.isSpeaking)
     }
 
     func testA503NetworkErrorOrSlowStartFallsBackToTheAppleVoice() {
         let cases: [(Error, String)] = [
-            (CoachError.server(503, "speech_unconfigured", "No key."), "the coach has no voice key"),
+            (CoachError.server(503, "speech_unconfigured", "No key."), "the coach has no voice set up"),
             (CoachError.offline("x"), "the coach voice could not be reached"),
             (SpeechFetchError.timedOut, "the coach voice took over 2 s to start"),
         ]
@@ -49,7 +49,7 @@ final class SpeechRouterTests: XCTestCase {
             speak(router, line)
             remote.events?.failed(error)
             XCTAssertEqual(apple.spoken, [line], "\(error)")
-            apple.events?.started()
+            apple.events?.started(nil)
             XCTAssertEqual(sources, [.fallback(reason: reason)], "the card shows a fallback-voice note")
             apple.events?.finished(Date(timeIntervalSince1970: 9))
             XCTAssertEqual(finishes.last, Date(timeIntervalSince1970: 9))
@@ -74,13 +74,13 @@ final class SpeechRouterTests: XCTestCase {
         XCTAssertEqual(remote.stops, 2, "stopped before speaking and on barge-in"); XCTAssertEqual(apple.stops, 2)
         pending?.failed(CoachError.offline("late"))
         XCTAssertEqual(apple.spoken, [], "a failure after barge-in does not start the fallback voice")
-        pending?.started(); pending?.finished(Date())
+        pending?.started(nil); pending?.finished(Date())
         XCTAssertEqual(sources, []); XCTAssertEqual(finishes, [], "nothing is reported for a stopped question")
 
         // Barge-in while the fallback voice is playing.
         speak(router, line)
         remote.events?.failed(CoachError.offline("x"))
-        apple.events?.started()
+        apple.events?.started(nil)
         let applePending = apple.events
         router.stop()
         XCTAssertEqual(apple.stops, 4)
@@ -96,6 +96,7 @@ final class SpeechProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var body = Data()
     nonisolated(unsafe) static var delay: TimeInterval = 0
     nonisolated(unsafe) static var requests: [URLRequest] = []
+    nonisolated(unsafe) static var extraHeaders: [String: String] = [:]
     private var cancelled = false
 
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -104,7 +105,7 @@ final class SpeechProtocol: URLProtocol, @unchecked Sendable {
         Self.requests.append(request)
         DispatchQueue.global().asyncAfter(deadline: .now() + Self.delay) { [self] in
             guard !cancelled else { return }
-            let response = HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: nil, headerFields: ["Content-Type": Self.contentType])!
+            let response = HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: nil, headerFields: ["Content-Type": Self.contentType].merging(Self.extraHeaders) { a, _ in a })!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Self.body)
             client?.urlProtocolDidFinishLoading(self)
@@ -122,17 +123,35 @@ final class SpeechFetchTests: XCTestCase {
 
     override func setUp() {
         SpeechProtocol.status = 200; SpeechProtocol.contentType = "audio/mpeg"; SpeechProtocol.delay = 0
-        SpeechProtocol.body = Data([0xFF, 0xFB, 0x90, 0x00] + [UInt8](repeating: 1, count: 2000)); SpeechProtocol.requests = []
+        SpeechProtocol.body = Data([0xFF, 0xFB, 0x90, 0x00] + [UInt8](repeating: 1, count: 2000)); SpeechProtocol.requests = []; SpeechProtocol.extraHeaders = [:]
+    }
+
+    func testAWAVFromAMetaVoiceKeepsItsProviderForTheCard() async throws {
+        SpeechProtocol.contentType = "audio/wav; charset=binary"
+        SpeechProtocol.body = WAV.encode([1, 2, 3])
+        SpeechProtocol.extraHeaders = ["X-Speech-Provider": "mms", "X-Speech-Voice": "facebook/mms-tts-eng"]
+        let audio = try await api().fetchSpeech(roundID: "vr-2")
+        XCTAssertTrue(audio.isWAV); XCTAssertEqual(audio.contentType, "audio/wav")
+        XCTAssertEqual(audio.provider, "mms"); XCTAssertEqual(audio.voice, "facebook/mms-tts-eng")
+        XCTAssertEqual(SpeechSource.remote(provider: audio.provider).label, "Meta MMS-TTS voice, through the coach")
+        XCTAssertEqual(SpeechSource.remote(provider: nil).label, "The coach's voice")
+    }
+
+    func testRawPCMCannotBePlayedSoTheFallbackSpeaks() async {
+        SpeechProtocol.contentType = "audio/pcm"
+        do { _ = try await api().fetchSpeech(roundID: "vr-1"); XCTFail("expected an error") } catch {
+            XCTAssertEqual(error as? SpeechFetchError, .unplayable("audio/pcm"))
+        }
     }
 
     func testTheRoundsAudioIsFetchedWithTheKeyOnTheSameHost() async throws {
-        let data = try await api().fetchSpeech(roundID: "vr-1")
-        XCTAssertEqual(data, SpeechProtocol.body)
+        let audio = try await api().fetchSpeech(roundID: "vr-1")
+        XCTAssertEqual(audio.data, SpeechProtocol.body); XCTAssertFalse(audio.isWAV)
         let request = try XCTUnwrap(SpeechProtocol.requests.first)
         XCTAssertEqual(request.httpMethod, "POST"); XCTAssertEqual(request.url?.path, "/v1/voice-rounds/vr-1/speech")
         XCTAssertEqual(request.url?.host, "127.0.0.1")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer local-test-token")
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "audio/mpeg")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "audio/wav, audio/mpeg")
     }
 
     func testNoVoiceKeyOnTheServerIsATyped503() async {
@@ -140,7 +159,7 @@ final class SpeechFetchTests: XCTestCase {
         SpeechProtocol.body = Data(#"{"error":"speech_unconfigured","message":"No ElevenLabs key."}"#.utf8)
         do { _ = try await api().fetchSpeech(roundID: "vr-1"); XCTFail("expected 503") } catch {
             XCTAssertEqual(error as? CoachError, .server(503, "speech_unconfigured", "No ElevenLabs key."))
-            XCTAssertEqual(SpeechRouter.reason(for: error), "the coach has no voice key")
+            XCTAssertEqual(SpeechRouter.reason(for: error), "the coach has no voice set up")
         }
     }
 

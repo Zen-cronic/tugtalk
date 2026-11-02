@@ -11,18 +11,19 @@ public struct SpokenLine: Sendable, Equatable {
     }
 }
 
-/// What a speaker reports. After `started`, exactly one of `finished` or `failed`; nothing after `stop()`.
+/// What a speaker reports. After `started` (with the voice's name, if it has one), exactly one of
+/// `finished` or `failed`; nothing after `stop()`.
 public struct SpeechEvents {
-    public let started: @MainActor () -> Void
+    public let started: @MainActor (String?) -> Void
     public let finished: @MainActor (Date) -> Void
     public let failed: @MainActor (Error) -> Void
 
-    public init(started: @escaping @MainActor () -> Void, finished: @escaping @MainActor (Date) -> Void, failed: @escaping @MainActor (Error) -> Void) {
+    public init(started: @escaping @MainActor (String?) -> Void, finished: @escaping @MainActor (Date) -> Void, failed: @escaping @MainActor (Error) -> Void) {
         self.started = started; self.finished = finished; self.failed = failed
     }
 }
 
-/// One way to say a question out loud: the coach's ElevenLabs voice, or Apple's voice on this Mac.
+/// One way to say a question out loud: the coach server's voice, or Apple's voice on this Mac.
 @MainActor
 public protocol ReplySpeaker: AnyObject {
     func speak(_ line: SpokenLine, events: SpeechEvents)
@@ -32,8 +33,23 @@ public protocol ReplySpeaker: AnyObject {
 
 /// Which voice said the question.
 public enum SpeechSource: Equatable, Sendable {
-    case remote
+    /// The coach server's voice; `provider` is its `X-Speech-Provider` header, if sent.
+    case remote(provider: String?)
     case fallback(reason: String)
+
+    /// For the card: which voice spoke.
+    public var label: String {
+        switch self {
+        case .remote(let provider):
+            switch provider?.lowercased() {
+            case "wit": "Wit.ai voice, through the coach"
+            case "mms": "Meta MMS-TTS voice, through the coach"
+            case "elevenlabs": "ElevenLabs voice, through the coach"
+            default: "The coach's voice"
+            }
+        case .fallback(let reason): "Fallback voice on this Mac: \(reason)"
+        }
+    }
 }
 
 /// Tries the remote voice first and falls back to the local one when it fails before any audio
@@ -65,7 +81,7 @@ public final class SpeechRouter {
         let viaFallback: @MainActor (String) -> Void = { [weak self] reason in
             guard live(), let self else { return }
             self.fallback.speak(line, events: SpeechEvents(
-                started: { if live() { started(.fallback(reason: reason)) } },
+                started: { _ in if live() { started(.fallback(reason: reason)) } },
                 finished: done,
                 // The local voice failing too leaves nothing to say; treat the question as ended.
                 failed: { _ in done(Date()) }))
@@ -75,7 +91,7 @@ public final class SpeechRouter {
             return
         }
         remote.speak(line, events: SpeechEvents(
-            started: { if live() { started(.remote) } },
+            started: { provider in if live() { started(.remote(provider: provider)) } },
             finished: done,
             failed: { error in viaFallback(Self.reason(for: error)) }))
     }
@@ -92,7 +108,7 @@ public final class SpeechRouter {
     public nonisolated static func reason(for error: Error) -> String {
         switch error {
         case SpeechFetchError.timedOut: "the coach voice took over 2 s to start"
-        case CoachError.server(503, "speech_unconfigured", _): "the coach has no voice key"
+        case CoachError.server(503, "speech_unconfigured", _): "the coach has no voice set up"
         case CoachError.server(let status, _, _): "the coach voice failed (\(status))"
         case CoachError.offline: "the coach voice could not be reached"
         default: "the coach voice could not play"
@@ -103,20 +119,33 @@ public final class SpeechRouter {
 public enum SpeechFetchError: Error, Equatable {
     case timedOut
     case notAudio(String)
+    /// Raw PCM has no header to say its rate, so it cannot be played as a file.
+    case unplayable(String)
     case empty
 }
 
+/// A spoken question from the coach server: the audio file and which voice made it.
+public struct SpeechAudio: Sendable, Equatable {
+    public let data: Data
+    public let contentType: String
+    public let provider: String?
+    public let voice: String?
+
+    /// `true` for WAV, `false` for MP3, as a hint to the player.
+    public var isWAV: Bool { contentType.contains("wav") }
+}
+
 extension CoachAPI {
-    /// The round's question as audio from `POST /v1/voice-rounds/{round_id}/speech` (MP3, possibly
+    /// The round's question as audio from `POST /v1/voice-rounds/{round_id}/speech` (WAV or MP3, possibly
     /// chunked). Fails if no audio byte arrives within `firstAudio`, or the whole clip takes longer than `total`.
-    /// The ElevenLabs key stays on the server; this Mac only ever sees the audio.
-    public func fetchSpeech(roundID: String, firstAudio: Duration = .seconds(2), total: Duration = .seconds(12)) async throws -> Data {
+    /// The speech provider's key stays on the server; this Mac only ever sees the audio.
+    public func fetchSpeech(roundID: String, firstAudio: Duration = .seconds(2), total: Duration = .seconds(12)) async throws -> SpeechAudio {
         var request = request("v1/voice-rounds/\(roundID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))) ?? roundID)/speech",
                               method: "POST", timeout: 15)
-        request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+        request.setValue("audio/wav, audio/mpeg", forHTTPHeaderField: "Accept")
         let speechRequest = request
         let gotFirstByte = OnceFlag()
-        return try await withThrowingTaskGroup(of: Data.self) { group in
+        return try await withThrowingTaskGroup(of: SpeechAudio.self) { group in
             group.addTask { try await downloadAudio(speechRequest, firstByte: gotFirstByte) }
             group.addTask {
                 try await Task.sleep(for: firstAudio)
@@ -130,7 +159,7 @@ extension CoachAPI {
         }
     }
 
-    private func downloadAudio(_ request: URLRequest, firstByte: OnceFlag) async throws -> Data {
+    private func downloadAudio(_ request: URLRequest, firstByte: OnceFlag) async throws -> SpeechAudio {
         let bytes: URLSession.AsyncBytes, response: URLResponse
         do { (bytes, response) = try await session.bytes(for: request) } catch is CancellationError {
             throw CancellationError()
@@ -151,10 +180,13 @@ extension CoachAPI {
             let body = try? JSONDecoder().decode(ErrorBody.self, from: data)
             throw CoachError.server(status, body?.error ?? "error", body?.message ?? "Speech failed")
         }
-        let type = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type")?.lowercased() ?? ""
+        let http = response as? HTTPURLResponse
+        let type = http?.value(forHTTPHeaderField: "Content-Type")?.split(separator: ";").first.map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
         guard type.hasPrefix("audio/") else { throw SpeechFetchError.notAudio(type) }
+        guard ["audio/wav", "audio/x-wav", "audio/wave", "audio/mpeg", "audio/mp3"].contains(type) else { throw SpeechFetchError.unplayable(type) }
         guard !data.isEmpty else { throw SpeechFetchError.empty }
-        return data
+        return SpeechAudio(data: data, contentType: type, provider: http?.value(forHTTPHeaderField: "X-Speech-Provider"),
+                           voice: http?.value(forHTTPHeaderField: "X-Speech-Voice"))
     }
 }
 

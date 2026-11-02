@@ -142,7 +142,8 @@ final class VoiceRoundAPITests: XCTestCase {
         SequenceProtocol.answers = [.status(200, voiceReceiptJSON)]
         let wav = WAV.encode([1, 2, 3, 4])
         let ended = Date(timeIntervalSince1970: 1_793_000_000.25)
-        let receipt = try await api().postVoiceRound(VoiceRoundRequest(wav: wav, idempotencyKey: "voice-k1", goalID: "g1", screenContextID: "c1", language: .fr, promptEndedAt: ended))
+        let receipt = try await api().postVoiceRound(VoiceRoundRequest(wav: wav, idempotencyKey: "voice-k1", goalID: "g1", screenContextID: "c1", language: .fr,
+                                                                       promptEndedAt: ended, occurredAt: ended.addingTimeInterval(1.5)))
         let request = try XCTUnwrap(SequenceProtocol.requests.first)
         XCTAssertEqual(request.url?.path, "/v1/voice-rounds"); XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer local-test-token")
@@ -152,6 +153,7 @@ final class VoiceRoundAPITests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "X-Screen-Context-Id"), "c1")
         XCTAssertEqual(request.value(forHTTPHeaderField: "X-Language"), "fr")
         XCTAssertEqual(request.value(forHTTPHeaderField: "X-Prompt-Ended-At"), "2026-10-26T07:33:20.250Z")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-Occurred-At"), "2026-10-26T07:33:21.750Z", "the hold's start, for the onset")
         XCTAssertEqual(SequenceProtocol.bodies.first, wav)
         XCTAssertEqual(receipt.reply.kind, .challenge)
         XCTAssertEqual(receipt.reply.verifiedQuote, "maybe I should lead it")
@@ -163,7 +165,7 @@ final class VoiceRoundAPITests: XCTestCase {
         SequenceProtocol.answers = [.status(200, voiceReceiptJSON)]
         _ = try await api().postVoiceRound(VoiceRoundRequest(wav: WAV.encode([0]), idempotencyKey: "voice-k2"))
         let request = try XCTUnwrap(SequenceProtocol.requests.first)
-        for header in ["X-Goal-Id", "X-Screen-Context-Id", "X-Prompt-Ended-At"] { XCTAssertNil(request.value(forHTTPHeaderField: header), header) }
+        for header in ["X-Goal-Id", "X-Screen-Context-Id", "X-Prompt-Ended-At", "X-Occurred-At"] { XCTAssertNil(request.value(forHTTPHeaderField: header), header) }
         XCTAssertEqual(request.value(forHTTPHeaderField: "X-Language"), "en")
     }
 
@@ -184,7 +186,8 @@ final class VoiceRoundAPITests: XCTestCase {
     }
 
     func testClientErrorsAreNotRetriedAndRetriesStopAtTheCap() async {
-        for (code, name) in [(400, "invalid_audio"), (401, "unauthorized"), (409, "conflict"), (413, "too_large"), (429, "rate_limited")] {
+        for (code, name) in [(400, "invalid_audio"), (401, "unauthorized"), (409, "idempotency_conflict"), (413, "too_large"), (429, "rate_limited"),
+                             (503, "reply_unconfigured")] {
             SequenceProtocol.requests = []
             SequenceProtocol.answers = [.status(code, #"{"error":"\#(name)","message":"m"}"#), .status(200, voiceReceiptJSON)]
             do {

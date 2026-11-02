@@ -47,7 +47,7 @@ struct VoiceCard: Equatable {
     var releaseToVoice: TimeInterval?
     /// The question has played to the end (or was stopped).
     var finished = false
-    /// Which voice said it: the coach's ElevenLabs voice, or Apple's voice on this Mac as a fallback.
+    /// Which voice said it: the coach server's voice, or Apple's voice on this Mac as a fallback.
     var voice: SpeechSource?
     var isPreview = false
 
@@ -65,13 +65,10 @@ struct VoiceCard: Equatable {
 
     var endsRound: Bool { move == .wrap_up }
 
-    /// "ElevenLabs voice", or the fallback note with its reason.
+    /// Which voice spoke, or the fallback note with its reason.
     var voiceNote: String? {
-        switch voice {
-        case .remote: Connection.isLocalDevelopmentRequested && !isPreview ? "Voice from the local test server" : "ElevenLabs voice, through the coach"
-        case .fallback(let reason): "Fallback voice on this Mac: \(reason)"
-        case nil: nil
-        }
+        if case .remote = voice, Connection.isLocalDevelopmentRequested, !isPreview { return "Voice from the local test server" }
+        return voice?.label
     }
 
     var moveTitle: String {
@@ -97,7 +94,8 @@ struct VoiceCard: Equatable {
         func count(_ n: Int?, _ one: String, _ many: String) -> String? { n.map { "\($0) \($0 == 1 ? one : many)" } }
         let parts = [count(m.word_count, "word", "words"), m.words_per_minute.map { "\(Int($0.rounded())) per minute" },
                      count(m.filler_count, "filler", "fillers"), count(m.hedge_count, "hedge", "hedges"),
-                     m.restart_count.flatMap { $0 > 0 ? count($0, "restart", "restarts") : nil }]
+                     m.restart_count.flatMap { $0 > 0 ? count($0, "restart", "restarts") : nil },
+                     m.onset_ms_approx.map { String(format: "started about %.1f s after the question", $0 / 1000) }]
         let line = parts.compactMap { $0 }.joined(separator: " · ")
         return line.isEmpty ? nil : line
     }
@@ -283,7 +281,7 @@ enum PreviewSamples {
                              move: .challenge, transcript: "Um, I think I'm ready to lead the Q1 launch, maybe, because I ran the beta and the team knows me.",
                              quote: "maybe", metrics: metrics, latency: latency, replayed: false, isPreview: true)
         card.releaseToVoice = 4.1
-        card.voice = .remote
+        card.voice = .remote(provider: "wit")
         return card
     }()
 

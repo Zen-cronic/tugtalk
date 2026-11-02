@@ -16,10 +16,14 @@ public struct VoiceRoundRequest: Sendable, Equatable {
     public var language: VoiceLanguage
     /// When the companion finished speaking its previous question, if it finished. Used for the approximate onset.
     public var promptEndedAt: Date?
+    /// When the recording started (key down). With `promptEndedAt` it gives the approximate onset.
+    /// Part of the request's fingerprint, so a retry must send the same value.
+    public var occurredAt: Date?
 
-    public init(wav: Data, idempotencyKey: String, goalID: String? = nil, screenContextID: String? = nil, language: VoiceLanguage = .en, promptEndedAt: Date? = nil) {
+    public init(wav: Data, idempotencyKey: String, goalID: String? = nil, screenContextID: String? = nil, language: VoiceLanguage = .en,
+                promptEndedAt: Date? = nil, occurredAt: Date? = nil) {
         self.wav = wav; self.idempotencyKey = idempotencyKey; self.goalID = goalID
-        self.screenContextID = screenContextID; self.language = language; self.promptEndedAt = promptEndedAt
+        self.screenContextID = screenContextID; self.language = language; self.promptEndedAt = promptEndedAt; self.occurredAt = occurredAt
     }
 
     /// ISO 8601 with milliseconds, in UTC.
@@ -86,12 +90,14 @@ extension CoachAPI {
         if let goal = round.goalID { request.setValue(goal, forHTTPHeaderField: "X-Goal-Id") }
         if let card = round.screenContextID { request.setValue(card, forHTTPHeaderField: "X-Screen-Context-Id") }
         if let ended = round.promptEndedAt { request.setValue(VoiceRoundRequest.timestamp(ended), forHTTPHeaderField: "X-Prompt-Ended-At") }
+        if let started = round.occurredAt { request.setValue(VoiceRoundRequest.timestamp(started), forHTTPHeaderField: "X-Occurred-At") }
         request.httpBody = round.wav
         return try await send(request, as: VoiceRoundReceipt.self)
     }
 }
 
-/// Sends a hold, retrying network failures and 5xx with the same idempotency key.
+/// Sends a hold, retrying network failures and 5xx with the same idempotency key (except a 503
+/// saying voice replies are not set up, which no retry fixes).
 /// A 4xx (bad audio, key refused, too long, hourly limit) is returned at once: retrying cannot fix it.
 public struct VoiceRoundUploader: Sendable {
     public let api: CoachAPI
@@ -102,13 +108,18 @@ public struct VoiceRoundUploader: Sendable {
         self.api = api; self.maxAttempts = max(1, maxAttempts); self.backoff = backoff
     }
 
+    public static func isRetryable(_ error: CoachError) -> Bool {
+        if case .server(503, "reply_unconfigured", _) = error { return false }
+        return error.isRetryable
+    }
+
     public func send(_ round: VoiceRoundRequest, onAttempt: @Sendable (Int) -> Void = { _ in }) async throws -> VoiceRoundReceipt {
         var attempt = 1
         while true {
             onAttempt(attempt)
             do {
                 return try await api.postVoiceRound(round)
-            } catch let error as CoachError where error.isRetryable && attempt < maxAttempts {
+            } catch let error as CoachError where Self.isRetryable(error) && attempt < maxAttempts {
                 try await Task.sleep(for: backoff(attempt))
                 attempt += 1
             }

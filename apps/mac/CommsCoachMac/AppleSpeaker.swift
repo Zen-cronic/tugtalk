@@ -65,7 +65,7 @@ final class AppleSpeaker: NSObject, ReplySpeaker, AVSpeechSynthesizerDelegate {
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         let id = ObjectIdentifier(utterance)
-        DispatchQueue.main.async { MainActor.assumeIsolated { if self.current == id { self.events?.started() } } }
+        DispatchQueue.main.async { MainActor.assumeIsolated { if self.current == id { self.events?.started(nil) } } }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {

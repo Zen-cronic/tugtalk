@@ -346,7 +346,7 @@ struct VoiceCardView: View {
             }
             if let note = card.voiceNote {
                 Label { Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-                    icon: { Image(systemName: card.voice == .remote ? "waveform" : "speaker.badge.exclamationmark").foregroundStyle(.secondary) }
+                    icon: { Image(systemName: { if case .fallback = card.voice { "speaker.badge.exclamationmark" } else { "waveform" } }()).foregroundStyle(.secondary) }
             }
             if let latency = card.latencyLine {
                 Label { Text(latency).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }

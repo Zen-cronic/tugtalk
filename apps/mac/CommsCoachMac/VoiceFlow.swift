@@ -13,13 +13,15 @@ let voiceLog = Logger(subsystem: "com.zencronic.commscoach.mac", category: "voic
 final class VoiceFlow {
     private let model: CompanionModel
     private var machine = VoiceTurnMachine()
-    /// The coach's ElevenLabs voice by default, Apple's voice on this Mac as the fallback.
+    /// The coach server's voice by default, Apple's voice on this Mac as the fallback.
     private let speech: SpeechRouter
     private let store = VoiceClipStore()
     private var recorder: MicRecorder?
     /// DEBUG `-voiceFixtureWAV <path>`: this file stands in for the microphone, so no permission is needed.
     private let fixture: URL?
     private var holdStarted: Date?
+    /// The hold's start, sent as `X-Occurred-At`. Kept per key so a Retry sends the same value.
+    private var occurredAt: (key: String, at: Date)?
     private var releasedAt: Date?
     private var bargeInAt: Date?
     private var card: VoiceCard?
@@ -117,6 +119,7 @@ final class VoiceFlow {
 
     private func startRecording(_ key: String) {
         holdStarted = Date()
+        occurredAt = (key, holdStarted!)
         if fixture == nil {
             let recorder = MicRecorder()
             do {
@@ -174,7 +177,8 @@ final class VoiceFlow {
         }
         model.set(.voiceThinking(since: releasedAt ?? Date()))
         let round = VoiceRoundRequest(wav: wav, idempotencyKey: key, goalID: Settings.goalID, screenContextID: model.lastCard?.recordID,
-                                      language: Settings.voiceLanguage, promptEndedAt: promptEndedAt)
+                                      language: Settings.voiceLanguage, promptEndedAt: promptEndedAt,
+                                      occurredAt: occurredAt?.key == key ? occurredAt?.at : nil)
         voiceLog.notice("sending \(wav.count, privacy: .public) bytes; prompt end \(promptEndedAt == nil ? "not sent" : "sent", privacy: .public)")
         uploadTask = Task { [weak self] in
             do {
@@ -185,7 +189,7 @@ final class VoiceFlow {
             } catch is CancellationError {
                 return
             } catch let error as CoachError {
-                self?.fail(key, message: Self.message(for: error), retryable: error.isRetryable)
+                self?.fail(key, message: Self.message(for: error), retryable: VoiceRoundUploader.isRetryable(error))
             } catch {
                 self?.fail(key, message: "The reply could not be read.", retryable: true)
             }
@@ -231,7 +235,7 @@ final class VoiceFlow {
         card.releaseToVoice = Date().timeIntervalSince(releasedAt)
         card.voice = source
         self.card = card
-        voiceLog.notice("first word \(Self.ms(since: releasedAt), privacy: .public) ms after release (\(source == .remote ? "coach voice" : "fallback voice", privacy: .public))")
+        voiceLog.notice("first word \(Self.ms(since: releasedAt), privacy: .public) ms after release (\(source.label, privacy: .public))")
         if case .voiceSpeaking = model.phase { model.set(.voiceSpeaking(card)) }
     }
 
@@ -250,6 +254,7 @@ final class VoiceFlow {
         case .server(413, _, _): "That was too long. Keep an answer under a minute."
         case .server(400, _, let message): "The coach couldn't use that recording: \(message)"
         case .server(409, _, let message): message
+        case .server(503, "reply_unconfigured", _): "Voice replies are not set up on this coach yet."
         case .server(let status, _, _) where status >= 500: "The coach couldn't reply (\(status))."
         default: error.localizedDescription
         }
