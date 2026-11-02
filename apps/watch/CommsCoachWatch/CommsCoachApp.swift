@@ -44,12 +44,17 @@ final class CaptureModel: ObservableObject {
         #if DEBUG
         // Debug builds only: show the result screen with fixed sample data, without recording or uploading.
         let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-coachTextCheck") {
+            let failures = CoachText.selfCheck()
+            print(failures.isEmpty ? "coach text check: all cases pass" : "coach text check failed:\n" + failures.joined(separator: "\n"))
+        }
         if arguments.contains("-previewResult") {
             isPreview = true
             scrollToObservation = arguments.contains("-scrollToObservation")
             scrollToActions = arguments.contains("-scrollToActions") // the result's buttons, at the end of the screen
             scrollToTry = arguments.contains("-scrollToTry") // the short exercise line and its More button
-            phase = .done(.preview)
+            // `-previewObservation "<text>"` swaps in another observation, to check the verdict line on the wrist.
+            phase = .done(.preview(observation: UserDefaults.standard.string(forKey: "previewObservation")))
             return
         }
         #endif

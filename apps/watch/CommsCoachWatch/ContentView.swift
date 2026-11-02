@@ -393,28 +393,6 @@ private struct SetupList: View {
     }
 }
 
-/// Splits coach text for the wrist. Nothing is reworded: a lead is the coach's own opening words.
-enum CoachText {
-    /// The observation's opening clause (up to the first comma or full stop) when it is short, and the rest of it.
-    static func lead(of text: String, maxWords: Int) -> (lead: String, rest: String)? {
-        guard let cut = text.firstIndex(where: { $0 == "," || $0 == "." }) else { return nil }
-        let lead = text[..<cut].trimmingCharacters(in: .whitespaces)
-        let rest = text[text.index(after: cut)...].trimmingCharacters(in: .whitespaces)
-        let words = lead.split(separator: " ").count
-        guard words >= 2, words <= maxWords, !rest.isEmpty else { return nil }
-        return (lead, rest.prefix(1).uppercased() + rest.dropFirst())
-    }
-
-    /// The exercise's name (before any colon or bracket), or its first words when it has no name.
-    static func headline(of text: String, maxWords: Int) -> String {
-        let name = text.prefix { $0 != ":" && $0 != "(" && $0 != "." }.trimmingCharacters(in: .whitespaces)
-        let words = name.split(separator: " ")
-        if !words.isEmpty, words.count <= maxWords { return name }
-        let all = text.split(separator: " ")
-        return all.prefix(maxWords).joined(separator: " ") + (all.count > maxWords ? "…" : "")
-    }
-}
-
 /// Observes the recorder itself: a nested ObservableObject's changes do not
 /// propagate through CaptureModel, so reading it from ContentView never redraws.
 private struct ElapsedLabel: View {

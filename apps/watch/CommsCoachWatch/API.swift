@@ -124,6 +124,15 @@ extension CaptureReceipt {
     /// Shown with the -previewResult launch argument; not a watch capture. The values are copied from one
     /// recorded run of the hosted pipeline: a synthetic voice clip uploaded with curl on Nov 1, 2026
     /// (receipt 5aeff421, session 92a20be9), with its observation and exercise verbatim.
+    static func preview(observation: String? = nil) -> CaptureReceipt {
+        guard let observation else { return preview }
+        let r = preview.record
+        return CaptureReceipt(receipt_id: preview.receipt_id, replayed: false,
+                              record: CapturedSession(id: r.id, transcript: r.transcript, metrics: r.metrics,
+                                                      analysis: Analysis(status: r.analysis.status, observation: observation,
+                                                                         suggested_exercise: r.analysis.suggested_exercise, reason: nil)))
+    }
+
     static let preview = CaptureReceipt(
         receipt_id: "preview", replayed: false,
         record: CapturedSession(
