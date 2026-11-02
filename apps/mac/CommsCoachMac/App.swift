@@ -82,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onTugHome = { [weak self] home in self?.setHome(home) }
         menu.onOpenTopBar = { [weak self] in self?.notchBar.open() }
         notchBar.onHome = { [weak self] home in self?.setHome(home) }
+        notchBar.ownStatusItemMinX = { [weak self] in self?.menu.itemMinX }
         notchBar.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown(source: "top bar") }
         notchBar.onTalkUp = { [weak self] in self?.voice.keyUp(source: "top bar") }
         notchBar.onTalkCancel = { [weak self] in self?.voice.cancelHold() }

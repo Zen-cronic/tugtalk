@@ -37,7 +37,7 @@ public enum NotchBarPlacement {
         public var frame: CGRect
         /// The camera housing in the window's own coordinates, or nil on a display without a notch.
         public var housing: CGRect?
-        /// The height of the top band the bar's status row sits in: the notch's height, or the whole bar.
+        /// The height of the top band the status row sits in: the menu bar's height.
         public var band: CGFloat
 
         public init(frame: CGRect, housing: CGRect?, band: CGFloat) {
@@ -45,39 +45,64 @@ public enum NotchBarPlacement {
         }
     }
 
+    /// Nothing of ours comes closer than this to the housing's edge.
+    public static let notchGap: CGFloat = 8
+    /// The menu bar's height when it hides itself and the display reports none.
+    public static let standardMenuBar: CGFloat = 24
+
     /// The camera housing on screen, from the safe area at the top and the two areas beside it. Nil without a notch.
     public static func housing(screen: CGRect, safeTop: CGFloat, auxLeft: CGRect?, auxRight: CGRect?) -> CGRect? {
         guard safeTop > 0, let left = auxLeft, let right = auxRight, right.minX - left.maxX > 1 else { return nil }
         return CGRect(x: left.maxX, y: screen.maxY - safeTop, width: right.minX - left.maxX, height: safeTop)
     }
 
-    /// The collapsed bar. With a notch it wraps the housing: a wing on each side, flush with the top edge, plus a
-    /// strip `below` it. Without one it hangs just under the menu bar, centred, at `plain` size.
-    public static func collapsed(screen: CGRect, visible: CGRect, housing: CGRect?, wing: CGFloat, below: CGFloat, plain: CGSize) -> Layout {
-        if let housing {
-            let size = CGSize(width: housing.width + 2 * wing, height: housing.height + below)
-            let x = clamp(housing.midX - size.width / 2, screen.minX, screen.maxX - size.width)
-            let frame = CGRect(x: x, y: screen.maxY - size.height, width: size.width, height: size.height)
-            return Layout(frame: frame, housing: local(housing, in: frame), band: housing.height)
-        }
-        // Under the menu bar (or at the top edge when the menu bar hides itself).
-        let top = min(visible.maxY, screen.maxY)
-        let x = clamp(screen.midX - plain.width / 2, screen.minX, screen.maxX - plain.width)
-        return Layout(frame: CGRect(x: x, y: top - plain.height, width: plain.width, height: plain.height), housing: nil, band: plain.height)
+    /// The menu bar's height on a display: the gap above its visible frame, or the standard height when it hides.
+    public static func menuBarHeight(screen: CGRect, visible: CGRect) -> CGFloat {
+        let h = screen.maxY - visible.maxY
+        return h >= 1 ? h : standardMenuBar
     }
 
-    /// The open panel: it grows down from the collapsed bar, keeps its top edge and its centre, is never narrower
-    /// than the bar, and stays on the screen.
+    /// The width a wing needs for its content: `inset` at the outer edge, and `notchGap` (or `inset` without a notch)
+    /// on the inner edge. Zero content means no wing.
+    public static func wing(content: CGFloat, inset: CGFloat, notch: Bool) -> CGFloat {
+        guard content > 0 else { return 0 }
+        return inset + content + (notch ? notchGap : inset)
+    }
+
+    /// The collapsed bar: exactly the menu bar's height. With a notch it wraps the housing, flush with the top edge,
+    /// with a wing of its own width on each side (a zero-width wing is left out). Without one it hangs just under the
+    /// menu bar, centred, as wide as both wings.
+    public static func collapsed(screen: CGRect, visible: CGRect, housing: CGRect?, left: CGFloat, right: CGFloat) -> Layout {
+        if let housing {
+            let width = left + housing.width + right
+            let frame = CGRect(x: housing.minX - left, y: screen.maxY - housing.height, width: width, height: housing.height)
+            return Layout(frame: frame, housing: local(housing, in: frame), band: housing.height)
+        }
+        let height = menuBarHeight(screen: screen, visible: visible)
+        let top = min(visible.maxY, screen.maxY)
+        let width = left + right
+        let x = clamp(screen.midX - width / 2, screen.minX, screen.maxX - width)
+        return Layout(frame: CGRect(x: x, y: top - height, width: width, height: height), housing: nil, band: height)
+    }
+
+    /// The open panel: it grows right and down from the bar's top left corner, where Tug is, so Tug never moves. It
+    /// keeps the bar's top edge, is never narrower than the bar, and stays on the screen.
     public static func expanded(from bar: Layout, size: CGSize, screen: CGRect) -> Layout {
         let width = min(max(size.width, bar.frame.width), screen.width)
         let height = min(max(size.height, bar.frame.height), bar.frame.maxY - screen.minY)
-        let x = clamp(bar.frame.midX - width / 2, screen.minX, screen.maxX - width)
+        let x = clamp(bar.frame.minX, screen.minX, screen.maxX - width)
         let frame = CGRect(x: x, y: bar.frame.maxY - height, width: width, height: height)
-        // The housing stays where it is on screen.
         let housing = bar.housing.map { h in
             local(CGRect(x: bar.frame.minX + h.minX, y: bar.frame.maxY - h.maxY, width: h.width, height: h.height), in: frame)
         }
         return Layout(frame: frame, housing: housing, band: bar.band)
+    }
+
+    /// The right wing shows only while the menu bar has room for it: the leftmost status item on the right of the
+    /// notch (screen x), if any, starts beyond the wing.
+    public static func rightWingFits(statusItemsMinX: CGFloat?, housingMaxX: CGFloat, width: CGFloat) -> Bool {
+        guard let x = statusItemsMinX else { return true }
+        return housingMaxX + width <= x
     }
 
     /// A screen rect in a window's own coordinates, y down from the window's top left.
@@ -107,12 +132,12 @@ public enum NotchBarInput: Equatable, Sendable {
     case hidden
 }
 
-/// The top bar's status: one plain word beside Tug, and the mark on the other side of the notch. A word is at most
-/// nine characters, the most that fits beside Tug in the wing left of a notch.
+/// The top bar's status: one plain word beside Tug, Tug's face, and at most one small mark past the notch. A word is
+/// one word (the packet's "Your turn" is the one two-word cue), short enough to stay clear of the notch.
 public struct NotchBarStatus: Equatable, Sendable {
     public enum Mark: Equatable, Sendable {
-        /// The talk shortcut as keycaps; `cue` adds the "your turn" pulse to their edge.
-        case keycaps(String, cue: Bool)
+        /// No right wing.
+        case none
         /// The red record light, with the time held so far.
         case recordLight(String)
         case dots
@@ -121,38 +146,61 @@ public struct NotchBarStatus: Equatable, Sendable {
         case symbol(String)
     }
 
+    /// Tug's face in the bar, so the state reads at a glance without the word.
+    public enum Face: Equatable, Sendable {
+        /// Breathing and blinking.
+        case rest
+        /// Brows up.
+        case listening
+        /// Eyes closed.
+        case thinking
+        /// Mouth open, moving.
+        case speaking
+        /// The string held up: over to you.
+        case turn
+        /// No motion: a stop or a problem.
+        case still
+    }
+
     public let word: String
     public let mark: Mark
+    public let face: Face
+    /// "Your turn": the bar turns ink with sunflower text, so it looks different at a glance.
+    public let inverted: Bool
     /// The open panel shows a card for this state.
     public let showsCard: Bool
+    /// A card that opens the panel by itself shows one or two lines, and its full form on hover.
+    public let compact: Bool
     /// How long a card that opened the panel by itself stays open with the pointer outside, in seconds. Nil: until
     /// the person acts on it (a permission step, a retry) or it closes.
     public let linger: Double?
 
-    public static let talkShortcut = "⌃⌥T"
+    init(_ word: String, _ mark: Mark, _ face: Face, inverted: Bool = false, card: Bool = false, compact: Bool = false, linger: Double? = nil) {
+        self.word = word; self.mark = mark; self.face = face; self.inverted = inverted
+        self.showsCard = card; self.compact = compact; self.linger = linger
+    }
 
     public static func make(_ input: NotchBarInput) -> NotchBarStatus {
-        let talk = Mark.keycaps(talkShortcut, cue: false)
         switch input {
-        case .idle: return .init(word: "Ready", mark: talk, showsCard: false, linger: nil)
-        case .readingWindow: return .init(word: "Reading", mark: .dots, showsCard: false, linger: nil)
-        case .voiceListening(let s): return .init(word: "Listening", mark: .recordLight(clock(s)), showsCard: false, linger: nil)
-        case .thinking: return .init(word: "Thinking", mark: .dots, showsCard: false, linger: nil)
+        case .idle: return .init("Ready", .none, .rest)
+        case .readingWindow: return .init("Reading", .dots, .listening)
+        case .voiceListening(let s): return .init("Listening", .recordLight(clock(s)), .listening)
+        case .thinking: return .init("Thinking", .dots, .thinking)
         case .contextCard(let talking):
-            return talking ? .init(word: "Speaking", mark: .wave, showsCard: true, linger: nil)
-                           : .init(word: "Saved", mark: .symbol("checkmark"), showsCard: true, linger: 8)
+            return talking ? .init("Speaking", .wave, .speaking, card: true, compact: true)
+                           : .init("Saved", .symbol("checkmark"), .rest, card: true, compact: true, linger: 8)
         case .voiceReply(let finished, let endsRound):
-            if !finished { return .init(word: "Speaking", mark: .wave, showsCard: true, linger: nil) }
-            if endsRound { return .init(word: "Done", mark: talk, showsCard: true, linger: 8) }
+            if !finished { return .init("Speaking", .wave, .speaking, card: true, compact: true) }
+            if endsRound { return .init("Done", .symbol("checkmark"), .rest, card: true, compact: true, linger: 8) }
             // The question has been asked: the panel folds a second later so the bar shows whose turn it is.
-            return .init(word: "Your turn", mark: .keycaps(talkShortcut, cue: true), showsCard: true, linger: 1)
-        case .nudge(let opened): return .init(word: "Updated", mark: .symbol("bell"), showsCard: opened, linger: 8)
-        case .blocked: return .init(word: "Blocked", mark: .symbol("hand.raised"), showsCard: false, linger: nil)
-        case .offline(let retryable): return .init(word: "Offline", mark: .symbol("wifi.slash"), showsCard: true, linger: retryable ? nil : 8)
-        case .voiceError(let retryable): return .init(word: "Not sent", mark: .symbol("exclamationmark.triangle"), showsCard: true, linger: retryable ? nil : 8)
-        case .permission: return .init(word: "Setup", mark: .symbol("lock"), showsCard: true, linger: nil)
-        case .notice: return .init(word: "Ready", mark: talk, showsCard: true, linger: 4)
-        case .hidden: return .init(word: "Hidden", mark: .symbol("eye.slash"), showsCard: false, linger: nil)
+            return .init("Your turn", .none, .turn, inverted: true, card: true, compact: true, linger: 1)
+        case .nudge(let opened): return .init("Updated", .symbol("bell"), .rest, card: opened, compact: true, linger: 8)
+        case .blocked: return .init("Blocked", .symbol("hand.raised"), .still)
+        case .offline(let retryable): return .init("Offline", .symbol("wifi.slash"), .still, card: true, linger: retryable ? nil : 8)
+        case .voiceError(let retryable): return .init("Failed", .symbol("exclamationmark.triangle"), .still, card: true, linger: retryable ? nil : 8)
+        case .permission: return .init("Setup", .symbol("lock"), .rest, card: true)
+        case .notice: return .init("Ready", .none, .rest, card: true, compact: true, linger: 4)
+        case .hidden: return .init("Hidden", .symbol("eye.slash"), .still)
         }
     }
 

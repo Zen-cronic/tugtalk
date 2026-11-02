@@ -46,10 +46,9 @@ final class NotchBarController {
     private var keyMonitor: Any?
     /// The card that opened the panel by itself, so a state that stays the same does not reopen it.
     private var cardKey: String?
+    /// The open panel's left edge on screen, fixed while it is open so Tug's corner never moves.
+    private var openOriginX: CGFloat?
 
-    static let wing: CGFloat = 124
-    static let below: CGFloat = 6
-    static let plain = CGSize(width: 232, height: 30)
     static let hoverDelay = 0.25
     static let leaveDelay = 0.45
 
@@ -59,6 +58,8 @@ final class NotchBarController {
     var onTalkCancel: () -> Void = {}
     var onReadWindow: () -> Void = {}
     var onHome: (TugHome) -> Void = { _ in }
+    /// The left edge of this app's own menu-bar item, from the status menu.
+    var ownStatusItemMinX: () -> CGFloat? = { nil }
 
     init(model: CompanionModel) {
         self.model = model
@@ -161,6 +162,7 @@ final class NotchBarController {
                 try? await Task.sleep(for: .seconds(Self.hoverDelay))
                 guard !Task.isCancelled, let self else { return }
                 self.expansion.hoverDwelled()
+                self.ui.dwelled = true
                 self.apply()
             }
         } else {
@@ -170,6 +172,7 @@ final class NotchBarController {
                 try? await Task.sleep(for: .seconds(Self.leaveDelay))
                 guard !Task.isCancelled, let self, !self.ui.holdingTalk else { return }
                 self.expansion.pointerLeft()
+                self.ui.dwelled = false
                 self.apply()
             }
         }
@@ -241,6 +244,7 @@ final class NotchBarController {
             return
         }
         let want = expansion.expanded
+        ui.openedByCard = expansion.reason == .card
         if want && !ui.expanded { grow() } else if !want && ui.expanded { shrink() } else { layoutWindow() }
         if !window.isVisible { window.orderFrontRegardless() }
     }
@@ -262,11 +266,14 @@ final class NotchBarController {
         cancelTalk()
         releaseKeyboard()
         ui.expanded = false
+        ui.settingsOpen = false
+        ui.dwelled = false
         shrinkTask?.cancel()
         shrinkTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(self?.reduceMotion == true ? 0 : 0.45))
             guard !Task.isCancelled, let self, !self.expansion.expanded else { return }
             self.ui.mounted = false
+            self.openOriginX = nil
             self.layoutWindow(open: false)
         }
     }
@@ -274,16 +281,72 @@ final class NotchBarController {
     /// The display with the menu bar.
     private var screen: NSScreen? { NSScreen.screens.first }
 
-    private var barLayout: NotchBarPlacement.Layout? {
+    private var housing: CGRect? {
         guard let screen else { return nil }
-        var housing = NotchBarPlacement.housing(screen: screen.frame, safeTop: screen.safeAreaInsets.top,
-                                                auxLeft: screen.auxiliaryTopLeftArea, auxRight: screen.auxiliaryTopRightArea)
         #if DEBUG
         // `-notchBarNoNotch YES` places the bar as on a Mac without a notch, for checking that layout here.
-        if UserDefaults.standard.bool(forKey: "notchBarNoNotch") { housing = nil }
+        if UserDefaults.standard.bool(forKey: "notchBarNoNotch") { return nil }
         #endif
-        return NotchBarPlacement.collapsed(screen: screen.frame, visible: screen.visibleFrame, housing: housing,
-                                           wing: Self.wing, below: Self.below, plain: Self.plain)
+        return NotchBarPlacement.housing(screen: screen.frame, safeTop: screen.safeAreaInsets.top,
+                                         auxLeft: screen.auxiliaryTopLeftArea, auxRight: screen.auxiliaryTopRightArea)
+    }
+
+    /// The bar's mark for now: the state's own, or the warning when another copy holds the talk keys.
+    private var mark: NotchBarStatus.Mark {
+        let status = self.status
+        if model.hotkeyNotice != nil, status.mark == .none, !status.inverted { return .symbol("exclamationmark.circle") }
+        return status.mark
+    }
+
+    /// The wings shrink to their content: Tug and the word on the left, one small mark on the right. The left one
+    /// always ends 8 pt short of the housing; the right one hides when the menu bar has no room for it.
+    private func wings(housing: CGRect?) -> (left: CGFloat, right: CGFloat) {
+        let notch = housing != nil
+        let glyph: CGFloat = notch ? 18 : 16
+        let word = glyph + 6 + BarType.width(status.word)
+        let markWidth = BarType.markWidth(mark)
+        var right = markWidth == 0 ? 0 : (notch ? NotchBarPlacement.notchGap : 8) + markWidth + NotchBarUI.inset
+        if let housing, right > 0, !NotchBarPlacement.rightWingFits(statusItemsMinX: statusItemsMinX(right: housing.midX),
+                                                                   housingMaxX: housing.maxX, width: right) {
+            right = 0
+        }
+        // The record light never goes: with no room on the right, it moves beside the word.
+        let content = right == 0 && markWidth > 0 && { if case .recordLight = mark { return true } else { return false } }()
+            ? word + 6 + RecordLight.side : word
+        // With a notch the left wing ends at the housing, 8 pt clear; without one it runs into the right wing.
+        let left = notch || right == 0 ? NotchBarPlacement.wing(content: content, inset: NotchBarUI.inset, notch: notch)
+                                       : NotchBarUI.inset + content
+        return (left, right)
+    }
+
+    private var barLayout: NotchBarPlacement.Layout? {
+        guard let screen else { return nil }
+        let housing = self.housing
+        let (left, right) = wings(housing: housing)
+        return NotchBarPlacement.collapsed(screen: screen.frame, visible: screen.visibleFrame, housing: housing, left: left, right: right)
+    }
+
+    /// The left edge of the leftmost menu-bar status item to the right of `x`, on the display with the menu bar: this
+    /// app's own item (added last, so usually the leftmost), or any status window the system lists. Window bounds
+    /// only (no names), which needs no permission.
+    private func statusItemsMinX(right x: CGFloat) -> CGFloat? {
+        #if DEBUG
+        // `-notchBarCrowded YES|NO`: as if status items reached the notch, or as if the menu bar had room.
+        if let crowded = UserDefaults.standard.object(forKey: "notchBarCrowded") as? String {
+            return ["YES", "1", "true"].contains(crowded) ? x : nil
+        }
+        #endif
+        let own = ownStatusItemMinX().map { max($0, x) }
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] else { return own }
+        let level = Int(CGWindowLevelForKey(.statusWindow))
+        var found: CGFloat?
+        for info in list {
+            guard (info[kCGWindowLayer as String] as? Int) == level,
+                  let dict = info[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: dict), bounds.minY < 2, bounds.minX > x else { continue }
+            found = min(found ?? bounds.minX, bounds.minX)
+        }
+        return [found, own].compactMap { $0 }.min()
     }
 
     private func layoutWindow(open: Bool? = nil) {
@@ -291,12 +354,18 @@ final class NotchBarController {
         let isOpen = open ?? (ui.mounted)
         ui.housingWidth = bar.housing?.width
         ui.band = bar.band
-        ui.below = bar.housing == nil ? 0 : Self.below
+        let (left, right) = wings(housing: housing)
+        ui.leftWing = left
+        ui.rightWing = right
         ui.barSize = bar.frame.size
         let frame: CGRect
         if isOpen {
             let size = CGSize(width: NotchBarUI.openWidth, height: ui.openHeight + NotchBarUI.slack)
-            frame = NotchBarPlacement.expanded(from: bar, size: size, screen: screen.frame).frame
+            var open = NotchBarPlacement.expanded(from: bar, size: size, screen: screen.frame)
+            // Keep Tug's corner where it was when the panel opened, even if the word changes while it is open.
+            if let x = openOriginX { open.frame.origin.x = x } else { openOriginX = open.frame.minX }
+            ui.openHousingX = housing.map { $0.minX - open.frame.minX } ?? 0
+            frame = open.frame
         } else {
             frame = bar.frame
         }
@@ -328,13 +397,14 @@ final class NotchBarController {
         let text = """
         {"window": \(window.windowNumber), "frame": [\(f.minX), \(f.minY), \(f.width), \(f.height)], \
         "bar": [\(bar.frame.width), \(bar.frame.height)], "housing": \(h.map { "[\($0.minX), \($0.minY), \($0.width), \($0.height)]" } ?? "null"), \
-        "expanded": \(ui.expanded)}
+        "expanded": \(ui.expanded), "left": \(ui.leftWing), "right": \(ui.rightWing), "word": "\(status.word)", \
+        "wordWidth": \(BarType.width(status.word)), "ownItemMinX": \(ownStatusItemMinX().map { "\($0)" } ?? "null"), "statusItemsMinX": \(h.flatMap { statusItemsMinX(right: bar.frame.minX + $0.midX) }.map { "\($0)" } ?? "null")}
         """
         try? text.write(toFile: path, atomically: true, encoding: .utf8)
     }
 
-    /// `-notchBarOpen YES` opens the panel at launch (as a hover, without the keyboard); `-notchBarSample round|card`
-    /// fills the latest card with sample content. Nothing is sent.
+    /// `-notchBarOpen YES` opens the panel at launch (as a hover, without the keyboard), `-notchBarSettings YES` with
+    /// its settings view; `-notchBarSample round|card` fills the latest card with sample content. Nothing is sent.
     func handleDebugArguments() {
         let defaults = UserDefaults.standard
         switch defaults.string(forKey: "notchBarSample") {
@@ -346,12 +416,23 @@ final class NotchBarController {
             ui.latest = .card
         default: break
         }
-        if defaults.bool(forKey: "notchBarOpen") {
+        // `-notchBarFold YES`: folds a card that opened the panel, as its linger would, so the bar alone shows.
+        if defaults.bool(forKey: "notchBarFold") {
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1.5))
+                guard let self else { return }
+                self.expansion.cardCleared()
+                self.apply()
+            }
+        }
+        if defaults.bool(forKey: "notchBarOpen") || defaults.bool(forKey: "notchBarSettings") {
             Task { [weak self] in
                 try? await Task.sleep(for: .seconds(0.8))
                 guard let self else { return }
                 self.expansion.pointerEntered()
                 self.expansion.hoverDwelled()
+                self.ui.dwelled = true
+                self.ui.settingsOpen = defaults.bool(forKey: "notchBarSettings")
                 self.apply()
             }
         }

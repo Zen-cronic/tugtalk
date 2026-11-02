@@ -8,9 +8,9 @@ final class NotchBarPlacementTests: XCTestCase {
     let notchedVisible = CGRect(x: 0, y: 0, width: 1728, height: 1084)
     let auxLeft = CGRect(x: 0, y: 1085, width: 771, height: 32)
     let auxRight = CGRect(x: 956, y: 1085, width: 772, height: 32)
+    var housing: CGRect { NotchBarPlacement.housing(screen: notched, safeTop: 32, auxLeft: auxLeft, auxRight: auxRight)! }
 
     func testHousingComesFromTheSafeAreaAndTheAreasBesideIt() {
-        let housing = NotchBarPlacement.housing(screen: notched, safeTop: 32, auxLeft: auxLeft, auxRight: auxRight)
         XCTAssertEqual(housing, CGRect(x: 771, y: 1085, width: 185, height: 32))
     }
 
@@ -20,57 +20,77 @@ final class NotchBarPlacementTests: XCTestCase {
         XCTAssertNil(NotchBarPlacement.housing(screen: notched, safeTop: 32, auxLeft: auxLeft, auxRight: nil))
     }
 
-    func testOnANotchTheBarWrapsTheHousingFlushWithTheTop() {
-        let housing = NotchBarPlacement.housing(screen: notched, safeTop: 32, auxLeft: auxLeft, auxRight: auxRight)
-        let bar = NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, wing: 124, below: 6, plain: CGSize(width: 232, height: 30))
-        XCTAssertEqual(bar.frame.width, 185 + 2 * 124)
-        XCTAssertEqual(bar.frame.height, 38)
-        XCTAssertEqual(bar.frame.maxY, 1117, "flush with the top edge, over the menu bar")
-        XCTAssertEqual(bar.frame.midX, housing!.midX, accuracy: 0.001, "centred on the housing, not the screen")
-        XCTAssertEqual(bar.housing, CGRect(x: 124, y: 0, width: 185, height: 32), "the housing between the wings, at the window's top")
-        XCTAssertEqual(bar.band, 32)
+    func testOnANotchTheBarIsExactlyTheMenuBarsHeightAndHugsTheHousing() {
+        let bar = NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, left: 96, right: 40)
+        XCTAssertEqual(bar.frame.height, 32, "no overhang below the menu bar")
+        XCTAssertEqual(bar.frame.maxY, 1117, "flush with the top edge")
+        XCTAssertEqual(bar.frame.minX, 771 - 96, "the left wing ends at the housing")
+        XCTAssertEqual(bar.frame.maxX, 956 + 40, "the right wing starts at the housing")
+        XCTAssertEqual(bar.housing, CGRect(x: 96, y: 0, width: 185, height: 32))
     }
 
-    func testWithoutANotchTheBarHangsUnderTheMenuBar() {
+    func testContentNeverComesWithinEightPointsOfTheHousing() {
+        // The left wing is the content plus its outer inset plus the gap, so the content ends 8 pt short of the housing.
+        for content in [40.0, 63.5, 110.0] {
+            let wing = NotchBarPlacement.wing(content: content, inset: 10, notch: true)
+            let bar = NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, left: wing, right: 0)
+            let contentEnd = bar.frame.minX + 10 + content
+            XCTAssertLessThanOrEqual(contentEnd, housing.minX - NotchBarPlacement.notchGap + 0.001, "\(content)")
+        }
+    }
+
+    func testAnEmptyWingTakesNoRoom() {
+        XCTAssertEqual(NotchBarPlacement.wing(content: 0, inset: 10, notch: true), 0)
+        let bar = NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, left: 90, right: 0)
+        XCTAssertEqual(bar.frame.maxX, housing.maxX, "Ready has no right wing")
+    }
+
+    func testTheRightWingHidesWhenStatusItemsReachTheNotch() {
+        XCTAssertTrue(NotchBarPlacement.rightWingFits(statusItemsMinX: nil, housingMaxX: 956, width: 40))
+        XCTAssertTrue(NotchBarPlacement.rightWingFits(statusItemsMinX: 1200, housingMaxX: 956, width: 40))
+        XCTAssertFalse(NotchBarPlacement.rightWingFits(statusItemsMinX: 980, housingMaxX: 956, width: 40), "a crowded menu bar")
+    }
+
+    func testWithoutANotchTheBarHangsUnderTheMenuBarAtItsHeight() {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
-        let visible = CGRect(x: 0, y: 0, width: 1920, height: 1055) // 25 pt menu bar
-        let bar = NotchBarPlacement.collapsed(screen: screen, visible: visible, housing: nil, wing: 124, below: 6, plain: CGSize(width: 232, height: 30))
+        let visible = CGRect(x: 0, y: 0, width: 1920, height: 1056) // 24 pt menu bar
+        let bar = NotchBarPlacement.collapsed(screen: screen, visible: visible, housing: nil, left: 100, right: 36)
         XCTAssertNil(bar.housing)
-        XCTAssertEqual(bar.frame, CGRect(x: 844, y: 1025, width: 232, height: 30))
-        XCTAssertEqual(bar.band, 30)
+        XCTAssertEqual(bar.frame, CGRect(x: 892, y: 1032, width: 136, height: 24))
+        XCTAssertEqual(bar.band, 24)
     }
 
-    func testWithAHiddenMenuBarTheBarMeetsTheTopEdge() {
+    func testWithAHiddenMenuBarTheBarMeetsTheTopEdgeAtTheStandardHeight() {
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
-        let bar = NotchBarPlacement.collapsed(screen: screen, visible: screen, housing: nil, wing: 124, below: 6, plain: CGSize(width: 232, height: 30))
+        let bar = NotchBarPlacement.collapsed(screen: screen, visible: screen, housing: nil, left: 100, right: 0)
         XCTAssertEqual(bar.frame.maxY, 900)
+        XCTAssertEqual(bar.frame.height, NotchBarPlacement.standardMenuBar)
     }
 
     func testASecondDisplayToTheLeftKeepsItsOwnCoordinates() {
         let screen = CGRect(x: -1920, y: 0, width: 1920, height: 1080)
         let visible = CGRect(x: -1920, y: 0, width: 1920, height: 1055)
-        let bar = NotchBarPlacement.collapsed(screen: screen, visible: visible, housing: nil, wing: 124, below: 6, plain: CGSize(width: 232, height: 30))
+        let bar = NotchBarPlacement.collapsed(screen: screen, visible: visible, housing: nil, left: 60, right: 60)
         XCTAssertEqual(bar.frame.midX, -960)
     }
 
-    func testThePanelGrowsDownFromTheBarAndKeepsTheHousingInPlace() {
-        let housing = NotchBarPlacement.housing(screen: notched, safeTop: 32, auxLeft: auxLeft, auxRight: auxRight)
-        let bar = NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, wing: 124, below: 6, plain: .zero)
-        let open = NotchBarPlacement.expanded(from: bar, size: CGSize(width: 456, height: 420), screen: notched)
+    func testThePanelGrowsFromTugsCornerAndKeepsTheHousingInPlace() {
+        let bar = NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, left: 96, right: 0)
+        let open = NotchBarPlacement.expanded(from: bar, size: CGSize(width: 420, height: 300), screen: notched)
         XCTAssertEqual(open.frame.maxY, bar.frame.maxY, "same top edge")
-        XCTAssertEqual(open.frame.midX, bar.frame.midX, accuracy: 0.001)
-        XCTAssertEqual(open.frame.size, CGSize(width: 456, height: 420))
-        XCTAssertEqual(open.housing?.minX ?? 0, (456 - 185) / 2, accuracy: 0.001)
-        XCTAssertEqual(open.housing?.minY, 0)
+        XCTAssertEqual(open.frame.minX, bar.frame.minX, "Tug's corner does not move")
+        XCTAssertEqual(open.frame.size, CGSize(width: 420, height: 300))
+        XCTAssertEqual(open.housing, CGRect(x: 96, y: 0, width: 185, height: 32))
     }
 
-    func testThePanelIsNeverNarrowerThanTheBarNorTallerThanTheScreen() {
+    func testThePanelIsNeverNarrowerThanTheBarNorOffTheScreen() {
         let screen = CGRect(x: 0, y: 0, width: 1280, height: 400)
-        let bar = NotchBarPlacement.collapsed(screen: screen, visible: CGRect(x: 0, y: 0, width: 1280, height: 375), housing: nil, wing: 0, below: 0,
-                                              plain: CGSize(width: 500, height: 30))
+        let bar = NotchBarPlacement.collapsed(screen: screen, visible: CGRect(x: 0, y: 0, width: 1280, height: 376), housing: nil, left: 300, right: 200)
         let open = NotchBarPlacement.expanded(from: bar, size: CGSize(width: 300, height: 900), screen: screen)
         XCTAssertEqual(open.frame.width, 500)
         XCTAssertEqual(open.frame.minY, 0, "clipped to the screen's bottom edge")
+        let edge = NotchBarPlacement.Layout(frame: CGRect(x: 1100, y: 376, width: 100, height: 24), housing: nil, band: 24)
+        XCTAssertEqual(NotchBarPlacement.expanded(from: edge, size: CGSize(width: 420, height: 200), screen: screen).frame.maxX, 1280)
     }
 }
 
@@ -117,13 +137,30 @@ final class NotchBarStatusTests: XCTestCase {
         XCTAssertEqual(NotchBarStatus.make(.offline(retryable: true)).word, "Offline")
     }
 
-    func testEachTurnHasItsOwnMark() {
-        XCTAssertEqual(NotchBarStatus.make(.idle).mark, .keycaps("⌃⌥T", cue: false))
+    func testReadyHasNoRightWingAndEachLiveStateOneMark() {
+        XCTAssertEqual(NotchBarStatus.make(.idle).mark, .none, "the keys are in the panel, not the bar")
         XCTAssertEqual(NotchBarStatus.make(.voiceListening(seconds: 64)).mark, .recordLight("1:04"))
         XCTAssertEqual(NotchBarStatus.make(.thinking).mark, .dots)
         XCTAssertEqual(NotchBarStatus.make(.voiceReply(finished: false, endsRound: false)).mark, .wave)
-        XCTAssertEqual(NotchBarStatus.make(.voiceReply(finished: true, endsRound: false)).mark, .keycaps("⌃⌥T", cue: true))
+        XCTAssertEqual(NotchBarStatus.make(.voiceReply(finished: true, endsRound: false)).mark, .none)
         XCTAssertEqual(NotchBarStatus.make(.offline(retryable: false)).mark, .symbol("wifi.slash"))
+    }
+
+    func testTugsFaceCarriesTheState() {
+        XCTAssertEqual(NotchBarStatus.make(.idle).face, .rest)
+        XCTAssertEqual(NotchBarStatus.make(.voiceListening(seconds: 1)).face, .listening)
+        XCTAssertEqual(NotchBarStatus.make(.thinking).face, .thinking)
+        XCTAssertEqual(NotchBarStatus.make(.voiceReply(finished: false, endsRound: false)).face, .speaking)
+        XCTAssertEqual(NotchBarStatus.make(.contextCard(talking: true)).face, .speaking)
+        XCTAssertEqual(NotchBarStatus.make(.voiceReply(finished: true, endsRound: false)).face, .turn)
+        XCTAssertEqual(NotchBarStatus.make(.offline(retryable: true)).face, .still)
+    }
+
+    func testOnlyYourTurnIsInverted() {
+        XCTAssertTrue(NotchBarStatus.make(.voiceReply(finished: true, endsRound: false)).inverted)
+        let others: [NotchBarInput] = [.idle, .voiceListening(seconds: 0), .thinking, .voiceReply(finished: false, endsRound: false),
+                                       .voiceReply(finished: true, endsRound: true), .offline(retryable: true), .permission]
+        for input in others { XCTAssertFalse(NotchBarStatus.make(input).inverted, "\(input)") }
     }
 
     func testTheRecordLightIsOnlyForListening() {
@@ -135,6 +172,14 @@ final class NotchBarStatusTests: XCTestCase {
         }
     }
 
+    func testRepliesOpenCompactAndCardsThatNeedAnActionOpenInFull() {
+        XCTAssertTrue(NotchBarStatus.make(.voiceReply(finished: false, endsRound: false)).compact)
+        XCTAssertTrue(NotchBarStatus.make(.contextCard(talking: false)).compact)
+        XCTAssertFalse(NotchBarStatus.make(.permission).compact)
+        XCTAssertFalse(NotchBarStatus.make(.offline(retryable: true)).compact)
+        XCTAssertFalse(NotchBarStatus.make(.voiceError(retryable: true)).compact)
+    }
+
     func testCardsThatNeedAnActionStayOpen() {
         XCTAssertNil(NotchBarStatus.make(.permission).linger)
         XCTAssertNil(NotchBarStatus.make(.offline(retryable: true)).linger)
@@ -144,12 +189,16 @@ final class NotchBarStatusTests: XCTestCase {
         XCTAssertFalse(NotchBarStatus.make(.voiceListening(seconds: 0)).showsCard, "never covers the screen while you talk")
     }
 
-    func testWordsFitTheBarWithoutCoinedTerms() {
-        let words = [NotchBarInput.idle, .readingWindow, .voiceListening(seconds: 0), .thinking, .contextCard(talking: false), .contextCard(talking: true),
-                     .voiceReply(finished: false, endsRound: false), .voiceReply(finished: true, endsRound: false), .offline(retryable: true), .notice,
-                     .voiceReply(finished: true, endsRound: true), .nudge(opened: true), .blocked, .voiceError(retryable: false), .permission, .hidden]
-            .map { NotchBarStatus.make($0).word }
-        for word in words { XCTAssertLessThanOrEqual(word.count, 9, "\(word) would run under the notch") }
+    func testOneWordPerStateExceptTheYourTurnCue() {
+        let inputs: [NotchBarInput] = [.idle, .readingWindow, .voiceListening(seconds: 0), .thinking, .contextCard(talking: false), .contextCard(talking: true),
+                                       .voiceReply(finished: false, endsRound: false), .voiceReply(finished: true, endsRound: true),
+                                       .nudge(opened: true), .blocked, .offline(retryable: true), .voiceError(retryable: false), .permission, .notice, .hidden]
+        for input in inputs {
+            let word = NotchBarStatus.make(input).word
+            XCTAssertFalse(word.contains(" "), "\(word) is more than one word")
+            XCTAssertLessThanOrEqual(word.count, 9, word)
+        }
+        XCTAssertEqual(NotchBarStatus.make(.permission).word, "Setup")
     }
 }
 

@@ -49,6 +49,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         #endif
     }
 
+    /// The left edge of this app's own menu-bar item on screen. It was added last, so it is usually the leftmost
+    /// status item: how far the items reach toward the notch. Nil while the menu bar has hidden it.
+    var itemMinX: CGFloat? {
+        // Before the menu bar has placed it, the item sits at x 0: unknown, not crowded.
+        guard let window = item.button?.window, window.isVisible, window.frame.width > 0, window.frame.minX > 1 else { return nil }
+        return window.frame.minX
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         let status = NSMenuItem(title: "\(MascotName): \(model.phase.pill().word)", action: nil, keyEquivalent: "")
