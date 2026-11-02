@@ -151,6 +151,28 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         for (const doc of ['docs/capture.md', 'docs/voice.md']) assert.match(read(doc), new RegExp(`^# .*\\(contract ${version}\\)$`, 'm'), `${doc} names the same contract`);
         return spec.info.version;
       },
+      'assistant-routes': async () => {
+        // The connector's "Allowed paths" line, one method per comma-separated entry (a bare path repeats the last method).
+        const line = connector.split('\n').find(l => l.startsWith('Allowed paths: '));
+        let method; const listed = [];
+        for (const entry of line.slice('Allowed paths: '.length).replace(/\. No other hosts.*$/, '').split(/[;,] /)) {
+          const m = entry.trim().match(/^(?:(GET|POST|PATCH) )?(\/v1\/\S+)$/); method = m[1] ?? method; listed.push(`${method} ${m[2]}`);
+        }
+        const documented = Object.entries(spec.paths).flatMap(([path, ops]) => Object.keys(ops).map(op => `${op.toUpperCase()} ${path}`));
+        assert.deepEqual([...listed].sort(), [...documented].sort(), 'OpenAPI and the connector list the same routes');
+        const goal = store.list('facts-user', 'goals')[0].id, session = store.list('facts-user', 'sessions')[0].id;
+        const served = async route => {
+          const [verb, path] = route.split(' ');
+          const r = await fetch(base + path.replace('{id}', path.startsWith('/v1/goals') ? goal : session), { method: verb,
+            headers: { ...auth, ...(verb === 'GET' ? {} : { 'Content-Type': 'application/json', 'Idempotency-Key': `facts-route-${verb}-${path.length}` }) }, ...(verb === 'GET' ? {} : { body: '{}' }) });
+          return (await r.text()).includes('Route not found.') ? false : true;
+        };
+        for (const route of listed) assert.equal(await served(route), true, `${route} is served`);
+        assert.equal(await served('GET /v1/no-such-route'), false, 'an unknown route is refused');
+        assert.equal(listed.includes('POST /v1/recordings'), false); assert.equal(await served('POST /v1/recordings'), true, 'a device route is served but not listed');
+        const count = verb => listed.filter(r => r.startsWith(verb + ' ')).length;
+        return `${listed.length}: ${count('GET')} GET, ${count('POST')} POST, ${count('PATCH')} PATCH; the same in /openapi.json and /connector.md, each served by the router; device routes not listed`;
+      },
       'languages': () => acceptedValues('x-language'),
       'devices': () => acceptedValues('x-capture-device'),
       'lexicons': () => Object.keys(LANGUAGES).map(l => measure('x', 1000, l).method).join(', '),

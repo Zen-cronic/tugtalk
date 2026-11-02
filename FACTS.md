@@ -15,6 +15,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `analysis-budgets` | Observation token budgets | 4000, then 8000 on retry | `max_tokens` sent to Baseten (fake fetch) when the first reply runs out of tokens |
 | `analysis-effort` | Reasoning effort the hosted service asks for | medium on the watch observation and the screen card; low on voice replies | `ANALYSIS_EFFORT` in deploy/modal_app.py, sent in both request bodies (fake fetch), and `VOICE_EFFORT` (src/voice.mjs); unset, the observation body is unchanged |
 | `contract-version` | API contract version | 0.7.1 | `/openapi.json` `info.version`, `/connector.md` and the titles of docs/capture.md and docs/voice.md |
+| `assistant-routes` | Routes the assistant may call | 12: 7 GET, 3 POST, 2 PATCH; the same in /openapi.json and /connector.md, each served by the router; device routes not listed | The connector's allowed paths against the OpenAPI paths, and a request to each one (any answer but route not found), plus `POST /v1/recordings` served but not listed |
 | `languages` | Capture languages | en, fr | The `X-Language` check in `captureParams`: each listed value passes, others fail |
 | `devices` | Capture device labels the API accepts | watch, mac, phone, api | The `X-Capture-Device` check in `captureParams`: each listed value passes, others fail |
 | `lexicons` | Habit-count methods | lexicon-en-v2, lexicon-fr-v1 | `measure().method` |
