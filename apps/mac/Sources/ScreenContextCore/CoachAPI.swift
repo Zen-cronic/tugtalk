@@ -104,16 +104,17 @@ public enum CoachError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notConfigured: return "Add the connector key to the Keychain, then reopen the companion."
+        case .server(429, _, let message): return "\(message) Try again later."
         case .server(let status, _, let message): return "\(status): \(message)"
         case .offline(let reason): return reason
         }
     }
 
-    /// Worth retrying with the same idempotency key.
+    /// Worth retrying with the same idempotency key. Not a 429: the hourly limit will not lift in seconds.
     public var isRetryable: Bool {
         switch self {
         case .offline: return true
-        case .server(let status, _, _): return status >= 500 || status == 429
+        case .server(let status, _, _): return status >= 500
         case .notConfigured: return false
         }
     }

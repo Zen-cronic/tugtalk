@@ -30,7 +30,7 @@ final class CaptureFlow {
     func capture() {
         guard !busy else { return }
         guard let api = Connection.api()?.api else {
-            model.set(.offline(Connection.isLocalDevelopmentRequested ? "The local test server settings are not usable." : CoachError.notConfigured.localizedDescription, retryable: false))
+            model.set(.offline(Connection.unavailableReason, retryable: false))
             return
         }
         let front = frontApp()

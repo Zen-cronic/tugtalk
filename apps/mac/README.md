@@ -57,4 +57,6 @@ open apps/mac/build/DerivedData/Build/Products/Debug/CommsCoachMac.app --args \
 3. Press ⌃⌥Space with the window you want read in front. The first time, the companion explains Screen Recording; **Continue** shows the macOS prompt once, and **Open Settings** goes to Privacy & Security › Screen Recording. Turn on Comms Coach, then quit and reopen it.
 4. The card shows the receipt. **Undo** hides it from the record. **Ask Muse** copies a question about the card and opens Muse; you paste and send it. The companion never types into Muse or any other app.
 
+The Keychain key is sent only over HTTPS to the coach host built into the app (`CoachAPI.defaultBaseURL`); a changed `baseURL` setting for any other host or scheme is refused, and the bubble says so. A 429 (more than 30 cards in an hour) shows the limit without a Retry button, because the limit does not lift in seconds.
+
 The companion reads nothing on a timer. It checks the shared record every 2 minutes (every 15 s in Demo mode) to notice exercises Muse added, goal changes and new watch captures.

@@ -230,9 +230,33 @@ final class CoachAPITests: XCTestCase {
         StubProtocol.reply = (429, #"{"error":"rate_limited","message":"At most 30 screen contexts per hour."}"#)
         do { _ = try await api().overview(); XCTFail("expected an error") } catch {
             XCTAssertEqual(error as? CoachError, .server(429, "rate_limited", "At most 30 screen contexts per hour."))
-            XCTAssertTrue((error as? CoachError)?.isRetryable ?? false)
+            XCTAssertFalse((error as? CoachError)?.isRetryable ?? true, "the hourly limit does not lift in seconds, so no Retry")
+            XCTAssertEqual((error as? CoachError)?.errorDescription, "At most 30 screen contexts per hour. Try again later.")
         }
         XCTAssertFalse(CoachError.server(400, "invalid_value", "x").isRetryable)
+        XCTAssertTrue(CoachError.server(502, "analysis_failed", "x").isRetryable)
+        XCTAssertTrue(CoachError.server(503, "storage_or_worker_unavailable", "x").isRetryable)
+        XCTAssertTrue(CoachError.offline("x").isRetryable)
+    }
+
+    func testTheKeychainKeyGoesOnlyToTheConfiguredHostOverHTTPS() {
+        let configured = CoachAPI.defaultBaseURL
+        XCTAssertEqual(BaseURLPolicy.keychainBaseURL(configured), configured)
+        XCTAssertNotNil(BaseURLPolicy.keychainBaseURL(URL(string: "https://\(configured.host!.uppercased())/")))
+        for refused in ["http://\(configured.host!)", "https://example.com", "https://\(configured.host!).example.com",
+                        "https://user:pw@\(configured.host!)", "https://127.0.0.1:4319", "file:///tmp/x", "\(configured.host!)"] {
+            XCTAssertNil(BaseURLPolicy.keychainBaseURL(URL(string: refused)), refused)
+        }
+        XCTAssertNil(BaseURLPolicy.keychainBaseURL(nil))
+    }
+
+    func testTheLocalTestServerMustBeOnThisMachine() {
+        for allowed in ["http://127.0.0.1:4319", "http://localhost:4319", "http://[::1]:4319", "https://127.0.0.1"] {
+            XCTAssertNotNil(BaseURLPolicy.localDevelopmentBaseURL(URL(string: allowed)), allowed)
+        }
+        for refused in ["http://192.168.1.5:4319", "http://127.0.0.1.example.com", "ftp://127.0.0.1", "http://user@127.0.0.1", "https://example.com"] {
+            XCTAssertNil(BaseURLPolicy.localDevelopmentBaseURL(URL(string: refused)), refused)
+        }
     }
 
     func testUndoHidesWithVersionCheckAndReason() async throws {

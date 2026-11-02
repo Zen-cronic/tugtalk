@@ -37,7 +37,7 @@ final class Poller {
     func pollSoon() { start() }
 
     func poll() async {
-        guard let api = Connection.api()?.api else { lastStatus = "Not connected: no key in the Keychain"; return }
+        guard let api = Connection.api()?.api else { lastStatus = "Not connected: \(Connection.unavailableReason)"; return }
         do {
             let overview = try await api.overview()
             goals = overview.goals.map { ($0.id, $0.title) }

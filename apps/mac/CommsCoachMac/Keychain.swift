@@ -8,11 +8,19 @@ import Security
 enum Connection {
     enum Source: Equatable { case keychain, localDevelopment }
 
-    /// The API client, or nil when no key is configured yet.
+    /// The API client, or nil when no key is configured yet or the configured address is refused.
     static func api() -> (api: CoachAPI, source: Source)? {
-        if let local = localDevelopment() { return (local, .localDevelopment) }
-        guard let token = keychainToken() else { return nil }
-        return (CoachAPI(baseURL: Settings.baseURL, token: token), .keychain)
+        if isLocalDevelopmentRequested { return localDevelopment().map { ($0, .localDevelopment) } }
+        // The Keychain key goes only to the configured coach host over HTTPS (see BaseURLPolicy).
+        guard let base = BaseURLPolicy.keychainBaseURL(Settings.baseURL), let token = keychainToken() else { return nil }
+        return (CoachAPI(baseURL: base, token: token), .keychain)
+    }
+
+    /// Why `api()` returned nil, in words for the bubble and the menu.
+    static var unavailableReason: String {
+        if isLocalDevelopmentRequested { return "The local test server settings are not usable." }
+        if BaseURLPolicy.keychainBaseURL(Settings.baseURL) == nil { return "The coach address must be \(CoachAPI.defaultBaseURL.absoluteString)." }
+        return CoachError.notConfigured.localizedDescription
     }
 
     static func keychainToken() -> String? {
@@ -32,8 +40,8 @@ enum Connection {
     /// Keychain is not read at all in this mode.
     static func localDevelopment() -> CoachAPI? {
         let defaults = UserDefaults.standard
-        guard let base = defaults.string(forKey: "devBaseURL").flatMap(URL.init(string:)), let file = defaults.string(forKey: "devTokenFile") else { return nil }
-        guard let host = base.host, ["127.0.0.1", "localhost", "::1"].contains(host) else { return nil }
+        guard let base = BaseURLPolicy.localDevelopmentBaseURL(defaults.string(forKey: "devBaseURL").flatMap(URL.init(string:))),
+              let file = defaults.string(forKey: "devTokenFile") else { return nil }
         guard let token = try? String(contentsOfFile: file, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty else { return nil }
         return CoachAPI(baseURL: base, token: token)
     }
