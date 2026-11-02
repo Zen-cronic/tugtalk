@@ -1,5 +1,9 @@
 # Comms Coach
 
+Practise on your watch. Your assistant remembers.
+
+**Measured habit counts: precision 0.788, recall 0.852 on 70 synthetic, self-labelled en/fr transcripts (flat word-list baseline 0.754 / 0.852); 0 false counts on 12 clean controls. Recompute with `npm run eval` or `GET /v1/eval`; method and limits in [eval/README.md](eval/README.md).**
+
 For anyone practising how they answer out loud (an interview question, a stand-up update, a point in a meeting) who already asks Muse, Meta's assistant, for help on more than one device. When practice lives in its own app, the assistant never sees it, so each new chat starts from nothing and you explain again what you were working on. Comms Coach saves each practice to one record that Muse reads fresh in any chat, on any device.
 
 <!-- FOUNDER: one or two sentences in your own words -->
@@ -16,8 +20,6 @@ From this repository's commit dates (US Eastern time). The first commit is dated
 - **Nov 1:** the recording route (Meta transcription, code-measured habits, a Muse Spark Open observation), the Apple Watch app, the landing page, the measurement eval, the claims ledger, and reuse hooks for a sister French-practice profile.
 - **Nov 1–2, overnight:** the Mac companion: the screen-context route, the on-device redaction core, the menu-bar app, capture, undo, polling and the Ask Muse hand-off.
 - **Nov 2:** pause and speaking-time measurement from the transcription's speech segments, Muse Spark Open labelling of ambiguous word-list hits (checked by code) with its own eval arm, a hosting adapter that takes several requests at once and serves them all from one long-lived worker (warm health 2.9 s to 0.15 s, spoken reply first byte 6.1 s to under 1 s; see [docs/hosted-latency.json](docs/hosted-latency.json)), the watch's time-cap fix, a guard for malformed transcription replies, and claims checked against behaviour.
-
-**Measured habit counts: precision 0.788, recall 0.852 on 70 synthetic, self-labelled en/fr transcripts (flat word-list baseline 0.754 / 0.852); 0 false counts on 12 clean controls. Recompute with `npm run eval` or `GET /v1/eval`; method and limits in [eval/README.md](eval/README.md).**
 
 ## Run
 
@@ -139,7 +141,6 @@ node scripts/revoke.mjs
 ```
 
 Also disconnect the custom connector in Muse. Disconnecting does not erase information Muse previously copied into its memory or conversations.
-
 
 ## Fresh reads
 
