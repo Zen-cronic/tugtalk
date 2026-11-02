@@ -16,6 +16,11 @@ enum Tok {
     // Grounds and text
     /// Sunflower: the header band of every card and the ring's fill.
     static let field = hex(0xF6B730)
+    /// The top bar's sunflower in a dark menu bar: the same hue, a little less bright, so it doesn't glare.
+    /// Ink on it is 8.3:1.
+    static let fieldDark = hex(0xDBA737)
+    /// The top bar's sunflower for a look (the bar draws for its own ground, so it picks by scheme).
+    static func barField(_ scheme: ColorScheme) -> NSColor { scheme == .dark ? fieldDark : field }
     /// The label card: white in light, the HUD graphite in dark.
     static let surface = pair(0xFFFFFF, 0x23201C)
     /// The white label in both looks: the pointing label drawn over someone's window.

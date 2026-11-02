@@ -165,8 +165,8 @@ public struct NotchBarStatus: Equatable, Sendable {
     public let word: String
     public let mark: Mark
     public let face: Face
-    /// "Your turn": the bar turns ink with sunflower text, so it looks different at a glance.
-    public let inverted: Bool
+    /// "Your turn": the word sits in an ink chip on the sunflower wing, so it looks different at a glance.
+    public let wordChip: Bool
     /// The open panel shows a card for this state.
     public let showsCard: Bool
     /// A card that opens the panel by itself shows one or two lines, and its full form on hover.
@@ -175,8 +175,8 @@ public struct NotchBarStatus: Equatable, Sendable {
     /// the person acts on it (a permission step, a retry) or it closes.
     public let linger: Double?
 
-    init(_ word: String, _ mark: Mark, _ face: Face, inverted: Bool = false, card: Bool = false, compact: Bool = false, linger: Double? = nil) {
-        self.word = word; self.mark = mark; self.face = face; self.inverted = inverted
+    init(_ word: String, _ mark: Mark, _ face: Face, chip: Bool = false, card: Bool = false, compact: Bool = false, linger: Double? = nil) {
+        self.word = word; self.mark = mark; self.face = face; self.wordChip = chip
         self.showsCard = card; self.compact = compact; self.linger = linger
     }
 
@@ -193,7 +193,7 @@ public struct NotchBarStatus: Equatable, Sendable {
             if !finished { return .init("Speaking", .wave, .speaking, card: true, compact: true) }
             if endsRound { return .init("Done", .symbol("checkmark"), .rest, card: true, compact: true, linger: 8) }
             // The question has been asked: the panel folds a second later so the bar shows whose turn it is.
-            return .init("Your turn", .none, .turn, inverted: true, card: true, compact: true, linger: 1)
+            return .init("Your turn", .none, .turn, chip: true, card: true, compact: true, linger: 1)
         case .nudge(let opened): return .init("Updated", .symbol("bell"), .rest, card: opened, compact: true, linger: 8)
         case .blocked: return .init("Blocked", .symbol("hand.raised"), .still)
         case .offline(let retryable): return .init("Offline", .symbol("wifi.slash"), .still, card: true, linger: retryable ? nil : 8)

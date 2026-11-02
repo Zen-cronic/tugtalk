@@ -39,6 +39,11 @@ final class NotchBarUI: ObservableObject {
     /// Room under the open panel for the spring's overshoot.
     static let slack: CGFloat = 24
     static let inset: CGFloat = 10
+    /// The word chip's padding on each side ("Your turn").
+    static let chipPad: CGFloat = 7
+    /// The bare glyph buttons in the open band, and the card's close button: one size, one right inset.
+    static let glyphButton: CGFloat = 28
+    static let glyphInset: CGFloat = 4
 
     var openHeight: CGFloat { band + bodyHeight }
     var glyph: CGFloat { housingWidth == nil ? 16 : 18 }
@@ -71,14 +76,6 @@ extension MascotPhase {
         case .voiceSpeaking(let card): .voiceReply(finished: card.finished, endsRound: card.endsRound)
         case .voiceError(_, let retryable): .voiceError(retryable: retryable)
         }
-    }
-}
-
-extension Tok {
-    /// The bar's sunflower. Light: the field token. Dark: the same hue at lower brightness, a deeper ochre, so the
-    /// bar sits in a dark menu bar without glaring. Ink on it is 6.6:1.
-    static func barField(_ scheme: ColorScheme) -> NSColor {
-        scheme == .dark ? NSColor(srgbRed: 200 / 255, green: 146 / 255, blue: 43 / 255, alpha: 1) : field
     }
 }
 
@@ -138,7 +135,7 @@ struct HangingLabel: Shape {
 }
 
 /// Tug's string from the glyph. Collapsed it is the glyph's own short curl, or held up for "Your turn"; open, it
-/// drops into the panel and the card hangs from it. Animatable, so the spring swings it.
+/// drops into the panel's left margin and the card hangs from it. Animatable, so the spring swings it.
 struct DropString: Shape {
     var drop: CGFloat
     var raise: CGFloat
@@ -155,8 +152,8 @@ struct DropString: Shape {
         func mix(_ a: CGPoint, _ b: CGPoint, _ k: CGFloat) -> CGPoint { CGPoint(x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k) }
         func at(_ dx: CGFloat, _ dy: CGFloat) -> CGPoint { CGPoint(x: root.x + dx * unit, y: root.y + dy * unit) }
         // The glyph's curl (TugGlyph's string, in its 18-unit box), or held up beside the can.
-        let c1 = mix(mix(at(1.4, 4.4), at(3.0, 4.5), raise), CGPoint(x: root.x + 12, y: root.y + 18), drop)
-        let c2 = mix(mix(at(6.2, 4.0), at(11.5, -2), raise), CGPoint(x: hook.x - 7, y: hook.y - 14), drop)
+        let c1 = mix(mix(at(1.4, 4.4), at(3.0, 4.5), raise), CGPoint(x: root.x + 8, y: root.y + 9), drop)
+        let c2 = mix(mix(at(6.2, 4.0), at(11.5, -2), raise), CGPoint(x: hook.x - 5, y: hook.y - 8), drop)
         let end = mix(mix(at(9.2, -1.2), at(9.6, -11.5), raise), hook, drop)
         var p = Path()
         p.move(to: root)
@@ -190,13 +187,12 @@ struct NotchBarView: View {
             .environment(\.tugAwake, !model.isPresenting)
     }
 
-    private var bandFill: NSColor { status.inverted ? Tok.inkFixed : Tok.barField(scheme) }
-
     private var label: some View {
         let shape = HangingLabel(radius: 12)
         return ZStack(alignment: .topLeading) {
             Rectangle().fill(Color(Tok.surface))
-            Rectangle().fill(Color(bandFill)).frame(height: ui.band)
+            // The wing is sunflower in every state, in both looks.
+            Rectangle().fill(Color(Tok.barField(scheme))).frame(height: ui.band)
             Rectangle().fill(Color(Tok.cardEdge).opacity(0.35)).frame(height: 0.5).offset(y: ui.band)
                 .opacity(ui.expanded ? 1 : 0)
             string
@@ -227,14 +223,13 @@ struct NotchBarView: View {
         return CGPoint(x: NotchBarUI.inset + 8 * unit, y: (ui.band - ui.glyph) / 2 + 13.6 * unit)
     }
 
-    /// The hook the card hangs from, just above its heading.
-    private var hook: CGPoint { CGPoint(x: root.x + 3, y: ui.band + 10) }
+    /// The hook the card hangs from: in the body's left margin, level with the top of the title row.
+    private var hook: CGPoint { CGPoint(x: root.x + 1, y: ui.band + NotchBarBody.top + 6) }
 
     private var string: some View {
         let shape = DropString(drop: ui.expanded ? 1 : 0, raise: status.face == .turn ? 1 : 0, root: root, unit: ui.glyph / 18, hook: hook)
-        let onBand = status.inverted ? Tok.field : Tok.inkFixed
         return ZStack(alignment: .topLeading) {
-            shape.stroke(Color(onBand), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+            shape.stroke(Color(Tok.inkFixed), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
                 .mask(alignment: .top) { Rectangle().frame(height: ui.band) }
             shape.stroke(Tok.tugString(scheme), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
                 .mask(alignment: .top) { Rectangle().padding(.top, ui.band) }
@@ -255,46 +250,63 @@ struct NotchBarView: View {
         // The clock ticks once a second only while the microphone is open, for the timer.
         TimelineView(.animation(minimumInterval: 1, paused: !isListening)) { context in
             let status = NotchBarStatus.make(model.phase.barInput(talking: model.talking, now: context.date))
-            let conflict = model.hotkeyNotice != nil && status.mark == .none && !status.inverted
+            let conflict = model.hotkeyNotice != nil && status.mark == .none && !status.wordChip
             let mark: NotchBarStatus.Mark = conflict ? .symbol("exclamationmark.circle") : status.mark
-            let ink = status.inverted ? Tok.field : Tok.inkFixed
             HStack(spacing: 0) {
                 HStack(spacing: 6) {
-                    TugGlyphFace(face: status.face, onInk: status.inverted, awake: !model.isPresenting)
+                    TugGlyphFace(face: status.face, awake: !model.isPresenting)
                         .frame(width: ui.glyph, height: ui.glyph)
-                    Text(status.word).font(BarType.word).lineLimit(1).fixedSize()
+                    if status.wordChip {
+                        // "Your turn": an ink chip around the word, on the sunflower wing.
+                        Text(status.word).font(BarType.word).lineLimit(1).fixedSize()
+                            .foregroundStyle(Color(Tok.field))
+                            .padding(.horizontal, NotchBarUI.chipPad).frame(height: 20)
+                            .background(Capsule().fill(Color(Tok.inkFixed)))
+                    } else {
+                        Text(status.word).font(BarType.word).lineLimit(1).fixedSize()
+                    }
                     // No room past the notch: the record light comes over beside the word.
                     if ui.rightWing == 0, !ui.expanded, case .recordLight = mark { RecordLight() }
                 }
                 .padding(.leading, NotchBarUI.inset)
                 .frame(width: ui.expanded && ui.housingWidth != nil ? ui.openHousingX : ui.leftWing, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { ui.onBarClick() }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(MascotName), \(status.word)")
+                .accessibilityValue(conflict ? model.hotkeyNotice!.replacingOccurrences(of: "⌃⌥", with: "Control Option ") : accessibilityDetail(status))
+                .accessibilityHint(ui.expanded ? "Closes the panel." : "Opens the panel.")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { ui.onBarClick() }
                 if let housing = ui.housingWidth { Color.clear.frame(width: housing) }
-                // A mark only when there is one and room for it; otherwise the row still fills the label.
-                if mark != .none, ui.rightWing > 0 || ui.expanded {
-                    BarMark(mark: mark)
-                        .padding(.trailing, NotchBarUI.inset)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                } else {
+                // No right wing: nothing at all, so the row is exactly the wing and Tug stays at its inset.
+                if ui.rightWing > 0 || ui.expanded { HStack(spacing: 2) {
                     Spacer(minLength: 0)
+                    if mark != .none, ui.rightWing > 0 || ui.expanded {
+                        BarMark(mark: mark).padding(.trailing, ui.expanded ? 6 : 0).accessibilityHidden(true)
+                    }
+                    // Open: the settings and hide controls live in the bar itself, as bare glyphs.
+                    if ui.expanded {
+                        BandGlyph(symbol: "gearshape", label: ui.settingsOpen ? "Close settings" : "Settings", on: ui.settingsOpen) {
+                            ui.settingsOpen.toggle()
+                        }
+                        BandGlyph(symbol: "eye.slash", label: "Hide Tug (⌃⌥H)") { ui.onHide() }
+                    }
                 }
+                .padding(.trailing, ui.expanded ? NotchBarUI.glyphInset : NotchBarUI.inset)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { ui.onBarClick() } }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(Color(ink))
+            .foregroundStyle(Color(Tok.inkFixed))
             // Everything on the band is drawn for its own ground, not the system look.
             .environment(\.colorScheme, .light)
-            .contentShape(Rectangle())
-            .onTapGesture { ui.onBarClick() }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(MascotName), \(status.word)")
-            .accessibilityValue(conflict ? model.hotkeyNotice!.replacingOccurrences(of: "⌃⌥", with: "Control Option ") : accessibilityDetail(status))
-            .accessibilityHint(ui.expanded ? "Closes the panel." : "Opens the panel.")
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { ui.onBarClick() }
         }
     }
 
     private func accessibilityDetail(_ status: NotchBarStatus) -> String {
-        if status.inverted { return "Hold Control Option T to answer." }
+        if status.wordChip { return "Hold Control Option T to answer." }
         switch status.mark {
         case .none: return "Hold Control Option T and talk."
         case .recordLight(let time): return "Recording, \(time)"
@@ -306,6 +318,23 @@ struct NotchBarView: View {
 private struct BodyHeight: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+/// A bare ink glyph button in the sunflower band: no box, a 28 pt target, a tooltip, and a VoiceOver label.
+struct BandGlyph: View {
+    let symbol: String
+    let label: String
+    var on = false
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: on ? symbol + ".fill" : symbol).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(Tok.inkFixed))
+                .frame(width: NotchBarUI.glyphButton, height: NotchBarUI.glyphButton).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(label)
+        .accessibilityLabel(label)
+    }
 }
 
 /// The one small mark past the notch: the record light, three dots, a wave, or an icon.
@@ -365,19 +394,24 @@ struct RecordLight: View {
     }
 }
 
-/// The open panel's body: one container with the card that hangs from Tug's string and one row of actions, or the
-/// settings view behind the gear.
+/// The open panel's body: the card that hangs from Tug's string, in one container, with one row of actions; or the
+/// settings view behind the gear in the bar.
 struct NotchBarBody: View {
     @ObservedObject var model: CompanionModel
     @ObservedObject var ui: NotchBarUI
+    @Environment(\.colorScheme) private var scheme
+
+    /// The gap above the title row, and the left margin the string hangs in.
+    static let top: CGFloat = 8
+    static let leading: CGFloat = 28
+    static let trailing: CGFloat = 16
 
     private var status: NotchBarStatus { NotchBarStatus.make(model.phase.barInput(talking: model.talking)) }
     /// A card that opened the panel by itself shows one or two lines until the pointer rests on it.
     private var compact: Bool { status.showsCard && status.compact && ui.openedByCard && !ui.dwelled }
-    private var yourTurn: Bool { status.inverted }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             if ui.settingsOpen {
                 NotchBarSettings(model: model, onHome: ui.onHome, onDone: { ui.settingsOpen = false })
             } else {
@@ -385,13 +419,14 @@ struct NotchBarBody: View {
                 if !compact { actions }
             }
         }
-        .padding(.top, 20).padding(.horizontal, 16).padding(.bottom, 14)
+        .padding(.top, Self.top).padding(.leading, Self.leading).padding(.trailing, Self.trailing).padding(.bottom, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .topTrailing) { SampleCornerTag(shown: showsSample).padding(.top, 1).padding(.trailing, 8) }
     }
 
+    // The card
+
     @ViewBuilder private var card: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             if status.showsCard {
                 liveCard
             } else {
@@ -406,22 +441,39 @@ struct NotchBarBody: View {
         case .voiceSpeaking(let card):
             ReplyCard(card: card, compact: compact, onClose: close, onLayout: { model.layoutNeeded() })
         case .speaking(let card):
-            ContextCardView(card: card, compact: compact, pointing: model.pointing, onClose: close, onUndo: { model.onUndo() })
+            CardTitle(eyebrow: card.replayed ? "Already saved · \(card.appName)" : "Card saved · \(card.appName)", sample: card.isPreview, onClose: close)
+            MainLine(text: card.observation, compact: compact)
+            if !compact {
+                Instruction(label: "Next step", text: card.nextStep)
+                if model.pointing {
+                    Label { Text("Circled on your \(card.appName) window").font(TypeFace.body(13, weight: 550)) } icon: { Image(systemName: "circle.circle") }
+                        .foregroundStyle(Color(Tok.muted))
+                }
+            }
         case .notice(let text):
-            HStack(alignment: .top, spacing: 8) {
-                NoticeText(text: text)
-                Spacer(minLength: 4)
-                CloseButton(action: close)
-            }
+            CardTitle(eyebrow: text == model.hotkeyNotice ? "Shortcut" : "Note", onClose: close)
+            NoticeText(text: text)
+        case .nudging(let nudge, _):
+            CardTitle(eyebrow: "Updated · \(nudge.goalTitle)", onClose: close)
+            MainLine(text: nudge.detail, compact: compact)
+        case .offline(let reason, _):
+            CardTitle(eyebrow: model.phase.heading, onClose: close)
+            MainLine(text: reason, compact: false)
+        case .voiceError(let message, let retryable):
+            CardTitle(eyebrow: model.phase.heading, onClose: close)
+            MainLine(text: message, compact: false)
+            Text(retryable ? "Your recording waits on this Mac." : "Your recording was deleted.")
+                .font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted))
+        case .permission:
+            CardTitle(eyebrow: model.phase.heading, onClose: close)
+            MainLine(text: "\(MascotName) reads only the front window, and only when you ask. The picture never leaves this Mac.", compact: false)
+            ShortcutLine(text: "Read a window: ⌃⌥Space", font: TypeFace.body(13, weight: 550), ink: Tok.muted)
+        case .micPermission(let denied):
+            CardTitle(eyebrow: model.phase.heading, onClose: close)
+            MainLine(text: denied ? "Turn it on in Privacy & Security › Microphone, then try again."
+                                  : "\(MascotName) listens only while you hold the talk keys, and deletes each recording once it's sent.", compact: false)
         default:
-            HStack(alignment: .center, spacing: 8) {
-                if CardTone(model.phase) == .problem { Image(systemName: model.phase.symbol).font(.system(size: 14, weight: .bold)) }
-                Text(noWidow(model.phase.heading)).font(TypeFace.display(17, weight: 800)).lineLimit(2)
-                Spacer(minLength: 4)
-                CloseButton(action: close)
-            }
-            .foregroundStyle(Color(Tok.ink))
-            CardBody(model: model)
+            CardTitle(eyebrow: model.phase.heading, onClose: close)
         }
     }
 
@@ -429,227 +481,154 @@ struct NotchBarBody: View {
 
     @ViewBuilder private var latestCard: some View {
         if let notice = model.hotkeyNotice {
-            Text("Shortcut").font(TypeFace.body(12, weight: 600)).foregroundStyle(Color(Tok.muted))
+            CardTitle(eyebrow: "Shortcut")
             NoticeText(text: notice)
         } else if ui.latest == .round, let round = model.latestVoiceCard {
-            HStack {
-                Text("Latest round").font(TypeFace.body(12, weight: 600))
-                Spacer()
-                if let n = round.round { Text("Round \(n)").font(TypeFace.body(12, weight: 600)) }
+            CardTitle(eyebrow: "Latest round" + (round.round.map { " · Round \($0)" } ?? ""), sample: round.isPreview)
+            if let number = LatestRoundNumber.make(summary: round.summary, latest: round.metrics) {
+                // A plain line: the count chip and its caption on one baseline.
+                HabitCount(count: number.value, habit: number.habit, caption: number.caption)
             }
-            .foregroundStyle(Color(Tok.muted))
-            if let number = LatestRoundNumber.make(summary: round.summary, latest: round.metrics) { RoundNumber(number: number) }
             SaidDisclosure(quote: round.quote, transcript: round.transcriptSnippet, onLayout: { model.layoutNeeded() })
             RecordingNote(note: round.recordingNote)
+            TalkHint()
         } else if ui.latest == .card, let card = model.lastCard {
-            Text("Latest card · \(card.appName)").font(TypeFace.body(12, weight: 600)).foregroundStyle(Color(Tok.muted))
-            CoachText(card.observation)
+            CardTitle(eyebrow: "Latest card · \(card.appName)", sample: card.isPreview)
+            MainLine(text: card.observation, compact: false)
             Instruction(label: "Next step", text: card.nextStep)
+            TalkHint()
         } else {
+            CardTitle(eyebrow: "Ready")
             Text("No round yet").font(TypeFace.display(17, weight: 800)).foregroundStyle(Color(Tok.ink))
-            ShortcutLine(text: "Hold ⌃⌥T and answer out loud.", font: TypeFace.body(14, weight: 600), ink: Tok.muted)
+            TalkHint()
         }
     }
 
-    /// The card on show has a primary button of its own (Retry, Continue): Talk steps back to a plain button.
-    private var talkIsPrimary: Bool { !(status.showsCard && !status.compact) }
+    // The one row of actions
+
+    /// The card's own next step, which becomes the row's one primary action.
+    private var cardAction: (title: String, run: () -> Void, secondary: (title: String, run: () -> Void)?)? {
+        switch model.phase {
+        case .offline(_, let retryable) where retryable: return ("Retry", { model.onRetry() }, nil)
+        case .voiceError(_, let retryable) where retryable: return ("Retry", { model.onVoiceRetry() }, nil)
+        case .permission: return ("Continue", { model.onPermissionContinue() }, ("Open System Settings", { model.onOpenSettings() }))
+        case .micPermission(let denied):
+            return denied ? ("Open System Settings", { model.onOpenMicSettings() }, nil)
+                          : ("Continue", { model.onMicContinue() }, ("Open System Settings", { model.onOpenMicSettings() }))
+        default: return nil
+        }
+    }
+
+    private var isPermission: Bool {
+        switch model.phase {
+        case .permission, .micPermission: true
+        default: false
+        }
+    }
 
     private var actions: some View {
         HStack(spacing: 6) {
-            // In "Your turn" the yellow chip is the one talk prompt.
-            if !yourTurn { NotchTalkButton(ui: ui, primary: talkIsPrimary) }
-            Button("Read this window") { ui.onReadWindow() }
-                .buttonStyle(BarButtonStyle())
-                .accessibilityHint("Reads the window in front, like Control-Option-Space.")
-            if model.lastCard != nil {
-                Button("Ask Muse") { model.onAskMuse() }
-                    .buttonStyle(BarButtonStyle())
-                    .help("Open this in Muse, Meta's assistant")
-                    .accessibilityHint("Opens this in Muse, Meta's assistant.")
+            if let action = cardAction {
+                Button(action.title, action: action.run).buttonStyle(ChipButtonStyle(primary: true))
+                if let secondary = action.secondary { Button(secondary.title, action: secondary.run).buttonStyle(ChipButtonStyle()) }
+            }
+            // A permission step comes first; everything else offers talking and reading.
+            if !isPermission {
+                // In "Your turn" the yellow chip in the card is the one talk prompt.
+                if !status.wordChip { NotchTalkButton(ui: ui, primary: cardAction == nil) }
+                Button("Read this window") { ui.onReadWindow() }
+                    .buttonStyle(ChipButtonStyle())
+                    .accessibilityHint("Reads the window in front, like Control-Option-Space.")
+                if model.lastCard != nil {
+                    Button("Ask Muse") { model.onAskMuse() }
+                        .buttonStyle(ChipButtonStyle())
+                        .help("Open this in Muse, Meta's assistant")
+                        .accessibilityHint("Opens this in Muse, Meta's assistant.")
+                }
+                if case .speaking(let card) = model.phase, !card.isPreview {
+                    Button("Undo") { model.onUndo() }.buttonStyle(ChipButtonStyle())
+                }
             }
             Spacer(minLength: 0)
-            IconButton(symbol: "gearshape", label: "Settings") { ui.settingsOpen = true }
-            IconButton(symbol: "eye.slash", label: "Hide Tug (⌃⌥H)") { ui.onHide() }
-        }
-    }
-
-    private var showsSample: Bool {
-        if ui.settingsOpen { return false }
-        switch model.phase {
-        case .voiceSpeaking(let card): return card.isPreview
-        case .speaking(let card): return card.isPreview
-        default:
-            if status.showsCard { return false }
-            if ui.latest == .round { return model.latestVoiceCard?.isPreview ?? false }
-            if ui.latest == .card { return model.lastCard?.isPreview ?? false }
-            return false
         }
     }
 }
 
-/// The panel's secondary buttons: the cart button's look on one line, with a little less padding so the one row of
-/// actions fits the panel. At least 32 pt tall.
-struct BarButtonStyle: ButtonStyle {
+/// The card's title row: a small eyebrow label, the Debug "Sample" tag inline, and ✕, on one baseline, with ✕ at the
+/// same right inset as the glyphs in the bar.
+struct CardTitle: View {
+    let eyebrow: String
+    var trailing: String? = nil
+    var sample = false
+    var onClose: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(eyebrow).font(TypeFace.body(12, weight: 650)).foregroundStyle(Color(Tok.muted)).lineLimit(1)
+            Spacer(minLength: 4)
+            if let trailing { Text(trailing).font(TypeFace.body(12, weight: 650)).foregroundStyle(Color(Tok.muted)) }
+            // Debug previews only; `-noSampleTag YES` hides it in captures for the video.
+            SampleTag(isPreview: sample && !UserDefaults.standard.bool(forKey: "noSampleTag"), text: "Sample")
+            if let onClose {
+                Button(action: onClose) {
+                    Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Color(Tok.ink))
+                        .frame(width: NotchBarUI.glyphButton, height: 20).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close card")
+            }
+        }
+        .frame(minHeight: 20)
+        // ✕'s target ends at the bar glyphs' inset, not the text's.
+        .padding(.trailing, onClose == nil ? 0 : NotchBarUI.glyphInset - NotchBarBody.trailing)
+    }
+}
+
+/// The card's main line: what Tug asks or found, in Hanken Grotesk, larger than everything else on the card.
+struct MainLine: View {
+    let text: String
+    var compact = false
+    var body: some View {
+        Text(noWidow(text)).font(TypeFace.body(17, weight: 700)).lineSpacing(3).foregroundStyle(Color(Tok.ink))
+            .lineLimit(compact ? 2 : nil).fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// "Hold ⌃⌥T to talk", with the keys as keycaps.
+struct TalkHint: View {
+    var body: some View { ShortcutLine(text: "Hold ⌃⌥T to talk", font: TypeFace.body(13, weight: 600), ink: Tok.muted) }
+}
+
+/// The panel's buttons: compact chips, at least 32 pt tall, body-size labels, light outlines. The primary is ink on
+/// sunflower in both looks.
+struct ChipButtonStyle: ButtonStyle {
+    var primary = false
+    @Environment(\.colorScheme) private var scheme
     func makeBody(configuration: Configuration) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
-        configuration.label
-            .font(TypeFace.body(14, weight: 650)).lineLimit(1).fixedSize()
-            .foregroundStyle(Color(Tok.ink))
-            .padding(.horizontal, 11).frame(minHeight: 32)
-            .background(shape.fill(Color(Tok.surface)))
-            .overlay(shape.strokeBorder(Color(Tok.edge), lineWidth: 1))
-            .opacity(configuration.isPressed ? 0.8 : 1)
+        ChipBackground(primary: primary, scheme: scheme) {
+            configuration.label.font(TypeFace.body(13, weight: 650)).lineLimit(1).fixedSize()
+        }
+        .opacity(configuration.isPressed ? 0.75 : 1)
+    }
+}
+
+/// The chip's look, shared with the hold-to-talk button.
+struct ChipBackground<Label: View>: View {
+    let primary: Bool
+    let scheme: ColorScheme
+    @ViewBuilder var label: Label
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        label
+            .foregroundStyle(Color(primary ? Tok.inkFixed : Tok.ink))
+            .padding(.horizontal, 10).frame(minHeight: 32)
+            .background(shape.fill(primary ? Color(Tok.barField(scheme)) : Color.clear))
+            .overlay(shape.strokeBorder(primary ? Color(Tok.inkFixed).opacity(0.3) : Color(Tok.edge).opacity(0.7), lineWidth: 1))
             .contentShape(shape)
     }
 }
 
-/// "Sample": one small tag in the panel's corner on Debug previews. Never in a normal build, and `-noSampleTag YES`
-/// hides it in captures for the video.
-struct SampleCornerTag: View {
-    let shown: Bool
-    var body: some View {
-        #if DEBUG
-        if shown, !UserDefaults.standard.bool(forKey: "noSampleTag") {
-            Text("Sample").font(TypeFace.body(11, weight: 600)).foregroundStyle(Color(Tok.muted))
-                .padding(.horizontal, 6).frame(height: 18)
-                .thinEdge(radius: 5)
-        }
-        #endif
-    }
-}
-
-struct CloseButton: View {
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).frame(width: 28, height: 28).contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(Color(Tok.ink))
-        .accessibilityLabel("Close card")
-    }
-}
-
-/// A square button with an icon, a thin edge and a tooltip; VoiceOver reads its label.
-struct IconButton: View {
-    let symbol: String
-    let label: String
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(Tok.ink))
-                .frame(width: 32, height: 32).contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .thinEdge(radius: 9)
-        .help(label)
-        .accessibilityLabel(label)
-    }
-}
-
-/// A spoken reply. Compact: what kind of move and the question, in one or two lines. On hover: your words behind
-/// one disclosure, one measured number, and the one talk prompt.
-struct ReplyCard: View {
-    let card: VoiceCard
-    let compact: Bool
-    var onClose: () -> Void
-    var onLayout: () -> Void
-
-    private var yourTurn: Bool { card.finished && !card.endsRound }
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text(card.endsRound ? "Round done" : card.moveTitle).font(TypeFace.display(compact ? 15 : 17, weight: 800))
-            Spacer(minLength: 4)
-            if let round = card.round { Text("Round \(round)").font(TypeFace.body(12, weight: 650)).foregroundStyle(Color(Tok.muted)) }
-            CloseButton(action: onClose)
-        }
-        .foregroundStyle(Color(Tok.ink))
-        if let summary = card.summary, let number = LatestRoundNumber.make(summary: summary, latest: nil) {
-            RoundNumber(number: number)
-        }
-        Text(noWidow(card.question)).font(TypeFace.body(15, weight: 600)).lineSpacing(2.5).foregroundStyle(Color(Tok.ink))
-            .lineLimit(compact ? 2 : nil).fixedSize(horizontal: false, vertical: true)
-            .accessibilityLabel("Question: \(card.question)")
-        if !compact {
-            if card.summary == nil {
-                SaidDisclosure(quote: card.quote, transcript: card.transcriptSnippet, onLayout: onLayout)
-                if let stat = LatestRoundNumber.make(summary: nil, latest: card.metrics) {
-                    HabitCount(count: stat.value, habit: stat.habit, caption: "in this answer")
-                }
-                RecordingNote(note: card.recordingNote)
-            } else {
-                ShortcutLine(text: "Hold ⌃⌥T to start again", font: TypeFace.body(13, weight: 600), ink: Tok.muted)
-            }
-        }
-        if yourTurn { TurnChip() }
-    }
-}
-
-/// A saved context card. Compact: the observation in two lines. On hover: the next step and Undo.
-struct ContextCardView: View {
-    let card: ContextCard
-    let compact: Bool
-    let pointing: Bool
-    var onClose: () -> Void
-    var onUndo: () -> Void
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text(card.replayed ? "Already saved" : "Card saved").font(TypeFace.display(compact ? 15 : 17, weight: 800))
-            Spacer(minLength: 4)
-            CloseButton(action: onClose)
-        }
-        .foregroundStyle(Color(Tok.ink))
-        Text(noWidow(card.observation)).font(TypeFace.body(15, weight: 600)).lineSpacing(2.5).foregroundStyle(Color(Tok.ink))
-            .lineLimit(compact ? 2 : nil).fixedSize(horizontal: false, vertical: true)
-        if !compact {
-            Instruction(label: "Next step", text: card.nextStep)
-            if pointing {
-                Label { Text("Circled on your \(card.appName) window").font(TypeFace.body(13, weight: 550)) } icon: { Image(systemName: "circle.circle") }
-                    .foregroundStyle(Color(Tok.ink))
-            }
-            if !card.isPreview { Button("Undo", action: onUndo).buttonStyle(CartButtonStyle(primary: false)) }
-        }
-    }
-}
-
-/// "You said “I think”", which opens to the transcript with those words marked. One control for both.
-struct SaidDisclosure: View {
-    let quote: String?
-    let transcript: String
-    var onLayout: () -> Void
-    @State private var open = false
-
-    var body: some View {
-        if quote != nil || !transcript.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Button {
-                    open.toggle()
-                    onLayout()
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(quote == nil ? "What you said" : "You said").font(TypeFace.body(12, weight: 550)).foregroundStyle(Color(Tok.muted))
-                        if let quote { Text("\u{201C}\(quote)\u{201D}").font(TypeFace.body(15, weight: 700)).foregroundStyle(Color(Tok.ink)) }
-                        if !transcript.isEmpty {
-                            Image(systemName: open ? "chevron.up" : "chevron.down").font(.system(size: 10, weight: .bold)).foregroundStyle(Color(Tok.muted))
-                        }
-                    }
-                    .padding(.horizontal, 10).frame(minHeight: 30)
-                    .thinEdge(radius: 9)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(transcript.isEmpty)
-                .accessibilityLabel(quote.map { "You said \($0)" } ?? "What you said")
-                .accessibilityHint(open ? "Hides what you said." : "Shows what you said.")
-                if open, !transcript.isEmpty { Transcript(text: transcript, mark: quote) }
-            }
-        }
-    }
-}
-
-/// A notice: its first sentence on one line with the keys as keycaps, the rest underneath in muted text that wraps.
+/// A notice: its first sentence with the keys as keycaps (wrapping text when it is long), the rest muted underneath.
 struct NoticeText: View {
     let text: String
     var body: some View {
@@ -658,7 +637,11 @@ struct NoticeText: View {
         let first = parts.first.map { String($0).trimmingCharacters(in: .whitespaces) } ?? text
         let rest = parts.count > 1 ? String(parts[1]).trimmingCharacters(in: .whitespaces) : ""
         VStack(alignment: .leading, spacing: 4) {
-            ShortcutLine(text: first, font: TypeFace.body(15, weight: 650))
+            if first.count <= 34 {
+                ShortcutLine(text: first, font: TypeFace.body(16, weight: 700))
+            } else {
+                MainLine(text: first + (rest.isEmpty ? "" : "."))
+            }
             if !rest.isEmpty {
                 Text(rest).font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted)).fixedSize(horizontal: false, vertical: true)
             }
@@ -679,8 +662,91 @@ struct RecordingNote: View {
     }
 }
 
-/// "Your turn · hold ⌃⌥T": the one talk prompt once a question has been asked. Its edge pulses slowly; still with
-/// Reduce Motion.
+/// A spoken reply: a small eyebrow, the question as the main line, then one quiet evidence row (your words and the
+/// count), then the one talk prompt. Compact: the eyebrow and the question in two lines.
+struct ReplyCard: View {
+    let card: VoiceCard
+    let compact: Bool
+    var onClose: () -> Void
+    var onLayout: () -> Void
+
+    private var yourTurn: Bool { card.finished && !card.endsRound }
+
+    var body: some View {
+        CardTitle(eyebrow: card.endsRound ? "Round done" : card.moveTitle, trailing: card.round.map { "Round \($0)" }, sample: card.isPreview, onClose: onClose)
+        if card.endsRound, let summary = card.summary, let number = LatestRoundNumber.make(summary: summary, latest: nil) {
+            // The one big number, on Round done only.
+            RoundNumber(number: number)
+        }
+        MainLine(text: card.question, compact: compact).accessibilityLabel("Question: \(card.question)")
+        if !compact {
+            if card.summary == nil {
+                EvidenceRow(card: card, onLayout: onLayout)
+            } else {
+                ShortcutLine(text: "Hold ⌃⌥T to start again", font: TypeFace.body(13, weight: 600), ink: Tok.muted)
+            }
+            RecordingNote(note: card.recordingNote)
+        }
+        if yourTurn { TurnChip() }
+    }
+}
+
+/// Your words and the measured count, on one quieter row.
+struct EvidenceRow: View {
+    let card: VoiceCard
+    var onLayout: () -> Void
+    var body: some View {
+        let stat = LatestRoundNumber.make(summary: nil, latest: card.metrics)
+        SaidDisclosure(quote: card.quote, transcript: card.transcriptSnippet, onLayout: onLayout) {
+            if let stat { HabitCount(count: stat.value, habit: stat.habit) }
+        }
+    }
+}
+
+/// "You said “I think” ⌄", which opens to the transcript with those words marked; anything after it shares the row.
+struct SaidDisclosure<Extra: View>: View {
+    let quote: String?
+    let transcript: String
+    var onLayout: () -> Void
+    @ViewBuilder var extra: Extra
+    @State private var open = false
+
+    init(quote: String?, transcript: String, onLayout: @escaping () -> Void, @ViewBuilder extra: () -> Extra = { EmptyView() }) {
+        self.quote = quote; self.transcript = transcript; self.onLayout = onLayout; self.extra = extra()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 10) {
+                if quote != nil || !transcript.isEmpty {
+                    Button {
+                        open.toggle()
+                        onLayout()
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 5) {
+                            Text(quote == nil ? "What you said" : "You said").font(TypeFace.body(13, weight: 550)).foregroundStyle(Color(Tok.muted))
+                            if let quote { Text("\u{201C}\(quote)\u{201D}").font(TypeFace.body(13, weight: 700)).foregroundStyle(Color(Tok.ink)) }
+                            if !transcript.isEmpty {
+                                Image(systemName: open ? "chevron.up" : "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(Color(Tok.muted))
+                            }
+                        }
+                        .frame(minHeight: 28)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(transcript.isEmpty)
+                    .accessibilityLabel(quote.map { "You said \($0)" } ?? "What you said")
+                    .accessibilityHint(open ? "Hides what you said." : "Shows what you said.")
+                }
+                extra
+            }
+            if open, !transcript.isEmpty { Transcript(text: transcript, mark: quote) }
+        }
+    }
+}
+
+/// "Your turn · hold ⌃⌥T": the one talk prompt once a question has been asked, as the primary chip. Its edge
+/// pulses slowly; still with Reduce Motion.
 struct TurnChip: View {
     @Environment(\.reduceMotionOn) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
@@ -688,13 +754,13 @@ struct TurnChip: View {
         TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
             let pulse = reduceMotion ? 1 : 0.55 + 0.45 * sin(context.date.timeIntervalSinceReferenceDate * 2 * .pi / 2.0)
             HStack(spacing: 8) {
-                Text("Your turn").font(TypeFace.body(14, weight: 700))
+                Text("Your turn").font(TypeFace.body(13, weight: 700))
                 ShortcutLine(text: "hold ⌃⌥T", font: TypeFace.body(13, weight: 600), ink: Tok.inkFixed)
             }
             .foregroundStyle(Color(Tok.inkFixed))
-            .padding(.horizontal, 12).frame(minHeight: 34)
-            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(Tok.barField(scheme))))
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color(Tok.inkFixed).opacity(0.25 + 0.5 * pulse), lineWidth: 1.5))
+            .padding(.horizontal, 10).frame(minHeight: 32)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(Tok.barField(scheme))))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(Tok.inkFixed).opacity(0.2 + 0.45 * pulse), lineWidth: 1.2))
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Your turn. Hold Control Option T to answer.")
@@ -712,27 +778,23 @@ enum HabitWord {
     }
 }
 
-/// A measured habit as a chip in its own colour, in Hanken Grotesk in both looks, always with its word.
+/// The one count component: the numeral and its unit in one chip at line weight, with an optional caption on the
+/// same baseline. Only the colour changes with the habit.
 struct HabitCount: View {
     let count: Int
     let habit: RoundSummary.Habit
     var caption: String? = nil
-    /// False beside a big number that already says it.
-    var showsCount = true
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let (fill, edge) = HabitChip.colours(habit)
         let dark = scheme == .dark
-        HStack(spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                if showsCount { Text("\(count)").font(TypeFace.body(15, weight: 800)).monospacedDigit() }
-                Text(HabitWord.word(habit, count)).font(TypeFace.body(13, weight: 650))
-            }
-            .foregroundStyle(Color(dark ? Tok.ink : Tok.inkFixed))
-            .padding(.horizontal, 9).frame(height: 28)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(dark ? edge : fill).opacity(dark ? 0.3 : 1)))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(edge).opacity(0.6), lineWidth: 1))
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("\(count) \(HabitWord.word(habit, count))").font(TypeFace.body(13, weight: 650)).monospacedDigit()
+                .foregroundStyle(Color(dark ? Tok.ink : Tok.inkFixed))
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(dark ? edge : fill).opacity(dark ? 0.3 : 1)))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color(edge).opacity(0.5), lineWidth: 1))
             if let caption { Text(caption).font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted)) }
         }
         .accessibilityElement(children: .ignore)
@@ -740,47 +802,42 @@ struct HabitCount: View {
     }
 }
 
-/// The round's one big number. An improvement sits on sunflower with the change in words; otherwise the habit's chip.
+/// Round done's one big number, as a single lockup: the numeral, its unit and the change, on sunflower when the round
+/// improved.
 struct RoundNumber: View {
     let number: LatestRoundNumber
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text("\(number.value)").font(TypeFace.display(44, weight: 850)).monospacedDigit()
-            VStack(alignment: .leading, spacing: 4) {
-                if number.improved {
-                    Text(HabitWord.word(number.habit, number.value)).font(TypeFace.body(16, weight: 750))
-                } else {
-                    HabitCount(count: number.value, habit: number.habit, showsCount: false)
-                }
-                Text(number.caption).font(TypeFace.body(13, weight: 550)).foregroundStyle(Color(number.improved ? Tok.inkFixed : Tok.muted))
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("\(number.value)").font(TypeFace.display(40, weight: 850)).monospacedDigit()
+            VStack(alignment: .leading, spacing: 1) {
+                Text(HabitWord.word(number.habit, number.value)).font(TypeFace.body(16, weight: 750))
+                Text(number.caption).font(TypeFace.body(13, weight: 550)).opacity(0.85)
             }
             Spacer(minLength: 0)
         }
         .foregroundStyle(Color(number.improved ? Tok.inkFixed : Tok.ink))
-        .padding(.horizontal, number.improved ? 14 : 0).padding(.vertical, number.improved ? 6 : 0)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(number.improved ? Color(Tok.barField(scheme)) : Color.clear))
+        .padding(.horizontal, 12).padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(number.improved ? Color(Tok.barField(scheme)) : Color.clear))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(number.value) \(HabitWord.word(number.habit, number.value)) \(number.caption)")
     }
 }
 
-/// Hold to talk, like holding ⌃⌥T: pressing opens the microphone, letting go sends the answer.
+/// Hold to talk, like holding ⌃⌥T: pressing opens the microphone, letting go sends the answer. A chip like the rest.
 struct NotchTalkButton: View {
     @ObservedObject var ui: NotchBarUI
     var primary = true
+    @Environment(\.colorScheme) private var scheme
     var body: some View {
-        HStack(spacing: 7) {
-            if ui.holdingTalk { RecordDot() } else { Image(systemName: "mic.fill").font(.system(size: 13, weight: .bold)) }
-            Text(ui.holdingTalk ? "Listening" : "Talk").font(TypeFace.body(14, weight: 650))
+        ChipBackground(primary: primary, scheme: scheme) {
+            HStack(spacing: 6) {
+                if ui.holdingTalk { RecordDot() } else { Image(systemName: "mic.fill").font(.system(size: 12, weight: .bold)) }
+                Text(ui.holdingTalk ? "Listening" : "Talk").font(TypeFace.body(13, weight: 650))
+            }
+            .fixedSize()
         }
-        .foregroundStyle(Color(primary ? Tok.onAction : Tok.ink))
-        .fixedSize()
-        .padding(.horizontal, 12).frame(minHeight: 32)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(primary ? Tok.action : Tok.surface)))
-        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color(Tok.edge), lineWidth: primary ? 0 : 1))
-        .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 0)
             .onChanged { _ in if !ui.holdingTalk { ui.holdingTalk = true; ui.onTalkDown() } }
             .onEnded { _ in ui.onTalkUp() })
@@ -802,12 +859,8 @@ struct NotchBarSettings: View {
     @State private var hideInMeetings = Settings.autoHideInMeetings
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Settings").font(TypeFace.display(17, weight: 800)).foregroundStyle(Color(Tok.ink))
-                Spacer()
-                Button("Done", action: onDone).buttonStyle(CartButtonStyle(primary: false))
-            }
+        VStack(alignment: .leading, spacing: 10) {
+            CardTitle(eyebrow: "Settings", onClose: onDone)
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
                 row("Voice") {
                     CartSegmented(label: "Voice", options: Settings.ReplyVoice.allCases.map { ($0, $0.title) }, selection: $voice)
@@ -840,8 +893,8 @@ struct NotchBarSettings: View {
     }
 }
 
-/// A row of choices in a thin edge; the chosen one has a neutral tint and an ink edge. Each choice is a button at
-/// least 28 pt tall inside a 32 pt control, and VoiceOver reads which one is selected.
+/// A row of choices in one hairline edge; the chosen one is a neutral tint with no second outline. Each choice is a
+/// button at least 28 pt tall inside a 32 pt control, and VoiceOver reads which one is selected.
 struct CartSegmented<Value: Hashable>: View {
     let label: String
     let options: [(Value, String)]
@@ -852,12 +905,10 @@ struct CartSegmented<Value: Hashable>: View {
             ForEach(Array(options.enumerated()), id: \.offset) { _, option in
                 let chosen = option.0 == selection
                 Button { selection = option.0 } label: {
-                    // Ink fill stays for the one primary action, sunflower for the band and good news.
-                    Text(option.1).font(TypeFace.body(13, weight: 650))
+                    Text(option.1).font(TypeFace.body(13, weight: chosen ? 700 : 600))
                         .foregroundStyle(Color(chosen ? Tok.ink : Tok.muted))
                         .frame(maxWidth: .infinity, minHeight: 28)
                         .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(chosen ? Color(Tok.rule) : Color.clear))
-                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Color(Tok.ink).opacity(chosen ? 0.55 : 0), lineWidth: 1))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -866,7 +917,7 @@ struct CartSegmented<Value: Hashable>: View {
             }
         }
         .padding(2)
-        .thinEdge(radius: 9)
+        .thinEdge(radius: 9, fill: Tok.surface, edge: Tok.edge.withAlphaComponent(0.7))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
     }
@@ -878,22 +929,21 @@ struct CartSegmented<Value: Hashable>: View {
 /// presenting, and with Reduce Motion. Its string is drawn by the bar, so it can drop and be held up.
 struct TugGlyphFace: NSViewRepresentable {
     let face: NotchBarStatus.Face
-    let onInk: Bool
     let awake: Bool
     func makeNSView(context: Context) -> TugGlyphFaceView { TugGlyphFaceView() }
     func updateNSView(_ view: TugGlyphFaceView, context: Context) {
-        view.configure(.init(face: face, onInk: onInk, awake: awake && !Motion.forced))
+        view.configure(.init(face: face, awake: awake && !Motion.forced))
     }
 }
 
 final class TugGlyphFaceView: NSView {
-    struct Look: Equatable { var face: NotchBarStatus.Face; var onInk: Bool; var awake: Bool }
+    struct Look: Equatable { var face: NotchBarStatus.Face; var awake: Bool }
     enum Art: Hashable { case open, half, shut, brows, mouthOpen, mouthSmall }
 
     private let can = CALayer()
     private var look: Look?
     private var images: [Art: CGImage] = [:]
-    private var built: (CGSize, CGFloat, Bool)?
+    private var built: (CGSize, CGFloat)?
     private var visible = true
     private var observers: [NSObjectProtocol] = []
 
@@ -918,13 +968,12 @@ final class TugGlyphFaceView: NSView {
 
     override func layout() {
         super.layout()
-        guard let look else { return }
+        guard look != nil else { return }
         let scale = window?.backingScaleFactor ?? 2
-        if built.map({ $0.0 != bounds.size || $0.1 != scale || $0.2 != look.onInk }) ?? true {
-            built = (bounds.size, scale, look.onInk)
-            let colour = look.onInk ? Tok.field : Tok.inkFixed
+        if built.map({ $0.0 != bounds.size || $0.1 != scale }) ?? true {
+            built = (bounds.size, scale)
             images = [Art.open, .half, .shut, .brows, .mouthOpen, .mouthSmall].reduce(into: [:]) { all, art in
-                all[art] = Self.image(bounds.size, scale, art, colour)
+                all[art] = Self.image(bounds.size, scale, art, Tok.inkFixed)
             }
         }
         CATransaction.begin(); CATransaction.setDisableActions(true)

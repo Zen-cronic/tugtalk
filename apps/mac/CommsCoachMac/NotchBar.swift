@@ -294,7 +294,7 @@ final class NotchBarController {
     /// The bar's mark for now: the state's own, or the warning when another copy holds the talk keys.
     private var mark: NotchBarStatus.Mark {
         let status = self.status
-        if model.hotkeyNotice != nil, status.mark == .none, !status.inverted { return .symbol("exclamationmark.circle") }
+        if model.hotkeyNotice != nil, status.mark == .none, !status.wordChip { return .symbol("exclamationmark.circle") }
         return status.mark
     }
 
@@ -303,7 +303,7 @@ final class NotchBarController {
     private func wings(housing: CGRect?) -> (left: CGFloat, right: CGFloat) {
         let notch = housing != nil
         let glyph: CGFloat = notch ? 18 : 16
-        let word = glyph + 6 + BarType.width(status.word)
+        let word = glyph + 6 + BarType.width(status.word) + (status.wordChip ? 2 * NotchBarUI.chipPad : 0)
         let markWidth = BarType.markWidth(mark)
         var right = markWidth == 0 ? 0 : (notch ? NotchBarPlacement.notchGap : 8) + markWidth + NotchBarUI.inset
         if let housing, right > 0, !NotchBarPlacement.rightWingFits(statusItemsMinX: statusItemsMinX(right: housing.midX),

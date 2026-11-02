@@ -156,11 +156,11 @@ final class NotchBarStatusTests: XCTestCase {
         XCTAssertEqual(NotchBarStatus.make(.offline(retryable: true)).face, .still)
     }
 
-    func testOnlyYourTurnIsInverted() {
-        XCTAssertTrue(NotchBarStatus.make(.voiceReply(finished: true, endsRound: false)).inverted)
+    func testOnlyYourTurnPutsTheWordInAChip() {
+        XCTAssertTrue(NotchBarStatus.make(.voiceReply(finished: true, endsRound: false)).wordChip)
         let others: [NotchBarInput] = [.idle, .voiceListening(seconds: 0), .thinking, .voiceReply(finished: false, endsRound: false),
                                        .voiceReply(finished: true, endsRound: true), .offline(retryable: true), .permission]
-        for input in others { XCTAssertFalse(NotchBarStatus.make(input).inverted, "\(input)") }
+        for input in others { XCTAssertFalse(NotchBarStatus.make(input).wordChip, "\(input)") }
     }
 
     func testTheRecordLightIsOnlyForListening() {
