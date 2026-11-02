@@ -704,6 +704,28 @@ class LiveBridgeTests(BridgeTests):
         self.assertTrue(any(m.get('cancel') for m in saw))
         self.assertNotIn('commit', self.volume.events, 'a cancelled hold wrote nothing to commit')
 
+    async def test_live_audio_past_the_frame_or_total_limit_is_a_413_and_never_a_release(self):
+        record = Path(self.temp.name) / 'large-saw.jsonl'
+        app = self.bridge(self.volume, worker_path=self.fake('live-large-worker.mjs', f"""
+            appendFileSync({json.dumps(str(record))}, JSON.stringify(m) + '\\n');
+            if (m.envelope?.live) {{ await release(id); return; }}
+            if (m.cancel) {{ await acquire(id); respond(id, 499, {{ error: 'cancelled' }}); out({{ id, closed: true }}); }}
+            if (m.end) {{ await acquire(id); respond(id, 200, {{ round_id: 'round-1' }}); out({{ id, closed: true }}); }}
+        """))
+        cases = {'frame': [('bytes', bytes(4000)), ('bytes', bytes(64 * 1024 + 1))],
+                 'total': [('bytes', bytes(60_000))] * 4}
+        for name, frames in cases.items():
+            with self.subTest(name), patch('bridge.AUDIO_LIMIT', 200_000):
+                record.write_text('')
+                sent = await self.socket(app, [self.START, *frames, ('text', '{"type":"end"}')])
+                events = [json.loads(e['text']) for e in sent if 'text' in e]
+                self.assertEqual([(e['type'], e.get('status'), e.get('error')) for e in events], [('error', 413, 'audio_too_large')])
+                self.assertEqual(sent[-1], {'type': 'websocket.close', 'code': 1009})
+                saw = [json.loads(line) for line in record.read_text().splitlines()]
+                self.assertTrue(any(m.get('cancel') for m in saw), 'the hold was dropped')
+                self.assertFalse(any(m.get('end') for m in saw), 'never sent as a release')
+                self.assertEqual(sum(1 for m in saw if 'audio' in m), 1 if name == 'frame' else 3, 'nothing past the limit reached the worker')
+
     async def test_spoken_reply_does_not_wait_for_a_model_request_and_is_not_committed(self):
         app = self.bridge(self.volume, worker_path=self.fake('speech-lock-worker.mjs', """
             if (env.path === '/v1/voice-rounds') { await release(id); await pause(400); await acquire(id); respond(id, 200, { ok: 'round' }); return; }

@@ -185,7 +185,7 @@ function within(promise, ms, reason) {
 // hold and the provider calls, and acquired again for the write. Never throws.
 export function createLiveRound({ store, models, token, start, requestId = randomUUID(), phases, budget = createBudget(), emit = () => {}, emitAudio = () => {} }) {
   const chunks = [];
-  let bytes = 0, ended = false, cancelled = false, audioStopped = false, transcriber = null, released = false, user = null, lastPartial = '';
+  let bytes = 0, ended = false, cancelled = false, tooLarge = false, audioStopped = false, transcriber = null, released = false, user = null, lastPartial = '';
   let endHold, endCamera;
   const holdEnded = new Promise(r => { endHold = r; });
   const capTimer = setTimeout(() => { ended = true; endHold('capped'); }, MAX_HOLD_MS);
@@ -213,7 +213,8 @@ export function createLiveRound({ store, models, token, start, requestId = rando
     await phases.release(); released = true;
     const acquire = async () => { if (released) { released = false; await phases.acquire(); } };
     try {
-      if (!retry && models.realtimeReady?.()) {
+      // A hold already dropped (cancelled, or too much audio) during the checks opens no Meta session.
+      if (!retry && !cancelled && models.realtimeReady?.()) {
         transcriber = models.openRealtime({ language: params.language, sessionId: requestId, onPartial: text => {
           if (text !== lastPartial && !cancelled) { lastPartial = text; emit({ type: 'partial', text }); }
         } });
@@ -222,14 +223,17 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       emit({ type: 'ready', transcription: retry ? 'replay' : transcriber ? 'realtime' : 'file' });
       const why = await holdEnded;
       clearTimeout(capTimer);
-      if (why === 'cancelled') {
+      if (why === 'cancelled' || why === 'too_large') {
         transcriber?.close();
         await acquire();
         // Audio that reached the transcriber is billed, so the hold counts toward the hourly limit. That audit row is a
         // write the hosting adapter must commit (dirty), or a restart would forget it and let the limit be passed.
         const billed = Boolean(transcriber?.sentBytes);
-        if (billed) audit(VOICE_ROUNDS_PATH, 499, 'live cancelled');
-        return { status: 499, body: { error: 'cancelled', message: 'The hold ended before release.', request_id: requestId }, dirty: billed };
+        if (billed) audit(VOICE_ROUNDS_PATH, 499, `live ${why}`);
+        const body = why === 'too_large'
+          ? { error: 'audio_too_large', message: `Too much audio for one answer (at most ${MAX_LIVE_BYTES} bytes). Nothing was saved.`, request_id: requestId }
+          : { error: 'cancelled', message: 'The hold ended before release.', request_id: requestId };
+        return { status: why === 'too_large' ? 413 : 499, body, dirty: billed };
       }
       const releasedAt = performance.now();
       // "Faced the camera" numbers come with the end message, since they are known only at release. The answer is never
@@ -307,8 +311,9 @@ export function createLiveRound({ store, models, token, start, requestId = rando
   return {
     done,
     audio(buffer) {
-      if (ended || cancelled) return;
-      if (bytes + buffer.length > MAX_LIVE_BYTES) { ended = true; endHold('capped'); return; }
+      if (ended || cancelled || tooLarge) return;
+      // Too much audio is not a release: the hold is dropped with a 413, like a cancel.
+      if (bytes + buffer.length > MAX_LIVE_BYTES) { tooLarge = cancelled = true; transcriber?.close(); endHold('too_large'); return; }
       bytes += buffer.length; chunks.push(Buffer.from(buffer));
       transcriber?.send(buffer);
     },

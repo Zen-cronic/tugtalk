@@ -65,6 +65,9 @@ LIVE_ROUTE = '/v1/voice-rounds/live'
 LIVE_START_TIMEOUT = 10   # the start frame must arrive this soon after the socket opens
 LIVE_FRAME_LIMIT = 64 * 1024   # one PCM frame (the Mac sends about 4 KiB every 85 ms)
 LIVE_DRAIN = 30   # after the answer, how long the spoken audio may keep the socket open
+# Too much audio for one hold: the hold is dropped and the client told, never treated as a release.
+TOO_LARGE = {'error': 'audio_too_large',
+             'message': 'Too much audio for one answer (at most 8 MiB in all, in frames of at most 64 KiB). Nothing was saved.'}
 BUSY = {'error': 'storage_or_worker_unavailable',
         'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'}
 
@@ -438,7 +441,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         loop = asyncio.get_running_loop()
         timing = Timing()
         out = asyncio.Queue()   # ('text', str) | ('bytes', bytes) | ('close', code)
-        session = {'client_gone': False, 'closed': asyncio.Event(), 'status': None}
+        session = {'client_gone': False, 'closed': asyncio.Event(), 'status': None, 'too_large': False}
 
         async def sender():
             while True:
@@ -499,8 +502,10 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                     if data is not None:
                         total += len(data)
                         if len(data) > LIVE_FRAME_LIMIT or total > AUDIO_LIMIT:
-                            await worker.send({'id': rid, 'end': True})
-                            continue
+                            # Not a release: the worker drops the hold, and the client gets a 413 instead of a reply.
+                            session['too_large'] = True
+                            await worker.send({'id': rid, 'cancel': True})
+                            return
                         await worker.send({'id': rid, 'audio': base64.b64encode(data).decode()})
                     elif event.get('text'):
                         try:
@@ -579,13 +584,15 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 response = message['response']
                 body = json.loads(base64.b64decode(response['body_b64']) or b'{}')
                 status = response['status']
+                if session['too_large'] and status != 200:
+                    status, body = 413, TOO_LARGE
                 text({'type': 'saved', **body} if status == 200 else {'type': 'error', 'status': status, **body})
                 # The spoken audio may still be streaming; the socket closes once it is done or the client leaves.
                 try:
                     await asyncio.wait_for(session['closed'].wait(), timeout=LIVE_DRAIN)
                 except TimeoutError:
                     pass
-                finish(1000 if status == 200 else 1008, status)
+                finish(1000 if status == 200 else 1009 if status == 413 else 1008, status)
         except (Exception, asyncio.CancelledError) as exc:
             if held:
                 await worker.kill()

@@ -37,8 +37,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 183 | A `node --test` run of the other test files (all must pass), plus this one |
-| `python-tests` | Python hosting-adapter tests | 25 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
+| `node-tests` | Node test cases, as `npm test` reports them | 184 | A `node --test` run of the other test files (all must pass), plus this one |
+| `python-tests` | Python hosting-adapter tests | 26 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `hosting-worker` | How the hosting adapter runs requests | one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload | deploy/bridge.py and its tests in deploy/test_bridge.py |

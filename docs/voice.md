@@ -95,6 +95,7 @@ Fallbacks and retries:
 - **A live round under a key that already has a receipt** is a retry: no Meta session is opened and no model is called. At release the server returns the stored round (`reply` with `replayed: true`, `speech_unavailable`, then `saved`), or a 409 `idempotency_conflict` if the audio differs. If an upload with the same key is saved while a live round runs, the live round returns that saved round and drops the audio it made.
 - **The client leaves before release**: nothing is saved and no reply is asked for. If audio already reached Meta, the hold counts toward the hourly limit (audited as status 499). After release, a client that leaves only stops the audio; the round is still saved.
 - A hold is cut at 120 s on the server (the Mac stops at 60 s).
+- **Too much audio** (more than 8 MiB in one hold, or through the hosting adapter a binary frame over 64 KiB) is not a release: the hold is dropped, nothing is saved, no reply is asked for, and the client gets an `error` event with status 413 `audio_too_large` (close `1009` through the adapter). Audio that already reached Meta counts toward the hourly limit, as for a cancelled hold.
 
 The audio is never stored, and neither the audio nor the transcript is logged. The hosting adapter forwards only the credential header to the worker.
 

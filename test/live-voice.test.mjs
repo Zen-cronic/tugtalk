@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../src/store.mjs';
-import { createLiveRound, createRealtimeModel, liveStart, wavFromPcm, LIVE_PATH } from '../src/live-voice.mjs';
+import { createLiveRound, createRealtimeModel, liveStart, wavFromPcm, LIVE_PATH, MAX_LIVE_BYTES } from '../src/live-voice.mjs';
 import { handleVoiceRound, voiceParams, VOICE_ROUNDS_PATH, VOICE_RATE_LIMIT } from '../src/voice.mjs';
 import { createSpeechModel, createSpeechCache } from '../src/speech.mjs';
 import { inspectWav } from '../src/capture.mjs';
@@ -409,5 +409,25 @@ test('live: when an upload with the same key is saved first, the live round retu
     assert.ok(dropped.includes(liveId), 'the audio made for the unsaved round was dropped');
     assert.equal(s.models.cachedSpeech(liveId, 'alice'), null);
     assert.equal(s.store.list('alice', 'voice-rounds').length, 1);
+  } finally { s.cleanup(); }
+});
+
+test('live: more audio than one answer may hold is a 413, never a release: nothing is saved and no reply is asked for', async () => {
+  const s = setup();
+  try {
+    const round = s.open({ ...START, idempotency_key: 'live-large-01' });
+    await tick();
+    s.meta.sockets[0].ack();
+    round.audio(pcm(400));
+    await tick();
+    round.audio(Buffer.alloc(MAX_LIVE_BYTES)); // past the cap in total
+    round.end();
+    const result = await round.done;
+    assert.equal(result.status, 413); assert.equal(result.body.error, 'audio_too_large');
+    assert.equal(result.dirty, true, 'the billed audio is counted and committed');
+    assert.deepEqual([s.calls.transcribe.length, s.calls.voiceReply], [0, 0]);
+    assert.equal(s.store.list('alice', 'voice-rounds').length, 0);
+    assert.notEqual(s.meta.sockets[0].closed, null);
+    assert.equal(s.store.recentRequests('alice', 'POST', VOICE_ROUNDS_PATH, [499], 60_000), 1);
   } finally { s.cleanup(); }
 });
