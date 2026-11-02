@@ -21,6 +21,11 @@ public struct VoiceRoundRequest: Sendable, Equatable {
     public var occurredAt: Date?
     /// "Faced the camera" numbers for this hold, sent as `X-Camera-Metrics` when the camera was on. Set after init.
     public var camera: CameraMetrics?
+    /// What the other person needs from you in this round, as the round's first reply named it (`X-Counterpart-Need`).
+    /// Held in memory for the round only. Set after init.
+    public var need: String?
+    /// "code" asks for the code-only reply, with no model call (`X-Reply-Mode`). Nil is the model. Set after init.
+    public var replyMode: String?
 
     public init(wav: Data, idempotencyKey: String, goalID: String? = nil, screenContextID: String? = nil, language: VoiceLanguage = .en,
                 promptEndedAt: Date? = nil, occurredAt: Date? = nil) {
@@ -74,6 +79,26 @@ public struct VoiceLatency: Decodable, Sendable, Equatable {
     public init(asr: Double?, model: Double?, total: Double?) { self.asr = asr; self.model = model; self.total = total }
 }
 
+/// The other person's need and the move gate for one answer. `need` is the model's word, from a fixed list; whether
+/// this answer met it, the moves allowed and why are code's. Returned to this Mac only; the server never stores the need.
+public struct VoiceCounterpart: Decodable, Sendable, Equatable {
+    public let need: String?
+    public let need_met: Bool?
+    public let allowed: [String]?
+    /// "open", "measured_close" or "answer_cap".
+    public let reason: String?
+    /// This answer's place in the practice round, counted by the server.
+    public let answer: Int?
+    /// "model" or "code".
+    public let reply_mode: String?
+
+    public init(need: String?, need_met: Bool?, allowed: [String]? = nil, reason: String?, answer: Int? = nil, reply_mode: String? = "model") {
+        self.need = need; self.need_met = need_met; self.allowed = allowed; self.reason = reason; self.answer = answer; self.reply_mode = reply_mode
+    }
+
+    public var isCodeOnly: Bool { reply_mode == "code" }
+}
+
 public struct VoiceRoundReceipt: Decodable, Sendable, Equatable {
     public let round_id: String
     public let receipt_id: String
@@ -81,11 +106,14 @@ public struct VoiceRoundReceipt: Decodable, Sendable, Equatable {
     public let transcript: String
     public let metrics: VoiceMetrics?
     public let reply: VoiceReply
-    public let model: String
+    /// Nil for a code-only reply (no model call).
+    public let model: String?
     public let provider_request_id: String?
     public let latency_ms: VoiceLatency?
     /// Present only when the person turned on Keep my recordings.
     public let media: KeptMedia?
+    /// Absent on a replayed receipt.
+    public let counterpart: VoiceCounterpart?
 }
 
 extension CoachAPI {
@@ -100,6 +128,8 @@ extension CoachAPI {
         if let ended = round.promptEndedAt { request.setValue(VoiceRoundRequest.timestamp(ended), forHTTPHeaderField: "X-Prompt-Ended-At") }
         if let started = round.occurredAt { request.setValue(VoiceRoundRequest.timestamp(started), forHTTPHeaderField: "X-Occurred-At") }
         if let camera = round.camera { request.setValue(camera.headerValue, forHTTPHeaderField: "X-Camera-Metrics") }
+        if let need = round.need { request.setValue(need, forHTTPHeaderField: "X-Counterpart-Need") }
+        if let mode = round.replyMode { request.setValue(mode, forHTTPHeaderField: "X-Reply-Mode") }
         request.httpBody = round.wav
         return try await send(request, as: VoiceRoundReceipt.self)
     }

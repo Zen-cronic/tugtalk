@@ -21,8 +21,10 @@ struct ContextCard: Equatable {
 
 /// Who writes the card: the real model on the shared record, or a stub on a local test server.
 enum ModelLabel {
-    static func display(_ model: String) -> String {
-        model == "meta-models/muse-spark-open-1026" ? "Muse Spark Open" : model
+    /// Nil is a code-only reply: no model wrote it.
+    static func display(_ model: String?) -> String {
+        guard let model else { return "Code only, no model" }
+        return model == "meta-models/muse-spark-open-1026" ? "Muse Spark Open" : model
     }
     static var thinking: String {
         Connection.isLocalDevelopmentRequested ? "The local test server is writing the card" : "Muse Spark Open is reading the redacted text"
@@ -59,6 +61,12 @@ struct VoiceCard: Equatable {
     var summary: RoundSummary?
     /// The source line a preview shows instead of a receipt.
     var sampleSource: String?
+    /// The other person's need and the move gate for this answer (`counterpart`), when the coach sent them.
+    var counterpart: VoiceCounterpart?
+    /// "Need: a date · met on answer 2 · unsure words 1 → 0", from `RoundNeed` on this Mac. Nil without a need.
+    var needLine: String?
+    /// No model wrote this question (`X-Reply-Mode: code`).
+    var codeOnly: Bool { counterpart?.isCodeOnly == true }
     /// "Recording kept" when Keep my recordings is on and the server kept this answer's audio.
     var recordingNote: String?
 
@@ -74,6 +82,7 @@ struct VoiceCard: Equatable {
                   move: live.reply.kind, transcript: live.transcript, quote: live.reply.verifiedQuote, metrics: live.metrics,
                   latency: VoiceLatency(asr: live.latency_ms?.asr, model: live.latency_ms?.model, total: live.latency_ms?.release_to_reply),
                   replayed: false, modelLabel: ModelLabel.display(live.model))
+        counterpart = live.counterpart
     }
 
     init(_ receipt: VoiceRoundReceipt) {
@@ -81,6 +90,7 @@ struct VoiceCard: Equatable {
                   move: receipt.reply.kind, transcript: receipt.transcript, quote: receipt.reply.verifiedQuote, metrics: receipt.metrics,
                   latency: receipt.latency_ms, replayed: receipt.replayed, modelLabel: ModelLabel.display(receipt.model))
         recordingNote = receipt.media?.note
+        counterpart = receipt.counterpart
     }
 
     var endsRound: Bool { move == .wrap_up }

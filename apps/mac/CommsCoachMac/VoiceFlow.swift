@@ -47,6 +47,10 @@ final class VoiceFlow {
     private var phaseWatch: AnyCancellable?
     /// The answers of the spoken round so far, counted on this Mac since the last wrap-up or reset.
     private var tally = RoundTally()
+    /// The other person's need for this round, from its first reply. In memory only; dropped when the round ends.
+    private var roundNeed = RoundNeed()
+    /// DEBUG `-replyMode code`: ask for the code-only reply (no model call), for side-by-side checks.
+    private let replyMode: String?
 
     var afterSave: () -> Void = {}
 
@@ -54,8 +58,10 @@ final class VoiceFlow {
         self.model = model
         #if DEBUG
         fixture = UserDefaults.standard.string(forKey: "voiceFixtureWAV").map { URL(fileURLWithPath: $0) }
+        replyMode = UserDefaults.standard.string(forKey: "replyMode") == "code" ? "code" : nil
         #else
         fixture = nil
+        replyMode = nil
         #endif
         #if DEBUG
         // `-voiceSpeaker apple` skips the coach voice, for testing the fallback on purpose.
@@ -151,14 +157,14 @@ final class VoiceFlow {
 
     /// The bubble was closed, by its button or a click on the character. The round ends with it.
     func dismissed() {
-        tally.reset()
+        tally.reset(); roundNeed.reset()
         perform(machine.dismiss())
     }
 
     /// Another state took the bubble (a screen capture, a nudge): the round ends. A reply card that only
     /// collapsed to idle keeps the round, and a long silence ends it by itself (`RoundTally.idleGap`).
     private func leftVoice() {
-        if model.phase != .idle { tally.reset() }
+        if model.phase != .idle { tally.reset(); roundNeed.reset() }
         switch machine.phase {
         case .speaking, .failed, .listening: perform(machine.dismiss())
         default: break
@@ -293,6 +299,7 @@ final class VoiceFlow {
         var round = VoiceRoundRequest(wav: wav, idempotencyKey: key, goalID: Settings.goalID, screenContextID: model.lastCard?.recordID,
                                       language: Settings.voiceLanguage, promptEndedAt: promptEndedAt,
                                       occurredAt: occurredAt?.key == key ? occurredAt?.at : nil)
+        round.need = roundNeed.need; round.replyMode = replyMode
         if let started = liveRound, started.idempotencyKey == key { round = started; round.wav = wav }
         round.camera = CameraSession.shared.metrics(for: key)
         voiceLog.notice("sending \(wav.count, privacy: .public) bytes; prompt end \(promptEndedAt == nil ? "not sent" : "sent", privacy: .public)")
@@ -329,9 +336,11 @@ final class VoiceFlow {
         let counted = tally.record(metrics, endsRound: next.endsRound, at: Date())
         next.round = counted.round
         next.summary = counted.summary
+        // The server's answer number decides where the round starts; the need is dropped at the wrap-up.
+        next.needLine = roundNeed.record(next.counterpart, hedges: metrics?.hedge_count, answer: next.counterpart?.answer ?? counted.round, endsRound: next.endsRound)
         card = next
         if case .failed = machine.phase {
-            tally.reset()
+            tally.reset(); roundNeed.reset()
             perform(effects)
             model.set(.voiceError("The reply had no question to speak.", retryable: false))
             return
@@ -347,8 +356,9 @@ final class VoiceFlow {
         closeLive()
         guard Settings.liveVoice, let api = Connection.api()?.api else { return nil }
         let prompt: Date? = if case .listening(_, _, let ended) = machine.phase { ended } else { nil }
-        let round = VoiceRoundRequest(wav: Data(), idempotencyKey: key, goalID: Settings.goalID, screenContextID: model.lastCard?.recordID,
+        var round = VoiceRoundRequest(wav: Data(), idempotencyKey: key, goalID: Settings.goalID, screenContextID: model.lastCard?.recordID,
                                       language: Settings.voiceLanguage, promptEndedAt: prompt, occurredAt: occurredAt?.key == key ? occurredAt?.at : nil)
+        round.need = roundNeed.need; round.replyMode = replyMode
         let session = LiveVoiceSession(socket: api.liveSocket(), start: LiveStart(round, speech: Settings.replyVoice == .rebecca && !appleOnly))
         live = session; liveKey = key; liveRound = round; liveReplied = false; liveRoundID = nil
         liveTask = Task { [weak self] in
@@ -469,7 +479,7 @@ final class VoiceFlow {
             return
         }
         if liveKey == key { closeLive() }
-        tally.reset()
+        tally.reset(); roundNeed.reset()
         if case .thinking = machine.phase {
             perform(machine.uploadFailed(key: key, retryable: retryable))
         } else {
