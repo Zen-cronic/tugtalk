@@ -18,6 +18,8 @@ Meta's Model API has no text-to-speech model. The spoken reply comes from `POST 
   - `X-Prompt-Ended-At`: ISO 8601 time when the mascot finished speaking its previous question.
   - `X-Occurred-At`: ISO 8601 time when the recording started (key down). This is the same header `POST /v1/recordings` takes. Onset needs it (see below).
   - `X-Camera-Metrics`: four "faced the camera" numbers the Mac measured during the hold, when the camera is turned on; stored as `metrics.camera`. Strictly checked, and not part of the fingerprint. See [camera.md](camera.md).
+  - `X-Counterpart-Need`: what the other person needs from you in this practice round (`number`, `date`, `decision`, `owner` or `example`), as the first reply's `counterpart.need` returned it. The Mac sends it back with each later answer of the round. Any other value is ignored. Not stored. See [Who ends the round](#who-ends-the-round).
+  - `X-Reply-Mode`: `model` (default) or `code`. `code` asks for the code-only reply: no model call (below). Any other value is a 400.
 
 An exact retry (same key, same audio and the same headers) returns the stored round and makes no model call. The same key with different audio or headers returns 409.
 
@@ -28,11 +30,42 @@ An exact retry (same key, same audio and the same headers) returns the stored ro
 3. Code measures the answer: the same `measure()` as captures (words, pace, fillers, hedges, restarts) plus `metrics.pauses` from the ENDPOINTING turns, and `onset_ms_approx`.
 4. One Muse Spark Open call on Baseten, `meta-models/muse-spark-open-1026`, `reasoning_effort: "low"`, streamed, 2000 max tokens, cut off after 8 s. A second call runs only if the first reply is unusable (no JSON, wrong shape, empty, cut off by `max_tokens`), never after a timeout or a 4xx.
    - It gets the goal, the screen card's summary, the latest watch session's code-measured numbers, its own last question if a round ran in the last 15 minutes, the round number, and the answer with its measured numbers and the habit words code found.
-   - It returns `{move, quote, question}`. `move` is `follow_up`, `challenge` or `wrap_up`.
+   - It also gets `allowed_moves` from the move gate, `choose_need` on the first answer of a practice round with a screen card, and `your_need` (with code's measurement for this answer) after that.
+   - It returns `{move, quote, question}`, plus `need` when `choose_need` was sent. `move` is `follow_up`, `challenge` or `wrap_up`. A move outside `allowed_moves` counts as an unusable reply and gets the one retry.
 5. Code checks the reply:
    - **The quote.** It is kept only if its words appear in the transcript as one unbroken run, in order (case and punctuation ignored). The kept quote is cut from the transcript itself, so it is exactly what the transcript says. Otherwise it becomes `""` and `quote_verified` is `false`.
    - **The question.** It is returned either way, but first code removes every quoted span in it that is not word for word in the transcript, and a "You said" left with nothing to introduce. It cuts the question to 25 words and re-scrubs emails, phone numbers and long numbers. If too little is left, a fixed question for the move replaces it. What code changed is stored in `reply_checks`.
+   - **The move.** If the move is still outside `allowed_moves` after the retry, code replaces the reply with the fixed question for the first allowed move and drops the quote (`gate.coerced: true`).
 6. One receipt and one `voice-rounds` record.
+
+## Who ends the round
+
+The model chooses the words; code decides when the round ends. A practice round is the rounds of the last 15 minutes after the newest wrap-up, so the answer after a wrap-up is answer 1 of a new practice round, with no last question.
+
+**The need.** On your first answer, the model picks what the other person needs from you (a number, a date, a decision, an owner or an example) from the card's summary. It stays on your Mac for that round and isn't saved to your record. The Mac holds it in memory, sends it back as `X-Counterpart-Need` with each answer of the round, and drops it at the wrap-up. A need the model offers after the first answer, or one outside the list, is ignored.
+
+**Need met.** Code checks each answer for the need with fixed English and French word patterns (`counterpart-needs-v1`, `src/counterpart.mjs`): a numeral or number word; a month and day, a weekday after "by" or "on", "tomorrow", "end of the quarter", "in two weeks"; a first-person commitment ("we'll ship", "I decided"); an owner ("I'll own it", "I'm responsible"); an example ("for example", "last quarter"). "Maybe soon" is not a date and "I could lead it" is not an owner. It is a word check, not a reading of meaning: "by March 14" counts as a date even if the rest of the answer takes it back.
+
+**The move gate** (`allowedMoves`), from the need, whether this answer met it, its hedge count, and its place in the round:
+
+| Condition | Allowed moves | `gate.reason` |
+|---|---|---|
+| Answer 2 or later, the need is met and there are no hedges | `wrap_up` | `measured_close` |
+| Answer 2 or later, no need, and no hedges | `wrap_up` | `measured_close` |
+| Answer 4 or later | `wrap_up` | `answer_cap` |
+| Otherwise | `follow_up`, `challenge` | `open` |
+
+The first answer never closes the round: the other person always asks at least one question.
+
+**Code-only replies** (`X-Reply-Mode: code`, or `reply_mode: "code"` on a live start frame). No model is called, and a deployment without a reply model still answers. With a hedge (or else a filler) in the answer and `challenge` allowed, the reply quotes the first one, cut from the transcript by code, and asks the fixed challenge question: `You said "I think". What is the one fact that backs that up?` Otherwise it asks the fixed question for the first allowed move. The round stores `reply_mode: "code"` and `model: null`. It is only ever asked for; a failed model reply is still a 502, never a code-only reply.
+
+**What is returned and stored.**
+
+- The round stores `gate: {allowed, reason, hedges, coerced}` and `reply_mode`. It never stores the need.
+- The response (and the live `reply` event and `saved` body) also carries `counterpart: {need, need_met, allowed, reason, answer, reply_mode}` for the device. `need` is the model's word; `need_met`, `allowed`, `reason` and `answer` are code's. It is not stored, so a replayed receipt has no `counterpart`.
+- The need and the reply mode are part of the idempotency fingerprint only when they are sent, so the fingerprints of earlier rounds are unchanged.
+
+`npm run eval:voice -- --counterpart` runs the gate over 20 scripted replies in `eval/counterpart-replies.json` (scripted replies, not live model runs; we wrote them knowing how the gate works) through the shipped `replyToAnswer`, and compares the result with `eval/counterpart-results.json`. 8 of the 20 chose a move the gate did not allow (4 ended the round early, 4 kept pressing after code measured it closed). Trusting the model, all 8 would be spoken; after the gate, 0. It measures the gate, not the model: how often Spark Open picks a sensible need needs live rounds.
 
 The round has one time budget (`src/budget.mjs`), as recordings do: 120 s, cut to what is left of the hosting adapter's deadline. Transcription starts only with 10 s left, and a reply attempt only with 4 s left; each attempt is cut off at 8 s or when the budget runs out. A reply with no time left is a 502 `reply_failed` like any failed reply. So the round always answers before the adapter gives up.
 
@@ -41,14 +74,14 @@ The round has one time budget (`src/budget.mjs`), as recordings do: 120 s, cut t
 One WebSocket per hold, on the same host. The same round as a WAV upload, with the same checks, budget, hourly limit and storage; only the transport and the transcription change.
 
 1. **Upgrade** with `Authorization: Bearer <key>`. Without a Bearer credential, the hosting adapter refuses the socket before accepting it (HTTP 403).
-2. **First frame**, text, within 10 s: `{"type": "start", "idempotency_key", "language", "goal_id"?, "screen_context_id"?, "prompt_ended_at"?, "occurred_at"?, "speech"?}`. These are the WAV route's headers, with the same rules. `speech: false` means the Mac speaks the reply with its own voice, so the server makes no audio.
+2. **First frame**, text, within 10 s: `{"type": "start", "idempotency_key", "language", "goal_id"?, "screen_context_id"?, "prompt_ended_at"?, "occurred_at"?, "need"?, "reply_mode"?, "speech"?}`. These are the WAV route's headers, with the same rules (`need` is `X-Counterpart-Need`, `reply_mode` is `X-Reply-Mode`). `speech: false` means the Mac speaks the reply with its own voice, so the server makes no audio.
 3. The server checks the key, the start frame, the goal, the screen card, the hourly limit and the reply model, all **before** Meta's realtime socket is opened. A refusal is an `error` event with the HTTP status and code, then close `1008`.
 4. **Binary frames**: 24 kHz mono 16-bit little-endian PCM, as recorded. They are relayed to `wss://api.meta.ai/v1/asr/realtime` (`muse-voice-transcribe-1.0`, `ENDPOINTING`, `CUMULATIVE` partials), never more than 3 s ahead of real time (Meta closes a stream 5 s ahead). Meta's key stays on the server.
 5. **`{"type": "end"}`** on release. The server sends `endStream` and waits at most 2.5 s for the last turn.
 6. **Events back**, as JSON text frames:
    - `ready` (with `transcription`: `realtime`, or `file` if realtime is not configured), and `partial` captions while held.
    - `transcript` on release, with `asr_ms` and the mode used.
-   - `reply`: `round_id`, `transcript`, `metrics`, the checked `reply`, `model`, `latency_ms`. It is sent the moment code has checked the reply, **before** the round is written.
+   - `reply`: `round_id`, `transcript`, `metrics`, the checked `reply`, `model`, `latency_ms`, `gate`, `reply_mode` and `counterpart`. It is sent the moment code has checked the reply, **before** the round is written.
    - `speech_start` (`content_type`, `provider`, `voice`), then the audio as **binary frames**, then `speech_end`; or `speech_unavailable` (the Mac then uses its own voice).
    - `saved`: the same body as a `POST /v1/voice-rounds` 200, sent only **after** the commit. A failed commit is an `error` event instead, never `saved`.
 7. The socket closes with `1000` once `saved` is sent and the audio has finished (or after 30 s).
@@ -116,7 +149,8 @@ The usual JSON error shape, `{error, message, request_id}`:
 
 ## What is stored, and what is not
 
-- **Stored** in the `voice-rounds` record: the transcript, the metrics, the checked reply, `reply_checks`, `goal_id`, `screen_context_id`, `language`, `occurred_at`, `prompt_ended_at`, provider ids, attempts, and `latency_ms`. `audio_retained` is `false`.
+- **Stored** in the `voice-rounds` record: the transcript, the metrics, the checked reply, `reply_checks`, `gate`, `reply_mode`, `goal_id`, `screen_context_id`, `language`, `occurred_at`, `prompt_ended_at`, provider ids, attempts, and `latency_ms`. `audio_retained` is `false`.
+- **Not stored:** the other person's need (it stays on the Mac for the round).
 - **Not stored:** the audio, or any hash of it in the record. The receipt keeps a digest of the request for retry matching, as every write does.
 - **Unless you turn on Keep my recordings** (off by default; `docs/keep-recordings.md`). Then the uploaded WAV is kept in your account in the same write, the record gets `media` (`kept`, `bytes`, `sha256`) and `audio_retained: true`, and the reply carries the same `media` block so the Mac can say "Recording kept". You can delete it any time.
 - **Not logged:** the hosting adapter discards the worker's stderr, and the API logs only error names.
@@ -153,7 +187,7 @@ Hosted, on Modal (`docs/hosted-latency.json`, Nov 2, from Toronto). The hosting 
 - The spoken reply now starts within the Mac's 2 s wait for the server voice, so the Mac should play the Meta voice rather than fall back to an Apple voice; we have not yet checked that on the Mac. Its first byte is Wit's own first byte from Modal (0.6–0.8 s) plus the network.
 - An exact retry of a round came back in 786 ms with no model call.
 - These are two rounds, not a distribution. The copy rule below still applies.
-- What we saw in the replies: every one of the 12 moves was `challenge`, including round 12, although the prompt asks for `wrap_up` by about round 4. The model presses well on what was said, but code does not yet end a round.
+- What we saw in the replies: every one of the 12 moves was `challenge`, including round 12, although the prompt asks for `wrap_up` by about round 4. The model presses well on what was said, but code did not end a round then; it does now (see [Who ends the round](#who-ends-the-round)).
 - The file transcription repeated words in 5 of 12 clips that were not in the audio ("two weeks two weeks", "you you know", "cut the cut the"). A repeated single word shows up in `immediate_repeats`; neither kind counts as a restart.
 
 ### Live rounds and speech prefetch (Nov 2, 14:57–14:59 EST)
@@ -191,6 +225,8 @@ It measures the checking code, not the model: how often Spark Open picks a fair 
 npm run stub    # prints token_file; stub models, throwaway database, port 4319
 node scripts/voice-client.mjs --token-file <token_file> --say "So, um, I think I could maybe lead the launch." --onset-ms 900 --repeat
 ```
+
+A practice round with the need carried forward, as the Mac does: `--say "Um, I think we could maybe ship it soon." --then "I'll own it, and ship by March 14."`. Add `--reply-mode code` for the code-only reply, `--need date` to send a need with the first answer, and `--live` for the live route. The stub plays along: `STUB_TRANSCRIPTS="first|second"` scripts what it hears, it keeps to `allowed_moves` (`STUB_IGNORE_GATE=1` does not, so you can watch code replace the move), and it picks `STUB_NEED` (default `date`) when asked.
 
 `--say` renders the text with macOS `say` and `afconvert` (24 kHz mono 16-bit). `--live` streams it to the live route in real time and prints the time from release to the transcript, the reply, the first audio byte and `saved` (the local server serves the live route too). `STUB_SPEECH_MP3=<file>` makes the stub server speak that file. `--repeat` sends the same request twice to show the replay. `--realtime` holds for the clip's length before sending. `--speech FILE` then fetches the spoken reply, saves it to FILE and prints the time to its first byte. With `STUB_BAD_QUOTE=1` the stub model returns a quote the speaker never said, so you can watch code drop it. `npm run stub -- --live-models` uses the real Meta and Baseten clients instead (paid) with the same throwaway database.
 

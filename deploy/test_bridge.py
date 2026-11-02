@@ -266,11 +266,13 @@ respond(id, 200, { path: env.path });
             self.assertEqual(status, 404)
             status, body = await self.raw('/v1/voice-rounds', wav, audio + [(b'idempotency-key', b'voice-bridge-4'), (b'x-camera-metrics', b'{"frames":1}')])
             self.assertEqual(status, 400); self.assertIn('X-Camera-Metrics', body['message'])
+            status, body = await self.raw('/v1/voice-rounds', wav, audio + [(b'idempotency-key', b'voice-bridge-5'), (b'x-reply-mode', b'auto')])
+            self.assertEqual(status, 400); self.assertIn('X-Reply-Mode', body['message'])
             # A valid round on a deployment without a reply model stops before any paid transcription.
             status, body = await self.raw('/v1/voice-rounds', wav, audio + [(b'idempotency-key', b'voice-bridge-3'), (b'x-language', b'fr'),
                                                                               (b'x-occurred-at', b'2026-11-02T15:00:01Z'), (b'x-prompt-ended-at', b'2026-11-02T15:00:00Z')])
             self.assertEqual(status, 503); self.assertEqual(body['error'], 'reply_unconfigured')
-        for header in ('x-screen-context-id', 'x-prompt-ended-at', 'x-camera-metrics'):
+        for header in ('x-screen-context-id', 'x-prompt-ended-at', 'x-camera-metrics', 'x-counterpart-need', 'x-reply-mode'):
             self.assertIn(header, FORWARDED)
         sent = []
         async def receive(): return {'type': 'http.request', 'body': wav}

@@ -49,8 +49,10 @@ export function liveStart(start) {
   const key = start.idempotency_key;
   if (typeof key !== 'string' || !KEY.test(key)) throw new ApiError(400, 'idempotency_required', 'Provide idempotency_key: 8–128 letters, digits, underscores or hyphens.');
   const text = v => (v === undefined || v === null ? undefined : String(v));
+  // need and reply_mode are X-Counterpart-Need and X-Reply-Mode (src/counterpart.mjs).
   const headers = Object.fromEntries(Object.entries({ 'x-language': text(start.language), 'x-goal-id': text(start.goal_id), 'x-screen-context-id': text(start.screen_context_id),
-    'x-prompt-ended-at': text(start.prompt_ended_at), 'x-occurred-at': text(start.occurred_at) }).filter(([, v]) => v !== undefined));
+    'x-prompt-ended-at': text(start.prompt_ended_at), 'x-occurred-at': text(start.occurred_at), 'x-counterpart-need': text(start.need),
+    'x-reply-mode': text(start.reply_mode) }).filter(([, v]) => v !== undefined));
   // speech: false when the Mac speaks the reply with its own voice; the server then makes no audio.
   return { key, params: voiceParams(headers), speak: start.speech !== false };
 }
@@ -226,8 +228,9 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       const roundId = randomUUID();
       const replyMs = Math.round(performance.now() - releasedAt);
       emit({ type: 'reply', round_id: roundId, transcript: transcription.transcript, metrics: answer.metrics, reply: answer.checked.reply,
-        model: answer.result.model, provider_request_id: answer.result.provider_request_id ?? null,
-        latency_ms: { asr: asrMs, model: answer.modelMs, release_to_reply: replyMs }, transcription: mode });
+        model: answer.result.model ?? null, provider_request_id: answer.result.provider_request_id ?? null,
+        latency_ms: { asr: asrMs, model: answer.modelMs, release_to_reply: replyMs }, transcription: mode,
+        gate: answer.gate, reply_mode: params.replyMode ?? 'model', counterpart: answer.counterpart });
       // The spoken reply starts now, alongside the write and the commit.
       const entry = speak ? models.prefetchSpeech?.(roundId, user, answer.checked.reply.question, params.language) ?? null : null;
       const speechDone = (async () => {
@@ -241,9 +244,9 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       })();
       await acquire();
       const receipt = saveVoiceRound(store, user, { params, fingerprintBody: voiceFingerprint(params, audio), key, roundId, transcription, metrics: answer.metrics,
-        result: answer.result, checked: answer.checked, live: true, audio, latency: { asr: asrMs, model: answer.modelMs, total: replyMs } });
+        result: answer.result, checked: answer.checked, gate: answer.gate, live: true, audio, latency: { asr: asrMs, model: answer.modelMs, total: replyMs } });
       audit(VOICE_ROUNDS_PATH, 200, 'live saved');
-      return { status: 200, body: voiceResponse(receipt), dirty: true, speechDone };
+      return { status: 200, body: voiceResponse(receipt, receipt.record.id === roundId ? answer.counterpart : null), dirty: true, speechDone };
     } catch (error) {
       transcriber?.close();
       await acquire();

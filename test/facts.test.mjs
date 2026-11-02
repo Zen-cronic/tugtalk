@@ -19,6 +19,8 @@ import { runVoiceEval } from '../src/voice-eval.mjs';
 import { createSpeechModel, SPEECH_PROVIDERS } from '../src/speech.mjs';
 import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
 import { CAMERA_FIELDS, CAMERA_METHOD } from '../src/camera-metrics.mjs';
+import { NEEDS, NEED_METHOD, ANSWER_CAP, allowedMoves, gateReason } from '../src/counterpart.mjs';
+import { runCounterpartEval } from '../src/counterpart-eval.mjs';
 import { MODEL_BUDGET_MS, ADAPTER_DEADLINE_MS, MIN_START_MS } from '../src/budget.mjs';
 import { MEDIA_CAP_BYTES, MEDIA_DOWNLOAD_LIMIT } from '../src/media.mjs';
 import { BASIS_MAX_SOURCES, BASIS_WINDOW_DAYS, DUE_MAX_DAYS, DRILL_HABITS, checkDueAt } from '../src/drills.mjs';
@@ -67,7 +69,7 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
   store.addToken('facts-secret', 'facts-user'); store.seed('facts-user');
   const calls = { transcribe: 0, analyze: 0, voiceReply: 0 };
   const models = {
-    async voiceReply() { calls.voiceReply++; return { status: 'model_reply', reply: { move: 'challenge', quote: calls.badQuote ? 'we will triple revenue' : 'I think', question: 'Why do you think so?' }, model: ANALYSIS_MODEL, provider_request_id: 'fake', attempts: 1 }; },
+    async voiceReply() { calls.voiceReply++; return { status: 'model_reply', reply: { move: calls.move ?? 'challenge', quote: calls.badQuote ? 'we will triple revenue' : 'I think', question: 'Why do you think so?', ...(calls.need ? { need: calls.need } : {}) }, model: ANALYSIS_MODEL, provider_request_id: 'fake', attempts: 1 }; },
     async transcribe() { calls.transcribe++; return { transcript: 'Um, I think we ship it.', turns: [], audio_duration_ms: 2000, model: TRANSCRIBE_MODEL, provider_session_id: 'fake' }; },
     async analyze() { calls.analyze++; return { status: 'model_observation', observation: 'One filler.', suggested_exercise: 'Answer once.', model: ANALYSIS_MODEL, provider_request_id: 'fake' }; },
     async describeScreen() { calls.describe = (calls.describe ?? 0) + 1; return { status: 'model_observation', summary: 'Preparing a 1:1.', observation: 'Lead with the ask.', next_step: 'Say it once.', model: ANALYSIS_MODEL }; }
@@ -294,7 +296,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       ...liveVoiceChecks(),
       ...hostedChecks(),
       ...cameraChecks(base),
-      ...drillChecks(base, store)
+      ...drillChecks(base, store),
+      ...counterpartChecks(base, store, calls)
     };
 
     const facts = parseFacts();
@@ -673,6 +676,71 @@ function drillChecks(base, store) {
       const callers = files.filter(f => readFileSync(f, 'utf8').includes('v1/exercises'));
       assert.deepEqual(callers, []);
       return 'the assistant, through the connector; 0 app source files call POST /v1/exercises';
+    }
+  };
+}
+
+// The other person's need and the move gate, over HTTP on the same handler (a separate account), plus the committed eval.
+function counterpartChecks(base, store, calls) {
+  store.addToken('facts-need', 'facts-need-user');
+  let n = 0;
+  const post = headers => fetch(base + '/v1/voice-rounds', { method: 'POST', body: wav(1 + (n++) / 20),
+    headers: { Authorization: 'Bearer facts-need', 'Content-Type': 'audio/wav', 'Idempotency-Key': `facts-need-${n}`, ...headers } }).then(r => r.json());
+  return {
+    'counterpart-needs': async () => {
+      store.put('facts-need-user', 'screen-contexts', { id: 'need-card', version: 1, purpose: 'meeting_prep', app_name: 'Notes', occurred_at: '2026-11-02T14:00:00.000Z', deleted: false,
+        analysis: { summary: 'Asking for a launch date.', observation: 'o', next_step: 'n' } });
+      calls.need = 'date';
+      try {
+        const first = await post({ 'X-Screen-Context-Id': 'need-card' });
+        assert.equal(first.counterpart.need, 'date'); assert.equal(first.counterpart.answer, 1);
+      } finally { delete calls.need; }
+      return `${NEEDS.join(', ')}; fixed English and French word patterns, ${NEED_METHOD}`;
+    },
+    'counterpart-move-gate': async () => {
+      for (const need of [null, 'date']) for (const met of [false, true]) for (const hedges of [0, 1, 3]) for (let answer = 1; answer <= 6; answer++) {
+        const input = { need, needMet: met, hedges, answerIndex: answer }, closes = answer >= 2 && hedges === 0 && (need ? met : true);
+        assert.deepEqual([allowedMoves(input), gateReason(input)], closes ? [['wrap_up'], 'measured_close'] : answer >= ANSWER_CAP ? [['wrap_up'], 'answer_cap'] : [['follow_up', 'challenge'], 'open']);
+      }
+      calls.move = 'wrap_up';
+      try {
+        store.addToken('facts-need-2', 'facts-need-user-2');
+        const r = await fetch(base + '/v1/voice-rounds', { method: 'POST', body: wav(1.3), headers: { Authorization: 'Bearer facts-need-2', 'Content-Type': 'audio/wav', 'Idempotency-Key': 'facts-gate-1' } }).then(x => x.json());
+        assert.deepEqual([r.reply.move, r.gate.coerced, r.gate.reason], ['follow_up', true, 'open'], 'a model wrap-up on answer 1 is replaced');
+      } finally { delete calls.move; }
+      return `code: from answer 2, once the answer meets the need with no hedges (no hedges, when there is no need); at answer ${ANSWER_CAP} at the latest`;
+    },
+    'counterpart-code-only': async () => {
+      store.addToken('facts-need-3', 'facts-need-user-3');
+      const before = calls.voiceReply;
+      const r = await fetch(base + '/v1/voice-rounds', { method: 'POST', body: wav(1.1), headers: { Authorization: 'Bearer facts-need-3', 'Content-Type': 'audio/wav', 'Idempotency-Key': 'facts-code-1', 'X-Reply-Mode': 'code' } }).then(x => x.json());
+      assert.equal(r.model, null); assert.equal(r.reply.quote, 'I think'); assert.equal(r.reply_mode, 'code');
+      return String(calls.voiceReply - before);
+    },
+    'counterpart-need-stored': async () => {
+      store.addToken('facts-need-4', 'facts-need-user-4');
+      const r = await fetch(base + '/v1/voice-rounds', { method: 'POST', body: wav(1.15), headers: { Authorization: 'Bearer facts-need-4', 'Content-Type': 'audio/wav', 'Idempotency-Key': 'facts-stored-1', 'X-Counterpart-Need': 'owner' } }).then(x => x.json());
+      assert.equal(r.counterpart.need, 'owner');
+      const record = store.get('facts-need-user-4', 'voice-rounds', r.round_id);
+      assert.equal(JSON.stringify(record).includes('owner'), false);
+      return `${'need' in record ? 'yes' : 'no'}; the round keeps gate (${Object.keys(record.gate).join(', ')})`;
+    },
+    'voice-practice-round': async () => {
+      store.addToken('facts-need-5', 'facts-need-user-5');
+      const send = (key, extra = {}) => fetch(base + '/v1/voice-rounds', { method: 'POST', body: wav(1 + key.length / 50), headers: { Authorization: 'Bearer facts-need-5', 'Content-Type': 'audio/wav', 'Idempotency-Key': key, ...extra } }).then(x => x.json());
+      const answers = [];
+      for (const key of ['facts-round-a', 'facts-round-bb', 'facts-round-ccc', 'facts-round-dddd']) answers.push(await send(key));
+      const after = await send('facts-round-eeeee');
+      // The fake transcript always has a hedge, so the round runs to the cap and code ends it there.
+      assert.deepEqual(answers.map(a => [a.counterpart.answer, a.reply.move]), [[1, 'challenge'], [2, 'challenge'], [3, 'challenge'], [4, 'wrap_up']]);
+      assert.equal(after.counterpart.answer, 1);
+      return 'after the newest wrap-up in the last 15 minutes';
+    },
+    'counterpart-eval': async () => {
+      const r = await runCounterpartEval();
+      assert.deepEqual(r, JSON.parse(read('eval/counterpart-results.json')), 'committed results are current');
+      assert.match(r.label, /not live model runs/);
+      return `${r.counts.outside_gate} of ${r.counts.cases}; ${r.baseline.replies_outside_gate_spoken} without the gate, ${r.gated.replies_outside_gate_spoken} with it`;
     }
   };
 }

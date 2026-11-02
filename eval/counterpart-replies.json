@@ -1,0 +1,300 @@
+{
+ "name": "counterpart-replies-scripted-v1",
+ "provenance": "Scripted replies, not live model runs. Written by the comms-coach authors on 2026-11-02, knowing how the move gate works, to cover the cases it must allow and replace: moves outside allowed_moves, an invalid need, a missing need, and a wrap-up sent when the round is not closed. Transcripts are invented.",
+ "cases": [
+  {
+   "id": "a1-need-date",
+   "language": "en",
+   "answer": 1,
+   "need": null,
+   "screen": true,
+   "transcript": "Um, I think we could maybe ship the launch sometime soon.",
+   "raw": "{\"move\": \"challenge\", \"quote\": \"maybe\", \"question\": \"You said \\\"maybe\\\". What date can you commit to?\", \"need\": \"date\"}",
+   "expect": {
+    "reason": "open",
+    "move": "challenge",
+    "coerced": false,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a1-invalid-need",
+   "language": "en",
+   "answer": 1,
+   "need": null,
+   "screen": true,
+   "transcript": "Um, I think we could maybe ship the launch sometime soon.",
+   "raw": "{\"move\": \"challenge\", \"quote\": \"\", \"question\": \"When will it ship?\", \"need\": \"deadline\"}",
+   "expect": {
+    "reason": "open",
+    "move": "challenge",
+    "coerced": false,
+    "need": null
+   }
+  },
+  {
+   "id": "a1-missing-need",
+   "language": "en",
+   "answer": 1,
+   "need": null,
+   "screen": true,
+   "transcript": "Um, I think we could maybe ship the launch sometime soon.",
+   "raw": "{\"move\": \"follow_up\", \"quote\": \"\", \"question\": \"Tell me more about the launch.\"}",
+   "expect": {
+    "reason": "open",
+    "move": "follow_up",
+    "coerced": false,
+    "need": null
+   }
+  },
+  {
+   "id": "a1-early-wrap",
+   "language": "en",
+   "answer": 1,
+   "need": null,
+   "screen": true,
+   "transcript": "Um, I think we could maybe ship the launch sometime soon.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"\", \"question\": \"Sounds good, let's do it.\", \"need\": \"date\"}",
+   "expect": {
+    "reason": "open",
+    "move": "follow_up",
+    "coerced": true,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a2-date-met-wrap",
+   "language": "en",
+   "answer": 2,
+   "need": "date",
+   "screen": true,
+   "transcript": "I'll own it, and ship by March 14, with the beta's 18% fewer tickets.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"March 14\", \"question\": \"March 14 works. Thank you.\"}",
+   "expect": {
+    "reason": "measured_close",
+    "move": "wrap_up",
+    "coerced": false,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a2-date-met-keeps-pressing",
+   "language": "en",
+   "answer": 2,
+   "need": "date",
+   "screen": true,
+   "transcript": "I'll own it, and ship by March 14, with the beta's 18% fewer tickets.",
+   "raw": "{\"move\": \"challenge\", \"quote\": \"18% fewer tickets\", \"question\": \"18% of what?\"}",
+   "expect": {
+    "reason": "measured_close",
+    "move": "wrap_up",
+    "coerced": true,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a2-date-not-met-wrap",
+   "language": "en",
+   "answer": 2,
+   "need": "date",
+   "screen": true,
+   "transcript": "We will ship it soon, the team is ready.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"\", \"question\": \"Great, thanks.\"}",
+   "expect": {
+    "reason": "open",
+    "move": "follow_up",
+    "coerced": true,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a2-date-met-but-hedged",
+   "language": "en",
+   "answer": 2,
+   "need": "date",
+   "screen": true,
+   "transcript": "I think we ship by March 14.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"\", \"question\": \"Perfect, thanks.\"}",
+   "expect": {
+    "reason": "open",
+    "move": "follow_up",
+    "coerced": true,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a2-no-need-clean-press",
+   "language": "en",
+   "answer": 2,
+   "need": null,
+   "screen": false,
+   "transcript": "We ship the smaller version first.",
+   "raw": "{\"move\": \"challenge\", \"quote\": \"\", \"question\": \"Why smaller?\"}",
+   "expect": {
+    "reason": "measured_close",
+    "move": "wrap_up",
+    "coerced": true,
+    "need": null
+   }
+  },
+  {
+   "id": "a4-cap",
+   "language": "en",
+   "answer": 4,
+   "need": "date",
+   "screen": true,
+   "transcript": "Maybe soon, I guess.",
+   "raw": "{\"move\": \"challenge\", \"quote\": \"Maybe soon\", \"question\": \"You said \\\"Maybe soon\\\". When?\"}",
+   "expect": {
+    "reason": "answer_cap",
+    "move": "wrap_up",
+    "coerced": true,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a3-owner-met",
+   "language": "en",
+   "answer": 3,
+   "need": "owner",
+   "screen": true,
+   "transcript": "I'll own the rollout myself.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"\", \"question\": \"Good. It's yours.\"}",
+   "expect": {
+    "reason": "measured_close",
+    "move": "wrap_up",
+    "coerced": false,
+    "need": "owner"
+   }
+  },
+  {
+   "id": "a2-owner-could",
+   "language": "en",
+   "answer": 2,
+   "need": "owner",
+   "screen": true,
+   "transcript": "I could lead the rollout.",
+   "raw": "{\"move\": \"follow_up\", \"quote\": \"I could lead\", \"question\": \"\\\"I could lead\\\", or you will?\"}",
+   "expect": {
+    "reason": "open",
+    "move": "follow_up",
+    "coerced": false,
+    "need": "owner"
+   }
+  },
+  {
+   "id": "a2-number-met",
+   "language": "en",
+   "answer": 2,
+   "need": "number",
+   "screen": true,
+   "transcript": "The beta had 18% fewer tickets.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"\", \"question\": \"That number helps. Thanks.\"}",
+   "expect": {
+    "reason": "measured_close",
+    "move": "wrap_up",
+    "coerced": false,
+    "need": "number"
+   }
+  },
+  {
+   "id": "a2-fr-decision-met",
+   "language": "fr",
+   "answer": 2,
+   "need": "decision",
+   "screen": true,
+   "transcript": "J'ai décidé : on livre la petite version.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"\", \"question\": \"Très bien, merci.\"}",
+   "expect": {
+    "reason": "measured_close",
+    "move": "wrap_up",
+    "coerced": false,
+    "need": "decision"
+   }
+  },
+  {
+   "id": "a2-fr-date-bientot",
+   "language": "fr",
+   "answer": 2,
+   "need": "date",
+   "screen": true,
+   "transcript": "On livre bientôt.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"\", \"question\": \"Parfait, merci.\"}",
+   "expect": {
+    "reason": "open",
+    "move": "follow_up",
+    "coerced": true,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a2-example-met",
+   "language": "en",
+   "answer": 2,
+   "need": "example",
+   "screen": true,
+   "transcript": "For example, the pilot cut onboarding by two days.",
+   "raw": "{\"move\": \"wrap_up\", \"quote\": \"\", \"question\": \"That example lands. Thanks.\"}",
+   "expect": {
+    "reason": "measured_close",
+    "move": "wrap_up",
+    "coerced": false,
+    "need": "example"
+   }
+  },
+  {
+   "id": "unusable-prose",
+   "language": "en",
+   "answer": 2,
+   "need": "date",
+   "screen": true,
+   "transcript": "I'll own it, and ship by March 14, with the beta's 18% fewer tickets.",
+   "raw": "Great answer! I would wrap up here.",
+   "expect": {
+    "unusable": true
+   }
+  },
+  {
+   "id": "unusable-unknown-move",
+   "language": "en",
+   "answer": 2,
+   "need": "date",
+   "screen": true,
+   "transcript": "I'll own it, and ship by March 14, with the beta's 18% fewer tickets.",
+   "raw": "{\"move\": \"close\", \"quote\": \"\", \"question\": \"Done.\"}",
+   "expect": {
+    "unusable": true
+   }
+  },
+  {
+   "id": "a2-need-change-ignored",
+   "language": "en",
+   "answer": 2,
+   "need": "date",
+   "screen": true,
+   "transcript": "We ship soon, the team owns it.",
+   "raw": "{\"move\": \"challenge\", \"quote\": \"\", \"question\": \"Soon is not a date.\", \"need\": \"owner\"}",
+   "expect": {
+    "reason": "open",
+    "move": "challenge",
+    "coerced": false,
+    "need": "date"
+   }
+  },
+  {
+   "id": "a3-date-met-follow-up",
+   "language": "en",
+   "answer": 3,
+   "need": "date",
+   "screen": true,
+   "transcript": "We ship on the 14th.",
+   "raw": "{\"move\": \"follow_up\", \"quote\": \"\", \"question\": \"And after that?\"}",
+   "expect": {
+    "reason": "measured_close",
+    "move": "wrap_up",
+    "coerced": true,
+    "need": "date"
+   }
+  }
+ ]
+}

@@ -20,6 +20,11 @@
 //                          while the key is held, and print release to transcript, reply, first audio byte and saved.
 //                          With --speech FILE the spoken audio that arrives on the socket is saved there.
 //   --json                 print one JSON line instead of the summary
+//   --reply-mode code      the code-only reply (X-Reply-Mode: code): no model call
+//   --need KIND            send X-Counterpart-Need (number, date, decision, owner or example) with the first answer
+//   --then TEXT            after the first answer, say TEXT as the next answer of the same practice round (repeatable).
+//                          The need the reply returns is sent back with each later answer, as the Mac does, and the round
+//                          stops at the first wrap-up.
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -60,8 +65,14 @@ function durationMs(wav) {
 
 const wavPath = option('wav'), sayText = option('say');
 if (!wavPath === !sayText) fail('Give exactly one of --wav PATH or --say TEXT.');
-const audio = wavPath ? readFileSync(wavPath) : renderSay(sayText, option('voice', 'Samantha'));
-const clipMs = durationMs(audio);
+let audio = wavPath ? readFileSync(wavPath) : renderSay(sayText, option('voice', 'Samantha'));
+let clipMs = durationMs(audio);
+const replyMode = option('reply-mode');
+if (replyMode !== null && !['model', 'code'].includes(replyMode)) fail('--reply-mode is model or code.');
+// The practice round's need: from --need, then from the first reply's counterpart, as the Mac holds it.
+let need = option('need');
+const thens = args.flatMap((a, i) => (a === '--then' && i + 1 < args.length ? [args[i + 1]] : []));
+const counterpartHeaders = () => ({ ...(replyMode ? { 'X-Reply-Mode': replyMode } : {}), ...(need ? { 'X-Counterpart-Need': need } : {}) });
 
 let goal = option('goal');
 const created = option('create-goal');
@@ -77,10 +88,13 @@ const speechFile = option('speech');
 const keyDown = new Date();
 const onset = option('onset-ms');
 if (flag('realtime') && clipMs) await new Promise(r => setTimeout(r, clipMs));
-const headers = { ...auth, 'Content-Type': 'audio/wav', 'Idempotency-Key': option('key', `voice-${randomBytes(8).toString('hex')}`), 'X-Occurred-At': keyDown.toISOString(),
+// --key is used for the first answer only; each later answer of a --then round gets its own key.
+let givenKey = option('key');
+const takeKey = prefix => { const k = givenKey ?? `${prefix}-${randomBytes(8).toString('hex')}`; givenKey = null; return k; };
+const headers = () => ({ ...auth, 'Content-Type': 'audio/wav', 'Idempotency-Key': takeKey('voice'), 'X-Occurred-At': keyDown.toISOString(), ...counterpartHeaders(),
   ...(goal ? { 'X-Goal-Id': goal } : {}), ...(option('screen-context') ? { 'X-Screen-Context-Id': option('screen-context') } : {}),
   ...(option('language') ? { 'X-Language': option('language') } : {}),
-  ...(onset !== null ? { 'X-Prompt-Ended-At': new Date(keyDown.getTime() - Number(onset)).toISOString() } : {}) };
+  ...(onset !== null ? { 'X-Prompt-Ended-At': new Date(keyDown.getTime() - Number(onset)).toISOString() } : {}) });
 
 // The samples of a 24 kHz mono 16-bit WAV (the format --say renders and the Mac records).
 function pcmOf(wav) {
@@ -115,7 +129,7 @@ async function live() {
     if (m.type === 'ready') t.ready_after_open = Math.round(performance.now() - opened);
     if (m.type === 'partial') { t.first_partial_in_hold ??= Math.round(performance.now() - opened); out.partial = m.text; }
     if (m.type === 'transcript') { t.transcript = since(); out.transcript = m.text; out.transcription = m.transcription; out.server_asr_ms = m.asr_ms; }
-    if (m.type === 'reply') { t.reply = since(); out.reply = m.reply; out.round_id = m.round_id; out.server_latency = m.latency_ms; out.metrics = m.metrics; }
+    if (m.type === 'reply') { t.reply = since(); out.reply = m.reply; out.round_id = m.round_id; out.server_latency = m.latency_ms; out.metrics = m.metrics; out.counterpart = m.counterpart; out.gate = m.gate; out.model = m.model; }
     if (m.type === 'speech_start') { t.speech_start = since(); out.speech = { provider: m.provider, voice: m.voice, type: m.content_type, server_release_to_speech_ms: m.release_to_speech_ms }; }
     if (m.type === 'speech_unavailable') out.speech = { unavailable: m.error };
     if (m.type === 'saved') { t.saved = since(); out.saved = { round_id: m.round_id, receipt_id: m.receipt_id, replayed: m.replayed }; }
@@ -123,9 +137,10 @@ async function live() {
   };
   await new Promise((resolve, reject) => { ws.onopen = resolve; setTimeout(() => reject(new Error('socket did not open')), 10_000); }).catch(e => fail(e.message));
   t.open = Math.round(performance.now() - opened);
-  ws.send(JSON.stringify({ type: 'start', idempotency_key: option('key', `live-${randomBytes(8).toString('hex')}`), language: option('language', 'en'),
+  ws.send(JSON.stringify({ type: 'start', idempotency_key: takeKey('live'), language: option('language', 'en'),
     occurred_at: keyDown.toISOString(), ...(goal ? { goal_id: goal } : {}), ...(option('screen-context') ? { screen_context_id: option('screen-context') } : {}),
-    ...(onset !== null ? { prompt_ended_at: new Date(keyDown.getTime() - Number(onset)).toISOString() } : {}) }));
+    ...(onset !== null ? { prompt_ended_at: new Date(keyDown.getTime() - Number(onset)).toISOString() } : {}),
+    ...(replyMode ? { reply_mode: replyMode } : {}), ...(need ? { need } : {}) }));
   // Real time: frame i goes out at i * 80 ms after the first, as a microphone would deliver it.
   const first = performance.now();
   for (let i = 0; i * FRAME < pcm.length; i++) {
@@ -143,28 +158,46 @@ async function live() {
   return { ms_after_release: t, clip_ms: clipMs, speech_bytes: speech.reduce((n, b) => n + b.length, 0), ...out };
 }
 
+// "need date · met · allowed wrap_up · measured_close (answer 2)": the need is the model's word; the rest is code's.
+const counterpartLine = c => c ? `need ${c.need ?? '-'}${c.need ? (c.need_met ? ' · met' : ' · not met') : ''} · allowed ${c.allowed.join(', ')} · ${c.reason} (answer ${c.answer}, ${c.reply_mode})` : '-';
+// The next answer of the practice round: its audio, and the need the last reply returned.
+const nextAnswer = (reply, counterpart) => {
+  if (!thens.length || !reply || reply.move === 'wrap_up') return false;
+  if (counterpart?.need) need = counterpart.need;
+  audio = renderSay(thens.shift(), option('voice', 'Samantha')); clipMs = durationMs(audio);
+  return true;
+};
+
 if (flag('live')) {
-  const r = await live();
-  if (flag('json')) console.log(JSON.stringify(r));
-  else console.log([
-    `live round ${r.round_id ?? '-'} (${r.transcription ?? 'no transcript'}), close ${r.close}${r.error ? `, error ${r.error}` : ''}`,
-    `heard:    ${r.transcript ?? '-'}`,
-    `reply:    ${r.reply ? `[${r.reply.move}] ${r.reply.question}` : '-'}`,
-    `release to: transcript ${r.ms_after_release.transcript ?? '-'} ms, reply ${r.ms_after_release.reply ?? '-'} ms, first audio byte ${r.ms_after_release.first_audio ?? '-'} ms, saved ${r.ms_after_release.saved ?? '-'} ms`,
-    `speech:   ${r.speech ? JSON.stringify(r.speech) : '-'}, ${r.speech_bytes} bytes`
-  ].join('\n'));
-  process.exit(r.saved ? 0 : 1);
+  let ok = true;
+  for (;;) {
+    const r = await live();
+    if (flag('json')) console.log(JSON.stringify(r));
+    else console.log([
+      `live round ${r.round_id ?? '-'} (${r.transcription ?? 'no transcript'}), close ${r.close}${r.error ? `, error ${r.error}` : ''}`,
+      `heard:    ${r.transcript ?? '-'}`,
+      `reply:    ${r.reply ? `[${r.reply.move}] ${r.reply.question}` : '-'}`,
+      `gate:     ${counterpartLine(r.counterpart)}${r.gate?.coerced ? ' · move replaced by code' : ''}`,
+      `release to: transcript ${r.ms_after_release.transcript ?? '-'} ms, reply ${r.ms_after_release.reply ?? '-'} ms, first audio byte ${r.ms_after_release.first_audio ?? '-'} ms, saved ${r.ms_after_release.saved ?? '-'} ms`,
+      `speech:   ${r.speech ? JSON.stringify(r.speech) : '-'}, ${r.speech_bytes} bytes`
+    ].join('\n'));
+    ok &&= Boolean(r.saved);
+    if (!r.saved || !nextAnswer(r.reply, r.counterpart)) break;
+  }
+  process.exit(ok ? 0 : 1);
 }
 
-async function send() {
+const fixedHeaders = headers();
+async function send(sameRequest = false) {
   const released = performance.now();
-  const r = await fetch(`${base}/v1/voice-rounds`, { method: 'POST', headers, body: audio });
+  const r = await fetch(`${base}/v1/voice-rounds`, { method: 'POST', headers: sameRequest ? fixedHeaders : headers(), body: audio });
   const data = await r.json();
   return { status: r.status, released, client_ms: Math.round(performance.now() - released), request_id: r.headers.get('x-request-id'), server_timing: r.headers.get('server-timing'), data };
 }
 
-const runs = [await send()];
-if (flag('repeat')) runs.push(await send());
+const runs = [await send(true)];
+if (flag('repeat')) runs.push(await send(true));
+while (runs.at(-1).status === 200 && nextAnswer(runs.at(-1).data.reply, runs.at(-1).data.counterpart)) runs.push(await send());
 for (const run of runs) {
   if (flag('json')) { console.log(JSON.stringify({ status: run.status, client_ms: run.client_ms, released: undefined, clip_ms: clipMs, goal_id: goal, server_timing: run.server_timing, ...run.data })); continue; }
   if (run.status !== 200) { console.log(`HTTP ${run.status} ${run.data.error}: ${run.data.message}`); continue; }
@@ -175,6 +208,7 @@ for (const run of runs) {
     `measured: ${m.word_count} words, ${m.words_per_minute} wpm, ${m.filler_count} fillers, ${m.hedge_count} hedges, ${m.restart_count} restarts, longest pause ${p.longest_pause_ms ?? '-'} ms, onset ≈ ${m.onset_ms_approx ?? '-'} ms`,
     `reply:    [${d.reply.move}] ${d.reply.question}`,
     `quote:    ${d.reply.quote_verified ? `"${d.reply.quote}" (verified)` : 'none kept'}`,
+    `gate:     ${counterpartLine(d.counterpart)}${d.gate?.coerced ? ' · move replaced by code' : ''}${d.model === null ? ' · no model call' : ''}`,
     `latency:  asr ${d.latency_ms.asr} ms, model ${d.latency_ms.model} ms, server ${d.latency_ms.total} ms, release to reply ${run.client_ms} ms (clip ${clipMs} ms)`
   ].join('\n'));
 }
