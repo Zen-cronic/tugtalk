@@ -1,3 +1,14 @@
+// Demo link: one value, data-demo-url on <body>. Until it is set, "Watch the demo" scrolls to the example.
+(() => {
+  const url = (document.body.dataset.demoUrl || '').trim();
+  if (!url) return;
+  document.querySelectorAll('[data-demo-link]').forEach(link => {
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+  });
+})();
+
 // Motion: highlight sweep, cards slotting in, and the string between devices going taut.
 // With Reduce Motion everything renders in its final state.
 (() => {
