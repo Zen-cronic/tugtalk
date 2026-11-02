@@ -1,6 +1,8 @@
-# Synthetic coaching connector
+# Comms Coach
 
-A small authenticated API for testing whether a personal assistant can maintain goals, assign exercises, record self-reported completions, and retrieve corrected evidence across conversations. All included data is fictional. This is an integration prototype, not a validated coaching or speech-analysis product.
+Cross-device communication practice. Tap to capture a short answer on Apple Watch; Meta `muse-voice-transcribe-1.0` transcribes it, code measures speaking habits (fillers, hedges, restarts, pace), Muse Spark Open writes one observation, and the result becomes one shared record that Muse reads fresh in any chat, on any device, including scheduled practice suggestions. Goals, exercises and check-ins live in the same authenticated API.
+
+Seeded fixtures are fictional. This is a hackathon prototype, not a validated coaching or speech-assessment product; see Evidence and limits.
 
 ## Run
 
@@ -48,10 +50,11 @@ The authenticated identity comes only from the token. Clients cannot choose anot
 
 `npm run audit` prints synthetic context, saved-write receipts and request metadata. Request records contain route, method, time, status and response hash, not tokens or request headers. Records/receipts preserve synthetic fixture text; do not put real personal data into this prototype.
 
-- No speech analysis, genuine improvement measurement, or autonomous inference runs in the server.
-- All metrics are simulated. Exercise completion is self-reported and never increments a measured-improvement score.
+- Captured sessions (`POST /v1/recordings`) run Meta speech-to-text and Muse Spark Open on the server. Their metrics are code-measured lexicon counts from an automatic transcript: transcription errors, unseparated speakers and ambiguous words can skew them. Observations are model-written and stored separately from the numbers.
+- Seeded fixture sessions are simulated. Exercise completion is self-reported. No measured-improvement score is computed; one session cannot show change.
+- Uploaded audio is not retained; the transcript, metrics, observation and audio hash are.
 - A session deletion is a reversible hiding flag, not erasure from storage or receipts.
-- The connector does not expose arbitrary uploads, audio streaming, arbitrary URL fetching, or access to personal assistant memories.
+- Beyond the WAV capture route used by capture devices, there are no arbitrary uploads, audio streaming, arbitrary URL fetching, or access to personal assistant memories.
 - Local HTTP tests do not establish Muse tool reliability, cross-chat continuity, phone delivery, or background execution. Those need separate observed tests.
 - The optional Modal adapter uses one scale-to-zero container and a persistent volume. Production concurrency, comprehensive rate limiting and account onboarding are not implemented.
 
