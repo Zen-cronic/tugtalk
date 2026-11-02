@@ -77,6 +77,10 @@ struct ContentView: View {
             if model.canRetryUpload {
                 Button("Retry upload") { Task { await model.upload() } }
                     .buttonStyle(CoachButtonStyle())
+                Text("Your recording is still on the watch.")
+                    .face(.text, 13, weight: 500, relativeTo: .caption)
+                    .foregroundStyle(Palette.mutedDark)
+                    .multilineTextAlignment(.center)
             }
             Button("Reload") { Task { await model.load() } }
                 .buttonStyle(CoachButtonStyle(primary: !model.canRetryUpload))
@@ -188,22 +192,16 @@ struct ContentView: View {
         }
     }
 
-    /// Tug with a cut string, the error itself, and what is still safe.
+    /// Tug with a cut string and the error itself. What is still safe sits under Retry upload.
     private func failure(_ message: String) -> some View {
         VStack(spacing: 6) {
-            TugGlyph(size: 40, reach: 18, cut: true)
+            TugGlyph(size: 32, reach: 14, cut: true)
             Text(message)
                 .face(.text, 15, relativeTo: .body)
                 .foregroundStyle(Palette.inkDark)
                 .multilineTextAlignment(.center)
-            if model.canRetryUpload {
-                Text("Your recording is still on the watch.")
-                    .face(.text, 13, weight: 500, relativeTo: .caption)
-                    .foregroundStyle(Palette.mutedDark)
-                    .multilineTextAlignment(.center)
-            }
         }
-        .padding(.bottom, 4)
+        .padding(.bottom, 2)
     }
 }
 
