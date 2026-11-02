@@ -29,12 +29,13 @@ The app signs with an Apple Development identity (team in `project.yml`); change
 
 ## The companion
 
-- A menu-bar accessory with no Dock icon, plus one small floating character drawn in code.
+- A menu-bar accessory with no Dock icon, plus Tug, a small tin-can telephone drawn in SwiftUI, with a plain-word status beside it ("Hold ⌃⌥T and talk", "Listening", "Thinking", "Speaking"). Its face and string act out each state; its string runs to whatever it is showing.
 - States: idle, listening (reading a window), thinking (Muse Spark Open), speaking (the card), nudging (Muse or the watch changed the record), blocked, offline, and hidden. For voice: voice listening (the microphone is open), voice thinking, voice speaking (the reply card), voice error, and needs microphone. Each shows an icon and a text label, not colour alone. **Preview States** in the menu shows each one with sample content; nothing is sent.
 - Hotkeys: hold ⌃⌥T to talk, ⌃⌥Space read this window, ⌃⌥H hide (presenting), ⌃⌥G ghost mode (clicks pass through at 35% opacity), ⌃⌥Z undo the last card. They use Carbon hotkeys, which need no Accessibility permission. Every action is also in the menu.
-- VoiceOver reads the character as one element and announces state changes. With Reduce Motion it does not bounce, breathe or blink. With Reduce Transparency the bubble is opaque.
+- VoiceOver reads the character as one element and announces state changes. With Reduce Motion every animation becomes a still per state and changes crossfade. Cards are always opaque.
 - **The companion can appear in screen shares.** Hide it with ⌃⌥H. It also hides itself while Zoom, Teams, FaceTime or Webex is the front app, which is a guess, not detection.
-- The character's name is one constant, `MascotName`, in `CommsCoachMac/Settings.swift`.
+- The character's name is one constant, `MascotName`, in `CommsCoachMac/Settings.swift`. Colours, fonts and motion are in `CommsCoachMac/Theme.swift`; the fonts (Anybody, Hanken Grotesk, Azeret Mono) are bundled under the SIL Open Font License.
+- **Pointing.** After ⌃⌥Space, when the card is clearly about one line of the window, Tug rings that line on screen, adds a short label ("The ask is here") and says one sentence. Code picks the line by matching the card's words to the text Vision read on this Mac (`LineMatcher`); the model never chooses a position, and nothing extra is sent. The ring is a click-through window over the captured window. It goes away after a few seconds, on Esc, when the window moves or closes, or when the card closes. With no clear match there is no ring. Debug builds: `-fixtureImage <png> -fixtureWindow YES -previewPointing YES` shows it on the fixture.
 
 ## Voice replies (hold ⌃⌥T)
 

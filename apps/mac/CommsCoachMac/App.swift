@@ -26,14 +26,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var flow: CaptureFlow!
     private var voice: VoiceFlow!
     private var poller: Poller!
+    private var pointing: PointingController!
     private var phaseWatch: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        TypeFace.register()
         panel = PanelController(model: model)
         menu = StatusMenu(model: model)
         flow = CaptureFlow(model: model)
         voice = VoiceFlow(model: model)
         poller = Poller(model: model)
+        pointing = PointingController(model: model)
         wireActions()
         registerHotkeys()
         watchFrontmostApp()
@@ -57,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.model.set(.notice("Question copied. Paste it into Muse."), collapseAfter: 4)
         }
         flow.afterSave = { [weak self] in self?.poller.pollSoon() }
+        flow.onPoint = { [weak self] request in self?.pointing.show(request) }
         voice.afterSave = { [weak self] in self?.poller.pollSoon() }
         model.onVoiceRetry = { [weak self] in self?.voice.retry() }
         model.onVoiceDismiss = { [weak self] in self?.voice.dismissed() }
@@ -72,6 +76,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onUndo = { [weak self] in self?.flow.undo() }
         menu.onAskMuse = { [weak self] in self?.model.onAskMuse() }
         menu.onPreview = { [weak self] phase in self?.preview(phase) }
+        #if DEBUG
+        menu.onPreviewPointing = { [weak self] in self?.previewPointing() }
+        menu.onGlyphSheet = { GlyphSheet.show() }
+        #endif
         menu.onDemoMode = { [weak self] _ in self?.poller.pollSoon() }
         menu.onSelectGoal = { Settings.goalID = $0 }
         menu.goals = { [weak self] in self?.poller.goals ?? [] }
@@ -130,6 +138,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    #if DEBUG
+    /// Rings the sample card's line on the fixture window. Reads the fixture on this Mac; sends nothing.
+    func previewPointing() {
+        previewTask?.cancel()
+        model.presenting = false
+        flow.previewPointing(card: PreviewSamples.card)
+    }
+    #endif
+
     private func show(_ phase: MascotPhase) {
         switch phase {
         case .thinking: model.set(.thinking(since: Date().addingTimeInterval(-4)))
@@ -157,7 +174,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if let script = defaults.string(forKey: "voiceScript") { voice.run(script: script) }
         #endif
-        if let name = defaults.string(forKey: "previewState"), let phase = PreviewSamples.all.first(where: { $0.name == name }) {
+        #if DEBUG
+        if defaults.bool(forKey: "previewPointing") {
+            Task { try? await Task.sleep(for: .seconds(1)); previewPointing() }
+        }
+        if defaults.bool(forKey: "glyphSheet") { GlyphSheet.show() }
+        #endif
+        if let name = defaults.string(forKey: "previewState"), let phase = PreviewSamples.named.first(where: { $0.name == name })?.phase {
             preview(phase)
         } else if defaults.double(forKey: "previewCycle") > 0 {
             let interval = defaults.double(forKey: "previewCycle")

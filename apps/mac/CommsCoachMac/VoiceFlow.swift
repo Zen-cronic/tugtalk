@@ -28,6 +28,9 @@ final class VoiceFlow {
     private var capTask: Task<Void, Never>?
     private var uploadTask: Task<Void, Never>?
     private var phaseWatch: AnyCancellable?
+    /// The answers of the spoken round so far, counted on this Mac since the last wrap-up.
+    private var roundAnswers = 0
+    private var roundMetrics: [VoiceMetrics] = []
 
     var afterSave: () -> Void = {}
 
@@ -147,7 +150,21 @@ final class VoiceFlow {
 
     private func upload(_ key: String, promptEndedAt: Date?) {
         capTask?.cancel()
-        releasedAt = Date()
+        let released = Date()
+        releasedAt = released
+        // The microphone closes at once, and "Thinking" shows before any encoding: the release must
+        // feel instant (about 100 ms). The clip is prepared on the next turn of the run loop.
+        let live = recorder?.stop()
+        recorder = nil
+        model.set(.voiceThinking(since: released))
+        voiceLog.notice("thinking shown \(Self.ms(since: released), privacy: .public) ms after release")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+            self?.send(key, promptEndedAt: promptEndedAt, live: live)
+        }
+    }
+
+    private func send(_ key: String, promptEndedAt: Date?, live: [Int16]?) {
+        guard case .thinking = machine.phase else { return }
         let wav: Data
         if store.exists(key), let kept = try? store.read(key) {
             wav = kept
@@ -156,8 +173,7 @@ final class VoiceFlow {
             if let fixture {
                 samples = (try? PCMResampler.convertFile(at: fixture)) ?? []
             } else {
-                samples = recorder?.stop() ?? []
-                recorder = nil
+                samples = live ?? []
             }
             let held = holdStarted.map { releasedAt!.timeIntervalSince($0) } ?? 0
             voiceLog.notice("hold released after \(String(format: "%.2f", held), privacy: .public) s; \(String(format: "%.2f", Double(samples.count) / Double(WAV.sampleRate)), privacy: .public) s of audio; microphone closed")
@@ -175,7 +191,6 @@ final class VoiceFlow {
             fail(key, message: Connection.unavailableReason, retryable: false)
             return
         }
-        model.set(.voiceThinking(since: releasedAt ?? Date()))
         let round = VoiceRoundRequest(wav: wav, idempotencyKey: key, goalID: Settings.goalID, screenContextID: model.lastCard?.recordID,
                                       language: Settings.voiceLanguage, promptEndedAt: promptEndedAt,
                                       occurredAt: occurredAt?.key == key ? occurredAt?.at : nil)
@@ -201,7 +216,16 @@ final class VoiceFlow {
         voiceLog.notice("reply in \(ms, privacy: .public) ms after release (server total \(receipt.latency_ms?.total.map { String(Int($0)) } ?? "n/a", privacy: .public) ms, replayed \(receipt.replayed, privacy: .public))")
         let effects = machine.replyReady(key: key, question: receipt.reply.question, endsRound: receipt.reply.kind == .wrap_up)
         guard !effects.isEmpty else { return }  // an older hold's reply
-        card = VoiceCard(receipt)
+        var next = VoiceCard(receipt)
+        roundAnswers += 1
+        if let m = receipt.metrics { roundMetrics.append(m) }
+        next.round = roundAnswers
+        if next.endsRound {
+            next.summary = RoundSummary.make(roundMetrics)
+            roundAnswers = 0
+            roundMetrics = []
+        }
+        card = next
         if case .failed = machine.phase {
             perform(effects)
             model.set(.voiceError("The reply had no question to speak.", retryable: false))

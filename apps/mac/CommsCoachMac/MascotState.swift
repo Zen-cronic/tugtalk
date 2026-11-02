@@ -50,6 +50,12 @@ struct VoiceCard: Equatable {
     /// Which voice said it: the coach server's voice, or Apple's voice on this Mac as a fallback.
     var voice: SpeechSource?
     var isPreview = false
+    /// This answer's place in the spoken round, counted on this Mac since the last wrap-up.
+    var round: Int?
+    /// On a wrap-up: the one number the round is summed up with, from the code-measured metrics.
+    var summary: RoundSummary?
+    /// The source line a preview shows instead of a receipt.
+    var sampleSource: String?
 
     init(roundID: String, receiptID: String, question: String, move: VoiceReply.Move?, transcript: String, quote: String?,
          metrics: VoiceMetrics?, latency: VoiceLatency?, replayed: Bool, modelLabel: String = "Muse Spark Open", isPreview: Bool = false) {
@@ -110,6 +116,12 @@ struct VoiceCard: Equatable {
         if let model = seconds(latency?.model) { parts.append("model \(model)") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
+
+    /// The short timing for the card footer: "reply 4.1 s after you let go".
+    var shortLatency: String? {
+        if let mac = releaseToVoice { return String(format: "reply %.1f\u{00A0}s after you let go", mac) }
+        return latency?.total.map { String(format: "reply in %.1f\u{00A0}s", $0 / 1000) }
+    }
 }
 
 /// What the companion shows when Muse or the watch changed the shared record.
@@ -168,10 +180,10 @@ enum MascotPhase: Equatable {
 
     var symbol: String {
         switch self {
-        case .idle: "text.bubble"
-        case .listening: "record.circle"
-        case .thinking: "sparkles"
-        case .speaking: "checkmark.seal"
+        case .idle: "mic"
+        case .listening: "text.viewfinder"
+        case .thinking: "ellipsis"
+        case .speaking: "checkmark"
         case .nudging: "bell.badge"
         case .blocked: "hand.raised"
         case .offline: "wifi.slash"
@@ -179,55 +191,59 @@ enum MascotPhase: Equatable {
         case .notice: "arrow.uturn.backward.circle"
         case .hidden: "eye.slash"
         case .voiceListening: "mic.fill"
-        case .voiceThinking: "sparkles"
-        case .voiceSpeaking: "speaker.wave.2.fill"
-        case .voiceError: "exclamationmark.bubble"
+        case .voiceThinking: "ellipsis"
+        case .voiceSpeaking(let card): card.finished ? (card.endsRound ? "checkmark" : "mic") : "speaker.wave.2.fill"
+        case .voiceError: "exclamationmark.triangle"
         case .micPermission: "mic.slash"
         }
     }
 
-    var accent: NSColor {
+    /// A state that reports something stopped: its card takes the graphite header.
+    var isProblem: Bool {
         switch self {
-        case .idle: NSColor.secondaryLabelColor
-        case .listening: Palette.capture
-        case .thinking: Palette.model
-        case .speaking: Palette.record
-        case .nudging: Palette.record
-        case .blocked: Palette.warn
-        case .offline: Palette.offline
-        case .permission: Palette.warn
-        case .notice: Palette.record
-        case .hidden: Palette.offline
-        case .voiceListening: Palette.capture
-        case .voiceThinking: Palette.model
-        case .voiceSpeaking: Palette.model
-        case .voiceError: Palette.warn
-        case .micPermission: Palette.warn
+        case .offline, .voiceError, .blocked: true
+        default: false
         }
     }
 
-    /// The one-line label beside the character.
-    func label(now: Date = Date()) -> String {
+    /// The plain-word status beside Tug, and an optional small detail (a timer, shown after 2 s).
+    func pill(now: Date = Date()) -> (word: String, detail: String?) {
+        func elapsed(_ since: Date) -> String? {
+            let s = now.timeIntervalSince(since)
+            return s >= 2 ? "\(Int(s)) s" : nil
+        }
         switch self {
-        case .idle: "\(MascotName) · ⌃⌥Space reads this window · hold ⌃⌥T to talk"
-        case .listening(let app): "Reading \(app) (this window only)"
-        case .thinking(let since): "\(ModelLabel.thinking) · \(max(0, Int(now.timeIntervalSince(since))))s"
-        case .speaking(let card): card.isPreview ? "Preview · sample card, not saved" : (card.replayed ? "Already saved to your record" : "Saved to your record")
-        case .nudging(let nudge, _): nudge.headline
-        case .blocked(let app): "I don't read \(app)"
-        case .offline(let reason, _): reason
-        case .permission: "Screen Recording is needed to read a window"
-        case .notice(let text): text
-        case .hidden: "Hidden while presenting"
-        case .voiceListening(let since):
-            "Listening · let go of ⌃⌥T to send · \(Self.clock(now.timeIntervalSince(since))) of 1:00"
-        case .voiceThinking(let since): "\(ModelLabel.voiceThinking) · \(max(0, Int(now.timeIntervalSince(since))))s"
+        case .idle: return ("Hold ⌃⌥T and talk", nil)
+        case .listening(let app): return ("Reading \(app)", nil)
+        case .thinking(let since): return ("Thinking", elapsed(since))
+        case .speaking(let card): return (card.replayed ? "Already saved" : "Card saved", nil)
+        case .nudging: return ("New in your record", nil)
+        case .blocked(let app): return ("I don't read \(app)", nil)
+        case .offline: return ("Not saved", nil)
+        case .permission: return ("Screen Recording needed", nil)
+        case .notice(let text): return (text, nil)
+        case .hidden: return ("Hidden while presenting", nil)
+        case .voiceListening(let since): return ("Listening", Self.clock(now.timeIntervalSince(since)))
+        case .voiceThinking(let since): return ("Thinking", elapsed(since))
         case .voiceSpeaking(let card):
-            card.isPreview ? "Preview · sample voice reply, not sent"
-                : !card.finished ? "Voice reply · ⌃⌥T cuts in"
-                : card.endsRound ? "Round done · hold ⌃⌥T to start again" : "Voice reply · hold ⌃⌥T to answer"
-        case .voiceError(let message, _): message
-        case .micPermission(let denied): denied ? "Microphone access is off" : "The microphone is needed to hear you"
+            if !card.finished { return ("Speaking", nil) }
+            return (card.endsRound ? "Round done" : "Hold ⌃⌥T to answer", nil)
+        case .voiceError: return ("Not sent", nil)
+        case .micPermission(let denied): return (denied ? "Microphone is off" : "Microphone needed", nil)
+        }
+    }
+
+    /// The card's heading: six words or fewer.
+    var heading: String {
+        switch self {
+        case .speaking(let card): card.replayed ? "Already saved" : "Card saved"
+        case .nudging: "New in your record"
+        case .offline: "Not saved"
+        case .permission: "Allow Screen Recording"
+        case .voiceSpeaking(let card): card.endsRound ? "Round done" : (card.move == .challenge ? "Challenge" : card.move == .follow_up ? "Follow-up" : "Reply")
+        case .voiceError: "Not sent"
+        case .micPermission(let denied): denied ? "Microphone is off" : "Allow the microphone"
+        default: pill().word
         }
     }
 
@@ -267,31 +283,59 @@ enum MascotPhase: Equatable {
     }
 }
 
-/// Fixed sample content for the "Preview states" menu. Clearly labelled; never sent or saved.
+/// Fixed sample content for the "Preview States" menu. Never sent or saved. The voice samples use the
+/// numbers of one recorded run (receipt 5aeff421), so every surface shows the same sample.
 enum PreviewSamples {
     static let card = ContextCard(recordID: "preview", version: 1, receiptID: "preview", appName: "TextEdit",
                                   summary: "You're preparing to ask to own the Q1 launch in a 1:1.",
                                   observation: "For \"Answer clearly\", lead with the ask; right now it's buried at the end.",
                                   nextStep: "Say the ask in one sentence, out loud, twice.", replayed: false, isPreview: true)
     static let nudge = NudgeCard(headline: "New exercise in your record", detail: "State the ask in one sentence (2 min)", goalTitle: "Answer clearly")
-    static let voiceCard: VoiceCard = {
-        let metrics = try? JSONDecoder().decode(VoiceMetrics.self, from: Data(#"{"word_count":38,"words_per_minute":141,"filler_count":2,"hedge_count":2,"restart_count":0}"#.utf8))
+    static let source = "Sample from receipt 5aeff421"
+
+    private static func metrics(_ json: String) -> VoiceMetrics? { try? JSONDecoder().decode(VoiceMetrics.self, from: Data(json.utf8)) }
+    static let sampleMetrics = metrics(#"{"word_count":40,"words_per_minute":166,"filler_count":2,"hedge_count":1,"restart_count":2}"#)
+
+    static func voiceCard(finished: Bool = false) -> VoiceCard {
         let latency = try? JSONDecoder().decode(VoiceLatency.self, from: Data(#"{"asr":2100,"model":1700,"total":3900}"#.utf8))
-        var card = VoiceCard(roundID: "preview", receiptID: "preview", question: "You said you'd maybe lead it. What would you own on day one?",
-                             move: .challenge, transcript: "Um, I think I'm ready to lead the Q1 launch, maybe, because I ran the beta and the team knows me.",
-                             quote: "maybe", metrics: metrics, latency: latency, replayed: false, isPreview: true)
+        var card = VoiceCard(roundID: "preview", receiptID: "preview", question: "What's the one fact that backs that up?",
+                             move: .challenge,
+                             transcript: "Um, so I think the main point is basically that we should ship the smaller version first. Sorry, let me restart. The main point is ship the smaller version first because it lets us test with real users this week",
+                             quote: "I think", metrics: sampleMetrics, latency: latency, replayed: false, isPreview: true)
         card.releaseToVoice = 4.1
         card.voice = .remote(provider: "wit")
+        card.round = 1
+        card.finished = finished
+        card.sampleSource = source
+        return card
+    }
+
+    static let summaryCard: VoiceCard = {
+        var card = VoiceCard(roundID: "preview", receiptID: "preview", question: "Good. That's clear and backed by a fact. Want to run it once more tomorrow?",
+                             move: .wrap_up, transcript: "The main point is ship the smaller version first, because it lets us test with real users this week.",
+                             quote: nil, metrics: metrics(#"{"word_count":21,"words_per_minute":150,"filler_count":0,"hedge_count":0,"restart_count":0}"#),
+                             latency: nil, replayed: false, isPreview: true)
+        card.round = 3
+        card.finished = true
+        card.summary = RoundSummary.make([sampleMetrics, card.metrics].compactMap { $0 })
+        card.sampleSource = "Sample numbers"
         return card
     }()
 
-    static let all: [MascotPhase] = [
-        .idle, .listening(app: "TextEdit"), .thinking(since: Date().addingTimeInterval(-4)), .speaking(card),
-        .nudging(nudge, opened: true), .blocked("1Password"), .offline("Can't reach the coach. Check the network.", retryable: true), .hidden,
-        .permission,
-        .voiceListening(since: Date().addingTimeInterval(-4)), .voiceThinking(since: Date().addingTimeInterval(-2)), .voiceSpeaking(voiceCard),
-        .voiceError("The coach couldn't reply (503).", retryable: true), .micPermission(denied: false),
+    /// Name (as the menu and `-previewState` use it) and state.
+    static let named: [(name: String, phase: MascotPhase)] = [
+        ("idle", .idle), ("listening", .listening(app: "TextEdit")), ("thinking", .thinking(since: Date().addingTimeInterval(-4))),
+        ("speaking", .speaking(card)), ("nudging", .nudging(nudge, opened: true)), ("nudge arriving", .nudging(nudge, opened: false)),
+        ("blocked", .blocked("1Password")), ("offline", .offline("Can't reach the coach. Check the network.", retryable: true)), ("hidden", .hidden),
+        ("needs permission", .permission),
+        ("voice listening", .voiceListening(since: Date().addingTimeInterval(-4))), ("voice thinking", .voiceThinking(since: Date().addingTimeInterval(-2))),
+        ("voice speaking", .voiceSpeaking(voiceCard())), ("voice follow-up", .voiceSpeaking(voiceCard(finished: true))),
+        ("voice round summary", .voiceSpeaking(summaryCard)),
+        ("voice error", .voiceError("The coach couldn't reply (503).", retryable: true)), ("needs microphone", .micPermission(denied: false)),
+        ("microphone off", .micPermission(denied: true)),
     ]
+
+    static var all: [MascotPhase] { named.map(\.phase) }
 }
 
 /// Shared state between the panel, the menu and the flows. Main-actor only.
@@ -304,6 +348,10 @@ final class CompanionModel: ObservableObject {
     @Published var demoMode = false
     @Published var bubbleLeading = true
     @Published var lastCard: ContextCard?
+    /// Tug is saying a sentence out loud (about the line it points at).
+    @Published var talking = false
+    /// A ring is drawn on the captured window for the current card.
+    @Published var pointing = false
 
     /// Set by the app delegate: the actions the view and menu trigger.
     var onCapture: () -> Void = {}

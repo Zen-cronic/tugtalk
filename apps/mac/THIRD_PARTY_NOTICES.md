@@ -1,5 +1,15 @@
 # Third-party notices
 
+## Fonts
+
+Bundled in `CommsCoachMac/Fonts/`, each under the SIL Open Font License 1.1 (full text next to each file):
+
+- Anybody, copyright 2020 The Anybody Project Authors (`OFL-anybody.txt`)
+- Hanken Grotesk, copyright 2021 The Hanken Grotesk Project Authors (`OFL-hankengrotesk.txt`)
+- Azeret Mono, copyright 2021 The Azeret Project Authors (`OFL-azeretmono.txt`)
+
+The variable font files are unmodified copies from the Google Fonts repository, renamed only.
+
 ## clicky
 
 Source: https://github.com/farzaa/clicky (commit a80fa80, MIT License).

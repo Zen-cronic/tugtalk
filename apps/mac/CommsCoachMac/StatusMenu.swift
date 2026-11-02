@@ -12,6 +12,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     var onUndo: () -> Void = {}
     var onAskMuse: () -> Void = {}
     var onPreview: (MascotPhase?) -> Void = { _ in }
+    var onPreviewPointing: () -> Void = {}
+    var onGlyphSheet: () -> Void = {}
     var onDemoMode: (Bool) -> Void = { _ in }
     var onSelectGoal: (String?) -> Void = { _ in }
     var goals: () -> [(id: String, title: String)] = { [] }
@@ -21,17 +23,24 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         self.model = model
         super.init()
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: "\(MascotName) companion")
-            button.image?.isTemplate = true
+            // The small one-colour Tug, tinted by the menu bar for light, dark and highlighted.
+            button.image = TugGlyph.image(size: 18, template: true)
+            button.setAccessibilityLabel("\(MascotName) companion")
         }
         menu.delegate = self
         menu.autoenablesItems = false
         item.menu = menu
+        #if DEBUG
+        // Where the menu-bar item is, for screenshots of the small Tug in the menu bar.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [item] in
+            if let frame = item.button?.window?.frame { captureLog.notice("menu-bar item at \(Int(frame.minX), privacy: .public) \(Int(frame.minY), privacy: .public) \(Int(frame.width), privacy: .public) \(Int(frame.height), privacy: .public)") }
+        }
+        #endif
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let status = NSMenuItem(title: "\(MascotName): \(model.phase.name)", action: nil, keyEquivalent: "")
+        let status = NSMenuItem(title: "\(MascotName): \(model.phase.pill().word)", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
         let connection = connectionStatus()
@@ -62,14 +71,18 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(submenu("Voice Reply Language", VoiceLanguage.allCases.map { language in
             toggle(language.title, on: Settings.voiceLanguage == language) { Settings.voiceLanguage = language }
         }))
-        var previews = PreviewSamples.all.map { phase in action(phase.name.capitalized) { [weak self] in self?.onPreview(phase) } }
+        var previews = PreviewSamples.named.map { item in action(item.name.capitalized) { [weak self] in self?.onPreview(item.phase) } }
         previews.append(.separator())
         previews.append(action("Cycle All States") { [weak self] in self?.onPreview(nil) })
+        #if DEBUG
+        previews.append(action("Pointing on the Fixture Window") { [weak self] in self?.onPreviewPointing() })
+        previews.append(action("Tug Small Sizes") { [weak self] in self?.onGlyphSheet() })
+        #endif
         menu.addItem(submenu("Preview States", previews))
         menu.addItem(.separator())
         menu.addItem(action("Screen Recording Settings…") { PermissionGate.openSettings() })
         menu.addItem(action("Microphone Settings…") { MicPermission.openSettings() })
-        menu.addItem(action("Quit \(MascotName)", key: "q", modifiers: .command) { NSApp.terminate(nil) })
+        menu.addItem(action("Quit \(appDisplayName)", key: "q", modifiers: .command) { NSApp.terminate(nil) })
     }
 
     private func goalItems() -> [NSMenuItem] {
