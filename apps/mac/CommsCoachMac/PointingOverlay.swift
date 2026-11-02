@@ -278,15 +278,6 @@ final class PointingController {
         return PointingGate.WindowRecord(id: number, pid: (info[kCGWindowOwnerPID as String] as? Int32) ?? -1, bounds: rect,
                                          layer: (info[kCGWindowLayer as String] as? Int) ?? 0, alpha: (info[kCGWindowAlpha as String] as? Double) ?? 1)
     }
-
-    /// A window's current bounds (global, top-left), or nil when it is gone. Bounds need no permission.
-    static func bounds(of id: CGWindowID) -> CGRect? {
-        guard let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], id) as? [[String: Any]])?.first,
-              (info[kCGWindowIsOnscreen as String] as? Bool) == true,
-              let dict = info[kCGWindowBounds as String] as? NSDictionary,
-              let rect = CGRect(dictionaryRepresentation: dict) else { return nil }
-        return rect
-    }
 }
 
 /// The ring and its label. A brief entrance: Tug and the label come down from the window's title bar on a
