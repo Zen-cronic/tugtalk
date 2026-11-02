@@ -83,6 +83,16 @@ Measured live against a local server: see "Live latency" below. These numbers do
 
 Copy rule: the mascot's replies are called "voice replies", not "real-time", unless at least 10 live turns have a median of 2.0 s or less and none over 3.5 s, measured from release to reply.
 
+## Offline eval of the reply check
+
+`npm run eval:voice` runs code's check over 20 scripted replies in `eval/voice-replies.json` (scripted voice replies, not live model runs; we wrote them knowing how the check works) and compares the result with `eval/voice-results.json`.
+
+- Code accepted 7 of the 16 offered quotes and rejected 9 (paraphrased, reordered, cut mid-word, a changed number, invented, over 30 words, and one quote that skipped a word the transcriber had doubled).
+- The baseline trusts the model and speaks its quote and question as written. On these replies, 10 would have put words in the person's mouth that they never said. After the check, 0 do.
+- 3 replies were unusable (prose, an unknown move, an empty question) and would get the one retry.
+
+It measures the checking code, not the model: how often Spark Open picks a fair quote, or presses on the right weakness, needs live rounds.
+
 ## Try it without a microphone
 
 ```sh

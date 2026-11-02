@@ -62,7 +62,9 @@ export const FALLBACK_QUESTIONS = {
   fr: { follow_up: 'Pouvez-vous en dire plus, en une phrase ?', challenge: 'Quel fait précis appuie cela ?', wrap_up: 'Merci. Quelle est la chose à retenir ?' }
 };
 const words = text => text.split(/\s+/).filter(Boolean);
-const tidy = text => text.replace(/\s+/g, ' ').replace(/\s+([,.;:!?])/g, '$1').replace(/([,;:])\s*([,.;:!?])/g, '$2').replace(/^[\s,.;:]+/, '').trim();
+// French keeps a space before ? ! ; and :, so only English loses it.
+const tidy = (text, language) => text.replace(/\s+/g, ' ').replace(language === 'fr' ? /\s+([,.])/g : /\s+([,.;:!?])/g, '$1')
+  .replace(/([,;:])\s*([,.;:!?])/g, '$2').replace(/^[\s,.;:!?]+/, '').trim();
 
 // Makes the question safe to speak: removes every quoted span that is not word for word in the transcript,
 // cuts it to 25 words, and re-scrubs pattern-shaped personal data. A question left too short to stand on its
@@ -75,7 +77,7 @@ export function safeQuestion(question, transcript, move, language) {
   });
   // A lead-in left with nothing to introduce ("You said . Why?") goes too.
   if (stripped) text = text.replace(/\b(?:you said|you mentioned|you told me|vous avez dit|tu as dit)\s*[,:]?\s*(?=[.?!,]|$)[.,]?/giu, ' ');
-  text = tidy(text);
+  text = tidy(text, language);
   let cut = false;
   const list = words(text);
   if (list.length > MAX_QUESTION_WORDS) {

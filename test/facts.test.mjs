@@ -15,6 +15,7 @@ import { measurePauses } from '../src/pauses.mjs';
 import { adjudicationCandidates, adjudicateCapture, buildAdjudication, verifyLabels, createAdjudicationModel } from '../src/adjudicate.mjs';
 import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
 import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS } from '../src/voice.mjs';
+import { runVoiceEval } from '../src/voice-eval.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -349,6 +350,12 @@ function voiceChecks(base, store, dbPath, calls) {
         assert.equal(data.reply.quote, '');
         return data.reply.quote_verified ? 'yes' : 'no';
       } finally { calls.badQuote = false; }
+    },
+    'voice-eval': () => {
+      const r = runVoiceEval();
+      assert.deepEqual(r, JSON.parse(read('eval/voice-results.json')), 'committed results are current');
+      assert.match(r.label, /not live model runs/);
+      return `${r.counts.quotes_accepted} of ${r.counts.quotes_offered} accepted, ${r.counts.quotes_rejected} rejected; ${r.baseline.replies_with_unsaid_words} without the check, ${r.checked.replies_with_unsaid_words} with it`;
     },
     'voice-question-words': () => `${safeQuestion(Array(40).fill('word').join(' ') + '?', 'x', 'follow_up', 'en').question.split(' ').length} words`,
     'voice-stored': async () => {

@@ -12,6 +12,7 @@
     "setup": "node scripts/setup.mjs",
     "audit": "node scripts/audit.mjs",
     "eval": "node scripts/eval.mjs",
+    "eval:voice": "node scripts/eval-voice.mjs",
     "stub": "node scripts/local-stub-server.mjs"
   }
 }

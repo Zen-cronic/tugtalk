@@ -1,0 +1,390 @@
+{
+  "eval": "voice-reply-checks",
+  "label": "Scripted voice replies, not live model runs.",
+  "replies": "voice-replies-scripted-v1",
+  "replies_sha256": "7e606f41ff0e68cc78cfd2362c9ac901e6a12129bba26a851ad89287b23533c1",
+  "provenance": "Scripted voice replies, not live model runs. Written by the comms-coach authors on 2026-11-02, knowing how the check works, to cover the cases it must accept and reject. Transcripts are invented. Each case has the raw model text and what code should return.",
+  "counts": {
+    "cases": 20,
+    "usable": 17,
+    "unusable": 3,
+    "quotes_offered": 16,
+    "quotes_accepted": 7,
+    "quotes_rejected": 9,
+    "rejections": {
+      "not_in_transcript": 8,
+      "too_long": 1
+    },
+    "questions_stripped": 5,
+    "questions_replaced": 2,
+    "questions_cut": 1,
+    "questions_scrubbed": 1
+  },
+  "baseline": {
+    "describe": "Trust the model: speak its quote and question as written.",
+    "replies_with_unsaid_words": 10
+  },
+  "checked": {
+    "describe": "Code's check (src/voice.mjs checkReply).",
+    "replies_with_unsaid_words": 0
+  },
+  "matches_expected": "20 of 20",
+  "headline": "On 20 scripted voice replies: code accepted 7 of 16 offered quotes and rejected 9; replies that would speak words the person never said: 10 when trusting the model, 0 after the check; 3 unusable replies sent for one retry.",
+  "cases": [
+    {
+      "id": "exact-quote",
+      "reply": {
+        "move": "challenge",
+        "question": "Maybe? Why should it be you, and why now?",
+        "quote": "we could maybe lead the launch",
+        "quote_verified": true
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": null,
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 0,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "case-and-punctuation",
+      "reply": {
+        "move": "challenge",
+        "question": "You opened with \"I think\". What do you know for sure?",
+        "quote": "So, um, I think",
+        "quote_verified": true
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": null,
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 0,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "fenced-json",
+      "reply": {
+        "move": "follow_up",
+        "question": "Two days out of how many?",
+        "quote": "cut onboarding time by two days",
+        "quote_verified": true
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": null,
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 0,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "paraphrased-quote",
+      "reply": {
+        "move": "challenge",
+        "question": "What makes you hesitate?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "not_in_transcript",
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 1,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "invented-quote-in-question",
+      "reply": {
+        "move": "challenge",
+        "question": "What is that based on?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "not_in_transcript",
+        "stripped_quotes": 1,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 2,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "reordered-words",
+      "reply": {
+        "move": "follow_up",
+        "question": "Who approved it?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "not_in_transcript",
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 1,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "partial-word",
+      "reply": {
+        "move": "follow_up",
+        "question": "What does leading it look like?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "not_in_transcript",
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 1,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "changed-number",
+      "reply": {
+        "move": "challenge",
+        "question": "Up against what baseline?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "not_in_transcript",
+        "stripped_quotes": 1,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 2,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "no-quote-wrap-up",
+      "reply": {
+        "move": "wrap_up",
+        "question": "That was clear. Send me the plan by Friday.",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": false,
+        "quote_rejection": null,
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 0,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "quote-too-long",
+      "reply": {
+        "move": "follow_up",
+        "question": "Why three times?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "too_long",
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 1,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "curly-quotes-mixed",
+      "reply": {
+        "move": "challenge",
+        "question": "You said “maybe” and then. Which is it?",
+        "quote": "maybe we can ship by March",
+        "quote_verified": true
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": null,
+        "stripped_quotes": 1,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 1,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "all-quoted-invented",
+      "reply": {
+        "move": "challenge",
+        "question": "What is the one fact that backs that up?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "not_in_transcript",
+        "stripped_quotes": 1,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": true
+      },
+      "unsaid_before_check": 2,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "long-question",
+      "reply": {
+        "move": "follow_up",
+        "question": "When you say the launch went well, what exactly do you mean by well, who decided that it went well, what numbers back it up?",
+        "quote": "I think",
+        "quote_verified": true
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": null,
+        "stripped_quotes": 0,
+        "cut_to_words": 25,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 0,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "personal-data",
+      "reply": {
+        "move": "follow_up",
+        "question": "Send it to [email] today, and what is in it?",
+        "quote": "send the deck",
+        "quote_verified": true
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": null,
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 1,
+        "replaced": false
+      },
+      "unsaid_before_check": 0,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "fr-apostrophe",
+      "reply": {
+        "move": "challenge",
+        "question": "Vous pensez, ou vous savez ?",
+        "quote": "Je pense qu’on peut",
+        "quote_verified": true
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": null,
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 0,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "fr-guillemets-invented",
+      "reply": {
+        "move": "challenge",
+        "question": "Quel fait précis appuie cela ?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "not_in_transcript",
+        "stripped_quotes": 1,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": true
+      },
+      "unsaid_before_check": 2,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "doubled-word-transcript",
+      "reply": {
+        "move": "challenge",
+        "question": "Which targets did you miss?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "checks": {
+        "quote_offered": true,
+        "quote_rejection": "not_in_transcript",
+        "stripped_quotes": 0,
+        "cut_to_words": null,
+        "scrubbed": 0,
+        "replaced": false
+      },
+      "unsaid_before_check": 1,
+      "unsaid_after_check": 0,
+      "matches_expected": true
+    },
+    {
+      "id": "unusable-prose",
+      "unusable": true,
+      "matches_expected": true
+    },
+    {
+      "id": "unusable-move",
+      "unusable": true,
+      "matches_expected": true
+    },
+    {
+      "id": "unusable-empty-question",
+      "unusable": true,
+      "matches_expected": true
+    }
+  ]
+}
