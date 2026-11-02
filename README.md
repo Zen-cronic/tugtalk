@@ -64,7 +64,7 @@ The authenticated identity comes only from the token. Clients cannot choose anot
 - **Transcripts can be wrong.** Meta's transcription can drop or invent words (a repeat run of one clip dropped an "uh"). Speakers are not separated. Audio is not kept, so nobody can re-check a transcript against it.
 - **No improvement score.** `measured_improvement` is always `null`. One session cannot show change, and we have no comparison method yet.
 - **The observation is model-written.** Muse Spark Open words it from the transcript and the counts; code never takes numbers from it. If the model fails, the session is saved with `analysis.status: "unavailable"`.
-- **One small container.** Hosting is one scale-to-zero Modal container, so the first request after idle is slow and requests queue. The only rate limit is 30 screen contexts per hour.
+- **One small container.** Hosting is one scale-to-zero Modal container, so the first request after idle is slow. It takes up to 4 requests at once: reads and ordinary writes are served while a capture or screen context waits on its models, but model calls run one at a time, so a second capture waits for the first. The only rate limit is 30 screen contexts per hour.
 
 The limits, model names, eval numbers and test counts we state are listed in [FACTS.md](FACTS.md), and a test checks each one against the code.
 
@@ -80,7 +80,7 @@ The limits, model names, eval numbers and test counts we state are listed in [FA
 - A session deletion is a reversible hiding flag, not erasure from storage or receipts.
 - Beyond the WAV capture route used by capture devices, there are no arbitrary uploads, audio streaming, arbitrary URL fetching, or access to personal assistant memories.
 - Local HTTP tests do not establish Muse tool reliability, cross-chat continuity, phone delivery, or background execution. Those need separate observed tests.
-- The optional Modal adapter uses one scale-to-zero container and a persistent volume. Production concurrency, comprehensive rate limiting and account onboarding are not implemented.
+- The optional Modal adapter uses one scale-to-zero container and a persistent volume. Scaling past one container, comprehensive rate limiting and account onboarding are not implemented.
 
 To revoke the local database's account token (this does not revoke a separately hosted copy):
 

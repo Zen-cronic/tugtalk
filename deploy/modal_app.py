@@ -24,7 +24,9 @@ models_secret = modal.Secret.from_name('synthetic-coaching-models')
                    'CONNECTOR_PUBLIC_HOST': 'kaungzinhein113--synthetic-coaching-connector-web.us-east.modal.run'},
               min_containers=0, max_containers=1, scaledown_window=30,
               cpu=0.25, memory=512, timeout=180)
-@modal.concurrent(max_inputs=1)
+# One container, several inputs at once: bridge.py serializes database access with a lock that a
+# recording or screen context releases during its model calls, so reads are served meanwhile.
+@modal.concurrent(max_inputs=4)
 @modal.asgi_app()
 def web():
     import sys

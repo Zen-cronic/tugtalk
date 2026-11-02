@@ -3,6 +3,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -178,5 +179,105 @@ function out(m) { process.stdout.write(JSON.stringify(m) + '\\n'); }
             self.assertEqual(await request(app, '/v1/screen-contexts'), 200)
             self.assertEqual(await request(app, '/v1/goals'), 503, 'ordinary writes keep the short deadline')
         self.assertEqual(await request(self.app, '/v1/screen-contexts', b'x' * 20000), 413, 'screen contexts keep the 16 KiB JSON limit')
+
+
+    async def test_hosted_config_runs_several_inputs_in_one_container(self):
+        modal_app = (ROOT / 'deploy' / 'modal_app.py').read_text()
+        self.assertRegex(modal_app, r'max_containers=1\b')
+        self.assertGreater(int(re.search(r'@modal\.concurrent\(max_inputs=(\d+)\)', modal_app).group(1)), 1)
+
+    async def test_concurrent_requests_keep_one_database_holder_and_one_model_call_at_a_time(self):
+        # Every volume operation and every worker step goes to one log, in order.
+        log = Path(self.temp.name) / 'timeline.log'
+        def note(line):
+            with open(log, 'a') as f: f.write(line + '\n')
+        class LoggingVolume(Volume):
+            def __init__(self):
+                super().__init__()
+                outer = self
+                class Op(Operation):
+                    async def aio(self): note(self.name); await asyncio.sleep(0.01)
+                self.reload = Op(self, 'reload'); self.commit = Op(self, 'commit')
+        fake = Path(self.temp.name) / 'logging-worker.mjs'
+        fake.write_text("""
+import { createInterface } from 'node:readline';
+import { appendFileSync } from 'node:fs';
+const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
+const env = JSON.parse((await lines.next()).value);
+const id = env.headers['idempotency-key'];
+const note = s => appendFileSync(process.env.TIMELINE, s + ' ' + id + '\\n');
+const out = m => process.stdout.write(JSON.stringify(m) + '\\n');
+const pause = ms => new Promise(r => setTimeout(r, ms));
+note('db-open'); await pause(30);
+if (env.path === '/v1/recordings') {
+  note('db-close'); out({ phase: 'release' });
+  note('model-start'); await pause(400); note('model-end');
+  out({ phase: 'acquire' });
+  if ((await lines.next()).value !== 'go') process.exit(1);
+  note('db-open'); await pause(30);
+}
+note('db-close');
+out({ response: { status: 200, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from('{}').toString('base64') } });
+process.exit(0);
+""")
+        with patch.dict(os.environ, {'TIMELINE': str(log)}):
+            app = create_bridge(LoggingVolume(), worker_path=str(fake), database_path=self.temp.name + '/log.sqlite')
+            finished = []
+            async def request(method, path, key):
+                sent = []
+                async def receive(): return {'type': 'http.request', 'body': b''}
+                async def send(event): sent.append(event)
+                headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x'), (b'idempotency-key', key.encode())]
+                await app({'type': 'http', 'method': method, 'path': path, 'headers': headers}, receive, send)
+                finished.append((key, sent[0]['status']))
+            # Two captures with the same key (a client retry while the first is still running), one other capture, reads.
+            await asyncio.gather(request('POST', '/v1/recordings', 'capture-a'), request('POST', '/v1/recordings', 'capture-a'),
+                                 request('POST', '/v1/recordings', 'capture-b'),
+                                 *(request('GET', '/v1/overview', f'read-{i}') for i in range(3)))
+        self.assertEqual(sorted(s for _, s in finished), [200] * 6)
+        events = log.read_text().split('\n')[:-1]
+        holder, in_model = None, None
+        for event in events:
+            name, _, key = event.partition(' ')
+            if name == 'db-open':
+                self.assertIsNone(holder, f'two workers had the database open: {events}'); holder = key
+            elif name == 'db-close':
+                self.assertEqual(holder, key); holder = 'closed'
+            elif name == 'commit':
+                self.assertEqual(holder, 'closed', 'commit only after the worker closed the database'); holder = None
+            elif name == 'reload':
+                self.assertIsNone(holder, 'reload only while no worker has the database open')
+            elif name == 'model-start':
+                self.assertIsNone(in_model, 'model calls run one at a time'); in_model = key
+            elif name == 'model-end':
+                in_model = None
+        self.assertIsNone(holder)
+        # Reads were served while a capture was in its model calls, not queued behind it.
+        first_model = events.index(next(e for e in events if e.startswith('model-start')))
+        last_model = len(events) - 1 - events[::-1].index(next(e for e in reversed(events) if e.startswith('model-end')))
+        self.assertTrue(any(e.startswith('db-open read-') for e in events[first_model:last_model]))
+        self.assertEqual(sum(e.startswith('model-start') for e in events), 3, 'each capture runs its own worker; Node replays the retry')
+
+    async def test_a_request_that_cannot_get_the_lock_in_time_gets_a_503(self):
+        fake = Path(self.temp.name) / 'hold-worker.mjs'
+        fake.write_text("""
+await new Promise(r => setTimeout(r, 800));
+process.stdout.write(JSON.stringify({ response: { status: 200, headers: {}, body_b64: '' } }) + '\\n');
+process.exit(0);
+""")
+        app = create_bridge(self.volume, worker_path=str(fake), database_path=self.temp.name + '/hold.sqlite')
+        async def request(method, path):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': b'{}'}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x'), (b'content-type', b'application/json')]
+            await app({'type': 'http', 'method': method, 'path': path, 'headers': headers}, receive, send)
+            return sent[0]['status'], json.loads(sent[1]['body']) if sent[1]['body'] else None
+        with patch('bridge.READ_DEADLINE', 0.3):
+            slow = asyncio.create_task(request('POST', '/v1/goals'))
+            await asyncio.sleep(0.05)
+            status, body = await request('GET', '/v1/overview')
+            self.assertEqual(status, 503); self.assertEqual(body['error'], 'storage_or_worker_unavailable')
+            await slow
 
 if __name__ == '__main__': unittest.main()

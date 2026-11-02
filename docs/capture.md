@@ -25,5 +25,5 @@ Fresh reads add per-goal `measured_sessions` and `latest_measurement`, plus `lin
 - Speakers are not separated.
 - Lexicon counts are not judgments. One restart event can match two phrases ("Sorry, let me restart" counts 2). Measured accuracy on a synthetic labelled corpus is in `eval/README.md`.
 - Audio is not retained, so pronunciation cannot be re-checked.
-- On Modal, one container serializes database access. A recording releases the lock during its model calls, so reads are not queued behind inference, but writes are serialized.
+- On Modal, one container takes up to 4 requests at once and serializes database access with a lock. A recording releases that lock during its model calls, so reads and ordinary writes are not queued behind inference. Model calls run one at a time: a second capture, or a retry of one still running, waits, and the retry then returns the first receipt without new inference.
 - If the storage commit fails after inference, a retry re-runs inference because the receipt was not persisted.

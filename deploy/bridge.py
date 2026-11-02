@@ -2,8 +2,14 @@
 
 No framework dependency. Node executes the same tested API handler as local HTTP.
 The Modal function must have max_containers=1; the lock serializes database access within it.
+It accepts several inputs at once (@modal.concurrent), all on this one event loop.
 A recording or screen-context worker releases the lock during its slow model calls
-(see scripts/handle-request.mjs), so reads are not queued behind inference.
+(see scripts/handle-request.mjs), so reads and ordinary writes are not queued behind inference.
+Model routes take a second lock for their whole run, so model calls happen one at a time:
+a retry that arrives while the first attempt is still running waits and then replays its receipt
+instead of paying for inference twice, and the hourly screen-context count stays exact.
+Only the holder of the database lock has the database open; it reloads the volume before the
+worker opens it and commits after the worker closes it, before handing the lock on.
 """
 import asyncio
 import base64
@@ -19,10 +25,13 @@ FORWARDED = ('authorization', 'content-type', 'idempotency-key',
 READ_DEADLINE = 20
 MODEL_DEADLINE = 150
 MODEL_ROUTES = ('/v1/recordings', '/v1/screen-contexts')
+BUSY = {'error': 'storage_or_worker_unavailable',
+        'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'}
 
 
 def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', database_path='/data/connector.sqlite'):
     lock = asyncio.Lock()
+    model_lock = asyncio.Lock()
 
     async def respond(send, status, payload):
         await send({'type': 'http.response.start', 'status': status,
@@ -73,10 +82,31 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         loop = asyncio.get_running_loop()
         deadline = loop.time() + (MODEL_DEADLINE if model_call else READ_DEADLINE)
         remaining = lambda: max(0.1, deadline - loop.time())
-        await asyncio.wait_for(lock.acquire(), timeout=remaining())
-        held = True
+        if model_call:
+            try:
+                await asyncio.wait_for(model_lock.acquire(), timeout=remaining())
+            except TimeoutError:
+                return await respond(send, 503, BUSY)
+            try:
+                response = await run(envelope, remaining)
+            finally:
+                model_lock.release()
+        else:
+            response = await run(envelope, remaining)
+        if response is None:
+            return await respond(send, 503, BUSY)
+        await send({'type': 'http.response.start', 'status': response['status'],
+                    'headers': [(k.lower().encode(), str(v).encode()) for k, v in response['headers'].items()]})
+        await send({'type': 'http.response.body', 'body': base64.b64decode(response['body_b64'])})
+
+    # Runs one worker under the database lock. Returns its response, or None when no success can be claimed.
+    async def run(envelope, remaining):
+        held = False
         process = None
         try:
+            # Inside the try: a request that cannot get the lock in time gets a 503, not an unhandled timeout.
+            await asyncio.wait_for(lock.acquire(), timeout=remaining())
+            held = True
             await volume.reload.aio()
             process = await asyncio.create_subprocess_exec(
                 'node', worker_path,
@@ -90,6 +120,9 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 if not line:
                     raise RuntimeError('Node handler exited without a response')
                 message = json.loads(line)
+                # asyncio.Lock has no owner, so a phase out of order must never release another request's hold.
+                if message.get('phase') in ('release', 'acquire') and (message['phase'] == 'release') != held:
+                    raise RuntimeError('Worker phase out of order')
                 if message.get('phase') == 'release':
                     # Worker closed the database; persist startup writes, then let other requests in.
                     await volume.commit.aio()
@@ -115,12 +148,9 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 await process.wait()
             if isinstance(exc, asyncio.CancelledError):
                 raise
-            return await respond(send, 503, {'error': 'storage_or_worker_unavailable',
-                                           'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'})
+            return None
         finally:
             if held:
                 lock.release()
-        await send({'type': 'http.response.start', 'status': response['status'],
-                    'headers': [(k.lower().encode(), str(v).encode()) for k, v in response['headers'].items()]})
-        await send({'type': 'http.response.body', 'body': base64.b64decode(response['body_b64'])})
+        return response
     return app

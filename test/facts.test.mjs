@@ -142,6 +142,12 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       'node-tests': () => String(readdirSync(new URL('./', import.meta.url)).filter(f => f.endsWith('.test.mjs'))
         .reduce((n, f) => n + (read(`test/${f}`).match(/^test\(|\bt\.test\(/gm) ?? []).length, 0)),
       'python-tests': () => String((read('deploy/test_bridge.py').match(/^\s*(?:async )?def test_/gm) ?? []).length),
+      'hosting-concurrency': () => {
+        const inputs = modal.match(/^@modal\.concurrent\(max_inputs=(\d+)\)$/m)[1];
+        assert.match(read('deploy/bridge.py'), /^    model_lock = asyncio\.Lock\(\)$/m, 'model routes take their own lock');
+        assert.match(read('deploy/test_bridge.py'), /def test_concurrent_requests_keep_one_database_holder_and_one_model_call_at_a_time\(/);
+        return `${inputs} at once; model calls one at a time`;
+      },
       'hosting': () => {
         assert.match(modal, /max_containers=1\b/);
         return `1 container, ${modal.match(/memory=(\d+)/)[1]} MB, ${modal.match(/timeout=(\d+)/)[1]} s timeout`;
