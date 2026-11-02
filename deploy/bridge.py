@@ -16,6 +16,8 @@ import base64
 import json
 import os
 import re
+import sys
+import time
 
 JSON_LIMIT = 16384
 AUDIO_LIMIT = 8 * 1024 * 1024  # matches src/capture.mjs MAX_AUDIO_BYTES
@@ -30,8 +32,50 @@ MODEL_ROUTES = ('/v1/recordings', '/v1/screen-contexts', '/v1/voice-rounds')
 AUDIO_ROUTES = ('/v1/recordings', '/v1/voice-rounds')
 # A spoken reply calls a speech model but has no body. The adapter returns it whole, not streamed.
 SPEECH_ROUTE = re.compile(r'/v1/voice-rounds/[A-Za-z0-9-]{1,64}/speech')
+# Timing log: one line per request with the route shape (ids replaced), the status and each phase in ms.
+# Never the body, headers, query or ids.
+ROUTE_ID = re.compile(r'/[A-Za-z0-9-]{8,64}(?=/|$)')
+
+
+def route_label(method, path):
+    return method + ' ' + ROUTE_ID.sub('/{id}', path)
+
+
+def server_timing(phases):
+    return ', '.join(f'{name};dur={ms:.1f}' for name, ms in phases.items())
+
+
 BUSY = {'error': 'storage_or_worker_unavailable',
         'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'}
+
+
+class Timing:
+    """Phase durations for one request, in ms. A phase that repeats (two commits) is summed."""
+    def __init__(self):
+        self.began = time.perf_counter()
+        self.phases = {}
+
+    def add(self, name, seconds):
+        self.phases[name] = self.phases.get(name, 0.0) + seconds * 1000
+
+    def start(self, name):
+        return (name, time.perf_counter())
+
+    def stop(self, started):
+        self.add(started[0], time.perf_counter() - started[1])
+
+    def phase(self, name):
+        timing = self
+        class Phase:
+            def __enter__(self): self.t = time.perf_counter()
+            def __exit__(self, *exc): timing.add(name, time.perf_counter() - self.t)
+        return Phase()
+
+    def log(self, scope, status):
+        self.add('total', time.perf_counter() - self.began)
+        line = {'timing': {k: round(v, 1) for k, v in self.phases.items()},
+                'route': route_label(scope['method'], scope['path']), 'status': status}
+        print(json.dumps(line), file=sys.stdout, flush=True)
 
 
 def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', database_path='/data/connector.sqlite'):
@@ -87,39 +131,49 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         loop = asyncio.get_running_loop()
         deadline = loop.time() + (MODEL_DEADLINE if model_call else READ_DEADLINE)
         remaining = lambda: max(0.1, deadline - loop.time())
+        timing = Timing()
         if model_call:
             try:
-                await asyncio.wait_for(model_lock.acquire(), timeout=remaining())
+                with timing.phase('model_wait'):
+                    await asyncio.wait_for(model_lock.acquire(), timeout=remaining())
             except TimeoutError:
+                timing.log(scope, 503)
                 return await respond(send, 503, BUSY)
             try:
-                response = await run(envelope, remaining)
+                response = await run(envelope, remaining, timing)
             finally:
                 model_lock.release()
         else:
-            response = await run(envelope, remaining)
+            response = await run(envelope, remaining, timing)
         if response is None:
+            timing.log(scope, 503)
             return await respond(send, 503, BUSY)
-        await send({'type': 'http.response.start', 'status': response['status'],
-                    'headers': [(k.lower().encode(), str(v).encode()) for k, v in response['headers'].items()]})
+        headers = [(k.lower().encode(), str(v).encode()) for k, v in response['headers'].items()]
+        headers.append((b'server-timing', server_timing(timing.phases).encode()))
+        await send({'type': 'http.response.start', 'status': response['status'], 'headers': headers})
         await send({'type': 'http.response.body', 'body': base64.b64decode(response['body_b64'])})
+        timing.log(scope, response['status'])
 
     # Runs one worker under the database lock. Returns its response, or None when no success can be claimed.
-    async def run(envelope, remaining):
+    async def run(envelope, remaining, timing):
         held = False
         process = None
         try:
             # Inside the try: a request that cannot get the lock in time gets a 503, not an unhandled timeout.
-            await asyncio.wait_for(lock.acquire(), timeout=remaining())
+            with timing.phase('lock_wait'):
+                await asyncio.wait_for(lock.acquire(), timeout=remaining())
             held = True
-            await volume.reload.aio()
-            process = await asyncio.create_subprocess_exec(
-                'node', worker_path,
-                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
-                env={**os.environ, 'DB_PATH': database_path}, limit=32 * 1024 * 1024)
+            with timing.phase('reload'):
+                await volume.reload.aio()
+            with timing.phase('spawn'):
+                process = await asyncio.create_subprocess_exec(
+                    'node', worker_path,
+                    stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                    env={**os.environ, 'DB_PATH': database_path}, limit=32 * 1024 * 1024)
             process.stdin.write(json.dumps(envelope).encode() + b'\n')
             await process.stdin.drain()
             response = None
+            worker = timing.start('worker')
             while response is None:
                 line = await asyncio.wait_for(process.stdout.readline(), timeout=remaining())
                 if not line:
@@ -130,21 +184,27 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                     raise RuntimeError('Worker phase out of order')
                 if message.get('phase') == 'release':
                     # Worker closed the database; persist startup writes, then let other requests in.
-                    await volume.commit.aio()
+                    with timing.phase('commit'):
+                        await volume.commit.aio()
                     lock.release(); held = False
                 elif message.get('phase') == 'acquire':
-                    await asyncio.wait_for(lock.acquire(), timeout=remaining())
+                    with timing.phase('lock_wait'):
+                        await asyncio.wait_for(lock.acquire(), timeout=remaining())
                     held = True
-                    await volume.reload.aio()
+                    with timing.phase('reload'):
+                        await volume.reload.aio()
                     process.stdin.write(b'go\n')
                     await process.stdin.drain()
                 elif 'response' in message:
                     response = message['response']
-            await asyncio.wait_for(process.wait(), timeout=remaining())
+            with timing.phase('exit'):
+                await asyncio.wait_for(process.wait(), timeout=remaining())
+            timing.stop(worker)
             if process.returncode:
                 raise RuntimeError('Node handler failed')
             # Node has checkpointed WAL and closed every DB handle. Commit before acknowledging writes.
-            await volume.commit.aio()
+            with timing.phase('commit'):
+                await volume.commit.aio()
         except (Exception, asyncio.CancelledError) as exc:
             if process is not None and process.returncode is None:
                 process.kill()
