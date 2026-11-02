@@ -23,6 +23,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `screen-text-max` | Largest redacted screen text accepted | 6000 characters, 12 KiB | HTTP: 6001 characters returns 400 |
 | `screen-text-retained` | Screen text is stored | no | HTTP screen context with a fake model: `text_retained` is false and the text is not in the database file |
 | `screen-rate-limit` | Screen contexts per hour, refused before any model call | 30 | HTTP on a fresh account: 30 are saved, the 31st returns 429 without a model call |
+| `recording-rate-limit` | Recordings per hour, refused before any model call | 30 | HTTP on a fresh account: 30 are saved, the 31st returns 429 without a model call |
+| `model-budget` | Time budget for one paid request (recording, voice round, screen context) | 120 s, 30 s under the 150 s deadline; a step needs 4–15 s left to start | `MODEL_BUDGET_MS`, `MIN_START_MS` (src/budget.mjs) against `MODEL_DEADLINE` and the `budget_ms` the adapter sends (deploy/bridge.py); worst case in test/budget.test.mjs |
 | `seed-sessions` | Seeded sessions: fictional fixtures and their dates | 2, simulated, 2026-10-30 and 2026-10-31 | `Store.seed` on a new account: `source` synthetic_fixture, `measurement_status` simulated |
 | `measured-improvement` | Improvement score we compute | none (null) | `measured_improvement` in the fresh overview |
 | `unauthenticated` | `/v1/overview` without a token | 401 | HTTP |
@@ -30,10 +32,12 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 94 | A `node --test` run of the other test files (all must pass), plus this one |
-| `python-tests` | Python hosting-adapter tests | 10 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
+| `node-tests` | Node test cases, as `npm test` reports them | 101 | A `node --test` run of the other test files (all must pass), plus this one |
+| `python-tests` | Python hosting-adapter tests | 16 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
+| `hosting-worker` | How the hosting adapter runs requests | one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload | deploy/bridge.py and its tests in deploy/test_bridge.py |
+| `keep-warm` | Containers kept running with no traffic | off by default, KEEP_WARM=1 keeps 1 container; idle containers stay up 300 s | deploy/modal_app.py |
 | `watch-target` | Watch app minimum OS | watchOS 11.0 | apps/watch/project.yml |
 | `mac-target` | Mac companion minimum OS | macOS 14.0 | apps/mac/project.yml |
 
@@ -74,10 +78,14 @@ Every number or name we state about this project, and where it comes from. `test
 | `speech-unconfigured` | Spoken reply with no provider configured | 503 speech_unconfigured, no provider call | HTTP with a counting fake fetch |
 | `speech-text` | Text the speech route sends to the provider | the stored reply.question only | HTTP: a client body with other text is ignored (fake fetch) |
 | `speech-stored` | Speech audio is stored | no | HTTP: the audio bytes are not in the database file |
-| `speech-hosted` | How the spoken reply comes back | streamed locally; whole file through the hosting adapter | HTTP `Transfer-Encoding: chunked` locally; the worker in scripts/handle-request.mjs collects writes into one body |
+| `speech-hosted` | How the spoken reply comes back | streamed locally and through the hosting adapter | HTTP `Transfer-Encoding: chunked` locally; scripts/handle-request.mjs passes each chunk on, and the adapter streams it (deploy/test_bridge.py) |
 | `mms-licence` | Self-hosted Meta MMS-TTS models and their licence | facebook/mms-tts-eng, facebook/mms-tts-fra; CC-BY-NC-4.0 | `MODELS` and the licence line in deploy/mms_tts_app.py |
 | `voice-live-latency` | Live voice rounds on a local server (no Modal hop), Nov 2: total server time p50 / p90 / max | 3546 / 4968 / 7616 ms over 12 rounds | `eval/voice-live-latency.json` (linear-interpolated percentiles) |
 | `voice-live-steps` | Same run: transcription and reply p50 / max | ASR 1378 / 2506 ms; reply 2248 / 6368 ms | `eval/voice-live-latency.json` |
 | `voice-live-quotes` | Same run: offered quotes that passed code's check | 11 of 11 (1 round offered none) | `eval/voice-live-latency.json` |
 | `voice-wording` | What the latency lets us call the reply | voice reply, not real-time | Rule on `eval/voice-live-latency.json`: real-time needs at least 10 rounds, p50 ≤ 2000 ms and none over 3500 ms |
 | `speech-wit-live` | One spoken reply through the speech route with wit, locally | first byte 340 ms, total 1589 ms, audio/mpeg | `speech_route_sample` in `eval/voice-live-latency.json` |
+| `hosted-health` | Warm `GET /health` on the hosted service, Nov 2: median before and after the adapter change | 2906 ms before, 145 ms after (7 requests each) | docs/hosted-latency.json |
+| `hosted-voice` | Hosted voice round: release to reply, and the time spent outside the API handler | 8800 ms before; 4751 and 3983 ms after (2 rounds); outside the handler 2855 ms before, 1277 and 945 ms after | docs/hosted-latency.json |
+| `hosted-speech` | Hosted spoken reply (wit$Rebecca, audio/mpeg): time to the first audio byte | 6100 ms before; 920 and 706 ms after | docs/hosted-latency.json |
+| `hosted-replay` | Hosted exact retry of a voice round: model calls, and time to the reply | none, 786 ms | docs/hosted-latency.json |

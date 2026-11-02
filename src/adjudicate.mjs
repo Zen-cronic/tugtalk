@@ -7,6 +7,7 @@
 // the transcript has it. Anything else keeps the lexicon count. The model can only remove a proposed hit;
 // it cannot add one or change a number, so the adjudicated count never exceeds the lexicon count.
 import { habitHits, sparkJSON, ANALYSIS_MODEL, LANGUAGES, HIT_ORDER } from './capture.mjs';
+import { MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
 
 export const ADJUDICATION_METHOD = 'spark-adjudication-v1';
 // Pure vocal fillers have no content reading, so code counts them without asking.
@@ -40,9 +41,10 @@ export const acceptLabels = parsed => Array.isArray(parsed.labels) ? parsed.labe
 // One Spark call per capture that has candidates (a second only when the first reply is unusable).
 export function createAdjudicationModel({ env = process.env, fetchImpl = fetch } = {}) {
   return {
-    async adjudicateHabits({ transcript, language, candidates }) {
+    async adjudicateHabits({ transcript, language, candidates, budget }) {
       if (!env.BASETEN_API_KEY) return { status: 'unavailable', reason: 'Adjudication is not configured on this deployment.', attempts: 0 };
-      const result = await sparkJSON({ env, fetchImpl, system: adjudicationSystemPrompt(language), user: adjudicationUserMessage(transcript, candidates),
+      const result = await sparkJSON({ env, system: adjudicationSystemPrompt(language), user: adjudicationUserMessage(transcript, candidates),
+        fetchImpl: budget ? budget.fetch(fetchImpl, { step: 'adjudication', minStartMs: MIN_START_MS.adjudication }) : fetchImpl,
         accept: acceptLabels, temperature: 0, label: 'Adjudication',
         // Measured Nov 2: the default (highest) effort stalled or returned empty on 2 of 3 calls; low answered in about 1.7 s.
         reasoningEffort: 'low' });
@@ -101,13 +103,15 @@ export function buildAdjudication(transcript, language, modelResult) {
   };
 }
 
-// The capture step. Calls the model only when there is something ambiguous to decide. Never throws.
-export async function adjudicateCapture({ models, transcript, language }) {
+// The capture step. Calls the model only when there is something ambiguous to decide, and only when the request's
+// time budget still allows it (then the lexicon count stands). Never throws.
+export async function adjudicateCapture({ models, transcript, language, budget }) {
   const { candidates } = adjudicationCandidates(transcript, language);
   if (!candidates.length) return buildAdjudication(transcript, language, null);
   if (typeof models?.adjudicateHabits !== 'function') return buildAdjudication(transcript, language, { status: 'unavailable', reason: 'Adjudication is not configured on this deployment.' });
+  if (budget && !budget.allows(MIN_START_MS.adjudication)) return buildAdjudication(transcript, language, { status: 'unavailable', reason: SKIPPED_FOR_TIME });
   let result;
-  try { result = await models.adjudicateHabits({ transcript, language, candidates }); }
+  try { result = await models.adjudicateHabits({ transcript, language, candidates, ...(budget ? { budget } : {}) }); }
   catch { result = { status: 'unavailable', reason: 'Adjudication request failed.' }; }
   return buildAdjudication(transcript, language, result);
 }

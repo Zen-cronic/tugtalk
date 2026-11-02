@@ -11,6 +11,11 @@ import { createAdjudicationModel, adjudicateCapture } from './adjudicate.mjs';
 import { createScreenModel, handleScreenContext, SCREEN_CONTEXT_PATH } from './screen-context.mjs';
 import { createVoiceModel, handleVoiceRound, voiceParams, VOICE_ROUNDS_PATH } from './voice.mjs';
 import { createSpeechModel, handleSpeech, SPEECH_PATH } from './speech.mjs';
+import { createBudget, MODEL_BUDGET_MS, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
+
+export const RECORDINGS_PATH = '/v1/recordings';
+// Guards paid calls against a stuck capture button or a leaked key. Counts saved and model-failed recordings in the last hour.
+export const RECORDING_RATE_LIMIT = { requests: 30, windowMs: 60 * 60 * 1000 };
 
 export function validate(body,schema) {
   if (!body || Array.isArray(body) || typeof body!=='object') throw new ApiError(400,'invalid_body','Expected a JSON object.');
@@ -69,7 +74,9 @@ const CORE_FINGERPRINT=['audio_sha256','goal_id','language','capture_device','oc
 //   system(ctx)                 a coaching prompt passed to models.analyze instead of the default.
 //   afterAnalyze(ctx)           async step after analysis, still outside the database lock (for example extraction).
 //   extendRecord(record, ctx)   runs inside the write transaction; returns the session record to save and may put others.
-export async function handleRecording(store,models,user,req,key,requestId,phases=NO_PHASES,hooks={}) {
+// budget: the request's time budget (src/budget.mjs), also in ctx. Transcription that cannot start in time is refused
+// (503, nothing sent); an analysis or adjudication that cannot start is skipped, and the session saves without it.
+export async function handleRecording(store,models,user,req,key,requestId,phases=NO_PHASES,hooks={},budget=createBudget()) {
   const {language,device,goalId,occurredAt,...extra}=hooks.params?hooks.params(req.headers):captureParams(req.headers);
   const params={language,device,goalId,occurredAt};
   const audio=await audioOf(req);
@@ -79,28 +86,33 @@ export async function handleRecording(store,models,user,req,key,requestId,phases
     fingerprintBody[k]=v;
   }
   // An exact retry returns the original receipt without paying for inference again.
-  const previous=store.replay(user,'POST','/v1/recordings',fingerprintBody,key);
+  const previous=store.replay(user,'POST',RECORDINGS_PATH,fingerprintBody,key);
   if (previous) return previous;
+  if (store.recentRequests(user,'POST',RECORDINGS_PATH,[200,502],RECORDING_RATE_LIMIT.windowMs)>=RECORDING_RATE_LIMIT.requests)
+    throw new ApiError(429,'rate_limited',`At most ${RECORDING_RATE_LIMIT.requests} recordings per hour.`);
   const goal=params.goalId?store.get(user,'goals',params.goalId):null;
-  const ctx={store,user,params,extra,goal,requestId};
+  const ctx={store,user,params,extra,goal,requestId,budget};
   ctx.prepared=hooks.prepare?hooks.prepare(ctx):undefined;
   const wav=inspectWav(audio);
+  if (!budget.allows(MIN_START_MS.transcription)) throw new ApiError(503,'time_budget','Not enough time left to transcribe; retry with the same Idempotency-Key.');
   // Model calls take seconds; the hosting adapter may release the shared database meanwhile.
   // Everything below re-validates inside the write transaction (receipt replay, goal ownership).
   let transcription,metrics,analysis,adjudication;
   await phases.release();
   try {
-    transcription=await models.transcribe(audio,{language:params.language,sessionId:requestId});
+    transcription=await models.transcribe(audio,{language:params.language,sessionId:requestId,budget});
     metrics=measure(transcription.transcript,transcription.audio_duration_ms??wav.durationMs,params.language,transcription.turns);
     // The observation and the habit adjudication are independent Spark calls; neither changes the measured metrics.
     [analysis,adjudication]=await Promise.all([
-      models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language,...(hooks.system?{system:hooks.system(ctx)}:{})}),
-      adjudicateCapture({models,transcript:transcription.transcript,language:params.language})]);
+      budget.allows(MIN_START_MS.analysis)
+        ?models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language,...(hooks.system?{system:hooks.system(ctx)}:{}),budget})
+        :{status:'unavailable',reason:SKIPPED_FOR_TIME},
+      adjudicateCapture({models,transcript:transcription.transcript,language:params.language,budget})]);
     if (hooks.afterAnalyze) ctx.after=await hooks.afterAnalyze({...ctx,transcription,metrics,analysis,adjudication});
   } finally {
     await phases.acquire();
   }
-  return store.mutate(user,'POST','/v1/recordings',fingerprintBody,key,()=>{
+  return store.mutate(user,'POST',RECORDINGS_PATH,fingerprintBody,key,()=>{
     if (params.goalId) store.get(user,'goals',params.goalId);
     const timestamp=new Date().toISOString();
     const record={id:randomUUID(),version:1,source:'capture',capture_device:params.device,goal_id:params.goalId,language:params.language,
@@ -172,9 +184,12 @@ export function connectorDocument(baseUrl) {
   ].join('\n');
 }
 // screenContextHooks: optional system(ctx) prompt and extendRecord(record, ctx), as for recordings (src/screen-context.mjs).
-export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel(),...createVoiceModel(),...createSpeechModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={}}={}) {
+// clock: milliseconds for the per-request time budget (a fake clock in tests). Behind the hosting adapter, req.budgetMs
+// carries what is left of the request's own deadline, and the budget never runs past it.
+export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel(),...createVoiceModel(),...createSpeechModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={},clock=()=>performance.now()}={}) {
   return async(req,res)=>{
     const requestId=randomUUID(), startedAt=performance.now(); let user;
+    const budget=()=>createBudget({totalMs:Math.min(MODEL_BUDGET_MS,Number.isFinite(req.budgetMs)?req.budgetMs:Infinity),clock});
     const path=new URL(req.url,'http://local').pathname;
     const send=(status,data,type='application/json')=>{
       const bytes=type==='application/json'?JSON.stringify(data):data;
@@ -198,16 +213,16 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
       if(req.method==='GET'&&path==='/v1/files/evidence.txt') return send(200,store.context(user).sessions.map(s=>s.measurement_status==='measured'
         ?`${s.id} version ${s.version} (${s.capture_device}, ${s.language}${s.goal_id?`, goal ${s.goal_id}`:''}): ${s.transcript}\nMeasured: ${s.metrics.word_count} words, ${s.metrics.words_per_minute} wpm, ${s.metrics.filler_count} fillers, ${s.metrics.hedge_count} hedges, ${s.metrics.restart_count} restarts`
         :`${s.id} version ${s.version}: ${s.transcript}\nSimulated pause: ${s.pause_before_answer_ms}ms`).join('\n\n'),'text/plain');
-      if(req.method==='POST'&&path==='/v1/recordings') {
-        return send(200,await handleRecording(store,models,user,req,requireIdempotencyKey(req.headers),requestId,phases,recordingHooks));
+      if(req.method==='POST'&&path===RECORDINGS_PATH) {
+        return send(200,await handleRecording(store,models,user,req,requireIdempotencyKey(req.headers),requestId,phases,recordingHooks,budget()));
       }
       if(req.method==='POST'&&path===SCREEN_CONTEXT_PATH) {
         const key=requireIdempotencyKey(req.headers);
-        return send(200,await handleScreenContext(store,models,user,await bodyOf(req),key,requestId,phases,screenContextHooks));
+        return send(200,await handleScreenContext(store,models,user,await bodyOf(req),key,requestId,phases,screenContextHooks,budget()));
       }
       if(req.method==='POST'&&path===VOICE_ROUNDS_PATH) {
         const key=requireIdempotencyKey(req.headers), params=voiceParams(req.headers);
-        return send(200,await handleVoiceRound(store,models,user,{params,audio:await audioOf(req),startedAt},key,requestId,phases));
+        return send(200,await handleVoiceRound(store,models,user,{params,audio:await audioOf(req),startedAt},key,requestId,phases,budget()));
       }
       const speech=req.method==='POST'&&path.match(SPEECH_PATH);
       if(speech) return await handleSpeech(store,models,user,speech[1],{res,requestId,phases,audit:(status,label)=>store.audit(requestId,user,req.method,path,status,label)});

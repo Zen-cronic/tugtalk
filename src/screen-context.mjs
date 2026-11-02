@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { ApiError, digest } from './store.mjs';
 import { LANGUAGES, DEVICES, ANALYSIS_MODEL, sparkJSON } from './capture.mjs';
+import { createBudget, MIN_START_MS } from './budget.mjs';
 
 const NO_PHASES = { async release() {}, async acquire() {} };
 export const SCREEN_CONTEXT_PATH = '/v1/screen-contexts';
@@ -61,10 +62,11 @@ export function validateScreenContext(body) {
 // Context-card model call: Muse Spark Open on Baseten through sparkJSON (src/capture.mjs), the same budgets, retry and parser as the capture observation.
 export function createScreenModel({ env = process.env, fetchImpl = fetch } = {}) {
   return {
-    async describeScreen({ goal, text, language, purpose, app_name, system = screenContextSystemPrompt(language) }) {
+    async describeScreen({ goal, text, language, purpose, app_name, system = screenContextSystemPrompt(language), budget }) {
       if (!env.BASETEN_API_KEY) throw new ApiError(503, 'analysis_unconfigured', 'Analysis is not configured on this deployment.');
       const user = JSON.stringify({ goal: goal ? { title: goal.title, target: goal.target } : null, purpose, app_name, screen_text: text });
-      const result = await sparkJSON({ env, fetchImpl, system, user,
+      const result = await sparkJSON({ env, system, user,
+        fetchImpl: budget ? budget.fetch(fetchImpl, { step: 'screen context', minStartMs: MIN_START_MS.screen }) : fetchImpl,
         accept: parsed => ['summary', 'observation', 'next_step'].every(k => typeof parsed[k] === 'string' && parsed[k].trim()) ? parsed : null });
       if (!result.ok) return { status: 'unavailable', reason: result.reason, attempts: result.attempts };
       return { status: 'model_observation', summary: result.value.summary, observation: result.value.observation, next_step: result.value.next_step,
@@ -79,7 +81,8 @@ const cleanOutput = (value, cap) => {
 };
 
 // Optional hooks, as for recordings: system(ctx) replaces the prompt; extendRecord(record, ctx) runs in the write transaction.
-export async function handleScreenContext(store, models, user, body, key, requestId, phases = NO_PHASES, hooks = {}) {
+// budget: the request's time budget (src/budget.mjs); a card that cannot start in time is refused before the model call.
+export async function handleScreenContext(store, models, user, body, key, requestId, phases = NO_PHASES, hooks = {}, budget = createBudget()) {
   const input = validateScreenContext(body);
   const fingerprintBody = { text_sha256: digest(input.text), goal_id: input.goal_id, language: input.language, capture_device: input.capture_device,
     purpose: input.purpose, occurred_at: input.occurred_at, app_name: input.app_name, redaction: input.redaction };
@@ -91,13 +94,14 @@ export async function handleScreenContext(store, models, user, body, key, reques
   if (store.recentRequests(user, 'POST', SCREEN_CONTEXT_PATH, [200, 502], SCREEN_RATE_LIMIT.windowMs) >= SCREEN_RATE_LIMIT.requests)
     throw new ApiError(429, 'rate_limited', `At most ${SCREEN_RATE_LIMIT.requests} screen contexts per hour.`);
   if (typeof models.describeScreen !== 'function') throw new ApiError(503, 'analysis_unconfigured', 'Analysis is not configured on this deployment.');
+  if (!budget.allows(MIN_START_MS.screen)) throw new ApiError(503, 'time_budget', 'Not enough time left for this card; retry with the same Idempotency-Key.');
   const server = scrub(input.text);
   const ctx = { store, user, input, goal, requestId };
   let analysis;
   await phases.release();
   try {
     analysis = await models.describeScreen({ goal, text: server.text, language: input.language, purpose: input.purpose, app_name: input.app_name,
-      ...(hooks.system ? { system: hooks.system(ctx) } : {}) });
+      ...(hooks.system ? { system: hooks.system(ctx) } : {}), budget });
   } finally {
     await phases.acquire();
   }

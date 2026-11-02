@@ -17,6 +17,8 @@ import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-cont
 import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS } from '../src/voice.mjs';
 import { runVoiceEval } from '../src/voice-eval.mjs';
 import { createSpeechModel, SPEECH_PROVIDERS } from '../src/speech.mjs';
+import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
+import { MODEL_BUDGET_MS, ADAPTER_DEADLINE_MS, MIN_START_MS } from '../src/budget.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -182,6 +184,25 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.equal((await post(saved + 1)).status, 429); assert.equal(calls.describe, before, 'refused before any model call');
         return String(saved);
       },
+      'recording-rate-limit': async () => {
+        // A separate account, so the count starts at zero: post until the route refuses, then check the refusal cost nothing.
+        store.addToken('facts-rec-rate', 'facts-rec-user');
+        const post = i => fetch(base + '/v1/recordings', { method: 'POST', headers: { Authorization: 'Bearer facts-rec-rate', 'Content-Type': 'audio/wav', 'Idempotency-Key': `facts-rec-${i}` }, body: wav(0.6) });
+        let saved = 0, status;
+        while ((status = (await post(saved)).status) === 200 && saved < 100) saved++;
+        assert.equal(status, 429);
+        const before = calls.transcribe + calls.analyze;
+        assert.equal((await post(saved + 1)).status, 429); assert.equal(calls.transcribe + calls.analyze, before, 'refused before any model call');
+        assert.equal(saved, RECORDING_RATE_LIMIT.requests);
+        return String(saved);
+      },
+      'model-budget': () => {
+        const bridge = read('deploy/bridge.py');
+        assert.equal(Number(bridge.match(/^MODEL_DEADLINE = (\d+)$/m)[1]) * 1000, ADAPTER_DEADLINE_MS, 'the budget is set against the adapter deadline');
+        assert.match(bridge, /start\['budget_ms'\] = /, 'the adapter passes what is left of the deadline');
+        const starts = Object.values(MIN_START_MS);
+        return `${MODEL_BUDGET_MS / 1000} s, ${(ADAPTER_DEADLINE_MS - MODEL_BUDGET_MS) / 1000} s under the ${ADAPTER_DEADLINE_MS / 1000} s deadline; a step needs ${Math.min(...starts) / 1000}–${Math.max(...starts) / 1000} s left to start`;
+      },
       'seed-sessions': () => {
         const seeded = store.list('facts-user', 'sessions').filter(x => x.source === 'synthetic_fixture');
         assert.ok(seeded.every(x => x.measurement_status === 'simulated'));
@@ -210,6 +231,19 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.match(modal, /max_containers=1\b/);
         return `1 container, ${modal.match(/memory=(\d+)/)[1]} MB, ${modal.match(/timeout=(\d+)/)[1]} s timeout`;
       },
+      'hosting-worker': () => {
+        const bridge = read('deploy/bridge.py'), tests = read('deploy/test_bridge.py');
+        assert.doesNotMatch(bridge, /volume\.reload/, 'the adapter never reloads the volume');
+        assert.match(bridge, /if not worker\.alive:/, 'a worker is started only when none is running');
+        for (const name of ['test_one_worker_serves_every_request_reads_skip_the_commit_and_nothing_reloads', 'test_commit_failure_never_reports_success_and_retry_is_idempotent'])
+          assert.match(tests, new RegExp(`def ${name}\\(`));
+        return 'one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload';
+      },
+      'keep-warm': () => {
+        assert.match(modal, /min_containers=1 if keep_warm else 0/);
+        assert.match(modal, /keep_warm = os\.environ\.get\('KEEP_WARM', ''\) == '1'/);
+        return `off by default, KEEP_WARM=1 keeps 1 container; idle containers stay up ${modal.match(/^SCALEDOWN_SECONDS = (\d+)$/m)[1]} s`;
+      },
       'watch-target': () => `watchOS ${read('apps/watch/project.yml').match(/watchOS: "([\d.]+)"/)[1]}`,
       'mac-target': () => `macOS ${read('apps/mac/project.yml').match(/macOS: "([\d.]+)"/)[1]}`,
 
@@ -217,7 +251,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       ...measurementChecks(evalResult),
       ...voiceChecks(base, store, dbPath, calls),
       ...await speechChecks(),
-      ...liveVoiceChecks()
+      ...liveVoiceChecks(),
+      ...hostedChecks()
     };
 
     const facts = parseFacts();
@@ -415,8 +450,10 @@ async function speechChecks() {
     assert.deepEqual(spoken.body, Buffer.concat(audio));
     store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     const stored = readFileSync(dbPath).includes(audio[1].subarray(0, 64));
-    const worker = read('scripts/handle-request.mjs');
-    assert.match(worker, /write\(chunk\) \{ chunks\.push/, 'the worker collects streamed writes');
+    const worker = read('scripts/handle-request.mjs'), bridge = read('deploy/bridge.py');
+    assert.match(worker, /emit\(\{ id, chunk: /, 'the worker passes each written chunk on');
+    assert.match(bridge, /if speech:\n\s+envelope\['stream'\] = True/, 'the adapter asks for a stream on the speech route only');
+    assert.match(read('deploy/test_bridge.py'), /def test_speech_audio_streams_through_the_adapter_before_the_worker_finishes\(/);
     const mms = read('deploy/mms_tts_app.py');
     return {
       'speech-providers': () => { assert.equal(createSpeechModel({ env: { SPEECH_PROVIDER: 'other' } }).speechReady(), false); return Object.keys(SPEECH_PROVIDERS).sort().join(', '); },
@@ -429,7 +466,7 @@ async function speechChecks() {
       'speech-unconfigured': () => { assert.equal(sent.length, 1, 'only the configured request reached the provider'); return `${none.status} ${JSON.parse(none.body).error}, no provider call`; },
       'speech-text': () => sent[0].q === 'Stored question?' && !JSON.stringify(sent).includes('Client text') ? 'the stored reply.question only' : 'client text',
       'speech-stored': () => stored ? 'yes' : 'no',
-      'speech-hosted': () => `${spoken.headers.get('transfer-encoding') === 'chunked' ? 'streamed' : 'not streamed'} locally; whole file through the hosting adapter`,
+      'speech-hosted': () => `${spoken.headers.get('transfer-encoding') === 'chunked' ? 'streamed' : 'not streamed'} locally and through the hosting adapter`,
       'mms-licence': () => {
         const models = [...mms.match(/^MODELS = \{(.+)\}$/m)[1].matchAll(/'(facebook\/[a-z-]+)'/g)].map(m => m[1]);
         return `${models.join(', ')}; ${mms.match(/licensed (CC-BY-NC-4\.0)/)[1]}`;
@@ -453,5 +490,33 @@ function liveVoiceChecks() {
       return t.length >= 10 && pct(t, 0.5) <= 2000 && Math.max(...t) <= 3500 ? 'real-time' : 'voice reply, not real-time';
     },
     'speech-wit-live': () => { const s = live.speech_route_sample; return `first byte ${s.first_byte_ms} ms, total ${s.total_ms} ms, ${s.content_type}`; }
+  };
+}
+
+// The hosted before-and-after timings (docs/hosted-latency.json), recomputed from the recorded samples.
+function hostedChecks() {
+  const h = JSON.parse(read('docs/hosted-latency.json'));
+  const median = xs => { const s = [...xs].sort((a, b) => a - b); return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2; };
+  const fresh = h.after.voice_rounds.filter(r => !r.replayed), replay = h.after.voice_rounds.filter(r => r.replayed);
+  return {
+    'hosted-health': () => {
+      assert.equal(h.before.warm_health_ms.length, h.after.warm_health_ms.length);
+      return `${median(h.before.warm_health_ms)} ms before, ${median(h.after.warm_health_ms)} ms after (${h.after.warm_health_ms.length} requests each)`;
+    },
+    'hosted-voice': () => {
+      assert.ok(fresh.every(r => r.status === 200));
+      const outside = r => r.release_to_reply_ms - r.latency_ms.total;
+      return `${h.before.voice_round.release_to_reply_ms} ms before; ${fresh.map(r => r.release_to_reply_ms).join(' and ')} ms after (${fresh.length} rounds); `
+        + `outside the handler ${outside(h.before.voice_round)} ms before, ${fresh.map(outside).join(' and ')} ms after`;
+    },
+    'hosted-speech': () => {
+      assert.ok(h.after.speech.every(s => s.voice === 'wit$Rebecca' && s.content_type === 'audio/mpeg'));
+      return `${h.before.speech_first_byte_ms} ms before; ${h.after.speech.map(s => s.first_byte_ms).join(' and ')} ms after`;
+    },
+    'hosted-replay': () => {
+      assert.equal(replay.length, 1); assert.equal(replay[0].status, 200);
+      assert.equal(replay[0].server_timing.handler < 100, true, 'the replay made no model call');
+      return `none, ${replay[0].release_to_reply_ms} ms`;
+    }
   };
 }

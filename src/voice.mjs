@@ -8,6 +8,7 @@ import { ApiError, digest } from './store.mjs';
 import { inspectWav, measure, habitHits, tokenize, parseObject, LANGUAGES } from './capture.mjs';
 import { scrub } from './screen-context.mjs';
 import { sparkCall, SPARK_STREAM_MODEL, DEFAULT_MAX_TOKENS } from './spark-stream.mjs';
+import { createBudget, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
 
 const NO_PHASES = { async release() {}, async acquire() {} };
 export const VOICE_ROUNDS_PATH = '/v1/voice-rounds';
@@ -128,15 +129,18 @@ export function voiceUserMessage({ goal, screen, watch, previous, roundNumber, t
   });
 }
 
-// One live reply call (two only after an unusable reply). Never throws.
+// One live reply call (two only after an unusable reply). With the request's time budget, an attempt starts only
+// with at least MIN_START_MS.reply left and is cut off when the budget runs out. Never throws.
 export function createVoiceModel({ env = process.env, fetchImpl = fetch } = {}) {
   return {
     voiceReady: () => Boolean(env.BASETEN_API_KEY),
-    async voiceReply({ system, user }) {
+    async voiceReply({ system, user, budget }) {
       let reason = 'Reply failed.', attempts = 0, modelMs = 0;
       for (let attempt = 1; attempt <= VOICE_ATTEMPTS; attempt++) {
+        if (budget && !budget.allows(MIN_START_MS.reply)) { reason = SKIPPED_FOR_TIME; break; }
         attempts = attempt;
-        const r = await sparkCall({ env, fetchImpl, system, user, stream: true, reasoningEffort: VOICE_EFFORT, maxTokens: VOICE_MAX_TOKENS, timeoutMs: VOICE_TIMEOUT_MS });
+        const timeoutMs = budget ? Math.min(VOICE_TIMEOUT_MS, Math.floor(budget.remaining())) : VOICE_TIMEOUT_MS;
+        const r = await sparkCall({ env, fetchImpl, system, user, stream: true, reasoningEffort: VOICE_EFFORT, maxTokens: VOICE_MAX_TOKENS, timeoutMs });
         modelMs += r.timing_ms.total ?? 0;
         if (r.ok) {
           const reply = acceptReply(parseObject(r.content));
@@ -175,7 +179,9 @@ export function voiceResponse(receipt) {
 }
 
 // input: { params (voiceParams), audio (Buffer), startedAt (performance.now() at request start) }.
-export async function handleVoiceRound(store, models, user, { params, audio, startedAt = performance.now() }, key, requestId, phases = NO_PHASES) {
+// budget: the request's time budget (src/budget.mjs). The round answers before it runs out: a reply that cannot start
+// in time is a 502 like any failed reply, and transcription that cannot start is refused before it is sent.
+export async function handleVoiceRound(store, models, user, { params, audio, startedAt = performance.now() }, key, requestId, phases = NO_PHASES, budget = createBudget()) {
   const fingerprintBody = { audio_sha256: digest(audio), goal_id: params.goalId, screen_context_id: params.screenContextId, language: params.language,
     prompt_ended_at: params.promptEndedAt, occurred_at: params.occurredAt };
   // An exact retry returns the stored round without calling any model.
@@ -194,16 +200,19 @@ export async function handleVoiceRound(store, models, user, { params, audio, sta
   const since = new Date(Date.now() - ROUND_WINDOW_MS).toISOString();
   const recent = store.list(user, 'voice-rounds').filter(r => !r.deleted && r.created_at >= since);
   const last = recent.slice().sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
+  if (!budget.allows(MIN_START_MS.transcription)) throw new ApiError(503, 'time_budget', 'Not enough time left for this round; retry with the same Idempotency-Key.');
   let transcription, metrics, result, asrMs, modelMs;
   await phases.release();
   try {
     const t0 = performance.now();
-    transcription = await models.transcribe(audio, { language: params.language, sessionId: requestId });
+    transcription = await models.transcribe(audio, { language: params.language, sessionId: requestId, budget });
     asrMs = Math.round(performance.now() - t0);
     metrics = voiceMetrics(transcription, wav.durationMs, params);
     const t1 = performance.now();
-    result = await models.voiceReply({ system: voiceSystemPrompt(params.language),
-      user: voiceUserMessage({ goal, screen, watch, previous: last, roundNumber: recent.length + 1, transcript: transcription.transcript, metrics, language: params.language }) });
+    result = budget.allows(MIN_START_MS.reply)
+      ? await models.voiceReply({ system: voiceSystemPrompt(params.language), budget,
+        user: voiceUserMessage({ goal, screen, watch, previous: last, roundNumber: recent.length + 1, transcript: transcription.transcript, metrics, language: params.language }) })
+      : { status: 'unavailable', reason: SKIPPED_FOR_TIME, attempts: 0 };
     modelMs = Math.round(performance.now() - t1);
   } finally {
     await phases.acquire();

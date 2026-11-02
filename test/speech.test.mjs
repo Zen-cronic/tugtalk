@@ -125,7 +125,7 @@ test('speech: at most 60 spoken replies per hour, refused before the provider is
   });
 });
 
-test('speech through the hosting worker: the database is released during synthesis and the audio comes back whole', async () => {
+test('speech through the hosting worker: one process serves both requests, releases the database during synthesis, and streams the audio when asked', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'speech-worker-'));
   const dbPath = join(dir, 'worker.sqlite');
   const store = new Store(dbPath);
@@ -145,20 +145,39 @@ test('speech through the hosting worker: the database is released during synthes
     SPEECH_PROVIDER: 'mms', MMS_TTS_URL: `http://127.0.0.1:${tts.address().port}`, MMS_TTS_TOKEN: 'mms-worker' };
   const child = spawn(process.execPath, [fileURLToPath(new URL('../scripts/handle-request.mjs', import.meta.url))], { env, stdio: ['pipe', 'pipe', 'ignore'] });
   const lines = createInterface({ input: child.stdout })[Symbol.asyncIterator]();
-  try {
-    child.stdin.write(JSON.stringify({ method: 'POST', path: '/v1/voice-rounds/round-w/speech', headers: { authorization: `Bearer ${token}` }, base_url: 'https://x--web.us-east.modal.run', body_b64: '' }) + '\n');
-    const phases = [];
-    let response;
-    while (!response) {
-      const message = JSON.parse((await lines.next()).value);
-      if (message.phase) { phases.push(message.phase); if (message.phase === 'acquire') child.stdin.write('go\n'); }
-      else response = message.response;
+  const next = async () => JSON.parse((await lines.next()).value);
+  // Plays the adapter's side of the protocol for one request; this test is the only holder of the lock.
+  const run = async (id, stream) => {
+    const envelope = { method: 'POST', path: '/v1/voice-rounds/round-w/speech', headers: { authorization: `Bearer ${token}` }, base_url: 'https://x--web.us-east.modal.run', body_b64: '', ...(stream ? { stream: true } : {}) };
+    child.stdin.write(JSON.stringify({ id, envelope }) + '\n');
+    const phases = [], chunks = [];
+    let head, final;
+    while (!final) {
+      const message = await next();
+      assert.equal(message.id, id);
+      if (message.phase) { phases.push(message.phase); if (message.phase === 'acquire') child.stdin.write(JSON.stringify({ id, go: true }) + '\n'); }
+      else if (message.head) head = message.head;
+      else if (message.chunk) chunks.push(Buffer.from(message.chunk, 'base64'));
+      else final = message;
     }
-    assert.deepEqual(phases, ['release', 'acquire']);
-    assert.equal(response.status, 200);
-    assert.equal(response.headers['Content-Type'], 'audio/wav');
-    assert.deepEqual(Buffer.from(response.body_b64, 'base64'), Buffer.concat(AUDIO));
-    assert.deepEqual(seen, [{ path: '/synthesize', auth: 'Bearer mms-worker', body: { text: 'Et ensuite ?', language: 'fr' } }]);
+    return { phases, head, chunks, final };
+  };
+  try {
+    const ready = await next();
+    assert.equal(ready.ready, true); assert.equal(ready.dirty, true, 'the bootstrap token was written, so the adapter commits once');
+    const whole = await run('a1', false);
+    assert.deepEqual(whole.phases, ['release', 'acquire']);
+    assert.equal(whole.head, undefined); assert.equal(whole.chunks.length, 0);
+    assert.equal(whole.final.response.status, 200); assert.equal(whole.final.response.headers['Content-Type'], 'audio/wav');
+    assert.deepEqual(Buffer.from(whole.final.response.body_b64, 'base64'), Buffer.concat(AUDIO));
+    assert.equal(whole.final.dirty, true, 'a POST is committed before it is answered');
+    const streamed = await run('a2', true);
+    assert.deepEqual(streamed.phases, ['release', 'acquire']);
+    assert.equal(streamed.head.status, 200); assert.equal(streamed.head.headers['Content-Type'], 'audio/wav');
+    assert.ok(streamed.chunks.length >= 2, 'the audio arrived in more than one chunk');
+    assert.deepEqual(Buffer.concat([...streamed.chunks, Buffer.from(streamed.final.response.body_b64, 'base64')]), Buffer.concat(AUDIO));
+    assert.equal(seen.length, 2);
+    assert.deepEqual(seen[0], { path: '/synthesize', auth: 'Bearer mms-worker', body: { text: 'Et ensuite ?', language: 'fr' } });
   } finally { child.kill(); await new Promise(r => tts.close(r)); rmSync(dir, { recursive: true, force: true }); }
 });
 
