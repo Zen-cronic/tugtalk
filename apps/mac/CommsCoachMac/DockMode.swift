@@ -264,7 +264,10 @@ struct DockPanelView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(MascotName), \(status.word)")
             VStack(alignment: .leading, spacing: 4) {
-                Text(noWidow(status.word)).font(TypeFace.display(22, weight: 800)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    if case .voiceListening = model.phase { RecordDot() }
+                    Text(noWidow(status.word)).font(TypeFace.display(22, weight: 800)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                }
                 if let hint = status.hint {
                     if hint.contains("⌃⌥") { ShortcutLine(text: hint, font: TypeFace.body(14, weight: 600), ink: Tok.inkFixed) }
                     else { Text(hint).font(TypeFace.body(14, weight: 600)).fixedSize(horizontal: false, vertical: true) }
