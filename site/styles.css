@@ -20,6 +20,7 @@
   --case-edge: #3A3E45;
   --screen: #000000;
   --shadow: rgba(22, 24, 28, .55);
+  --shadow-soft: rgba(22, 24, 28, .22);
 
   --f-display: "Funnel Display", "Funnel Sans", ui-sans-serif, sans-serif;
   --f-body: "Funnel Sans", ui-sans-serif, sans-serif;
@@ -188,7 +189,7 @@ section[id] { scroll-margin-top: 72px; }
 .bub-you { align-self: flex-end; background: var(--ink); color: var(--paper); border-bottom-right-radius: 4px; }
 .bub-muse { align-self: flex-start; background: var(--card); border: 1px solid var(--rule); border-bottom-left-radius: 4px; }
 
-.laptop { width: 100%; max-width: 520px; filter: drop-shadow(0 18px 20px rgba(22, 24, 28, .22)); }
+.laptop { width: 100%; max-width: 520px; filter: drop-shadow(0 18px 20px var(--shadow-soft)); }
 .laptop-screen { background: var(--paper); border: 12px solid var(--case); border-bottom-width: 18px; border-radius: 16px 16px 4px 4px; aspect-ratio: 16 / 10; display: flex; flex-direction: column; overflow: hidden; }
 .laptop-bar { display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--rule); background: var(--card); }
 .laptop-bar span { width: 9px; height: 9px; border-radius: 50%; background: var(--rule); }
