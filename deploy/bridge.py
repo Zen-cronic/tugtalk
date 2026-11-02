@@ -36,7 +36,8 @@ JSON_LIMIT = 16384
 AUDIO_LIMIT = 8 * 1024 * 1024  # matches src/capture.mjs MAX_AUDIO_BYTES
 FORWARDED = ('authorization', 'content-type', 'idempotency-key', 'x-exercise-id',
              'x-goal-id', 'x-language', 'x-capture-device', 'x-occurred-at',
-             'x-screen-context-id', 'x-prompt-ended-at', 'x-camera-metrics')
+             'x-screen-context-id', 'x-prompt-ended-at', 'x-camera-metrics',
+             'x-counterpart-need', 'x-reply-mode')
 # Requests that call a model get the long deadline; everything else must finish quickly.
 READ_DEADLINE = 20
 MODEL_DEADLINE = 150

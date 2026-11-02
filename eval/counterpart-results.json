@@ -1,0 +1,441 @@
+{
+  "eval": "counterpart-move-gate",
+  "label": "Scripted replies, not live model runs.",
+  "replies": "counterpart-replies-scripted-v1",
+  "replies_sha256": "a514b63ad301ffc5e3cbe09ef95ad2d83b37ec8e459e126f57af91c1589f4d27",
+  "provenance": "Scripted replies, not live model runs. Written by the comms-coach authors on 2026-11-02, knowing how the move gate works, to cover the cases it must allow and replace: moves outside allowed_moves, an invalid need, a missing need, and a wrap-up sent when the round is not closed. Transcripts are invented.",
+  "counts": {
+    "cases": 20,
+    "usable": 18,
+    "unusable": 2,
+    "outside_gate": 8,
+    "early_wrap_up": 4,
+    "missed_close": 4,
+    "invalid_needs": 1,
+    "needs_chosen": 2,
+    "reasons": {
+      "open": 9,
+      "measured_close": 8,
+      "answer_cap": 1
+    }
+  },
+  "baseline": {
+    "describe": "Trust the model: speak the move it chose.",
+    "replies_outside_gate_spoken": 8
+  },
+  "gated": {
+    "describe": "Code's move gate (src/counterpart.mjs allowedMoves, applied in src/voice.mjs replyToAnswer).",
+    "replies_outside_gate_spoken": 0
+  },
+  "matches_expected": "20 of 20",
+  "headline": "On 20 scripted replies: 8 chose a move the gate did not allow (4 ended the round early, 4 kept going after code measured it closed); trusting the model, all 8 would be spoken, after the gate 0; 1 invalid need ignored; 2 unusable replies sent for one retry.",
+  "cases": [
+    {
+      "id": "a1-need-date",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 2,
+      "need": "date",
+      "need_met": false,
+      "model_move": "challenge",
+      "coerced": false,
+      "spoken": {
+        "move": "challenge",
+        "question": "You said \"maybe\". What date can you commit to?",
+        "quote": "maybe",
+        "quote_verified": true
+      },
+      "invalid_need_offered": false,
+      "code_only": "You said \"I think\". What is the one fact that backs that up?",
+      "matches_expected": true
+    },
+    {
+      "id": "a1-invalid-need",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 2,
+      "need": null,
+      "need_met": null,
+      "model_move": "challenge",
+      "coerced": false,
+      "spoken": {
+        "move": "challenge",
+        "question": "When will it ship?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": true,
+      "code_only": "You said \"I think\". What is the one fact that backs that up?",
+      "matches_expected": true
+    },
+    {
+      "id": "a1-missing-need",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 2,
+      "need": null,
+      "need_met": null,
+      "model_move": "follow_up",
+      "coerced": false,
+      "spoken": {
+        "move": "follow_up",
+        "question": "Tell me more about the launch.",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "You said \"I think\". What is the one fact that backs that up?",
+      "matches_expected": true
+    },
+    {
+      "id": "a1-early-wrap",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 2,
+      "need": "date",
+      "need_met": false,
+      "model_move": "wrap_up",
+      "coerced": true,
+      "spoken": {
+        "move": "follow_up",
+        "question": "Can you say more about that, in one sentence?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "You said \"I think\". What is the one fact that backs that up?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-date-met-wrap",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "hedges": 0,
+      "need": "date",
+      "need_met": true,
+      "model_move": "wrap_up",
+      "coerced": false,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "March 14 works. Thank you.",
+        "quote": "March 14",
+        "quote_verified": true
+      },
+      "invalid_need_offered": false,
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-date-met-keeps-pressing",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "hedges": 0,
+      "need": "date",
+      "need_met": true,
+      "model_move": "challenge",
+      "coerced": true,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "Thanks. What is the one thing you want me to remember?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-date-not-met-wrap",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 0,
+      "need": "date",
+      "need_met": false,
+      "model_move": "wrap_up",
+      "coerced": true,
+      "spoken": {
+        "move": "follow_up",
+        "question": "Can you say more about that, in one sentence?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Can you say more about that, in one sentence?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-date-met-but-hedged",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 1,
+      "need": "date",
+      "need_met": true,
+      "model_move": "wrap_up",
+      "coerced": true,
+      "spoken": {
+        "move": "follow_up",
+        "question": "Can you say more about that, in one sentence?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "You said \"I think\". What is the one fact that backs that up?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-no-need-clean-press",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "hedges": 0,
+      "need": null,
+      "need_met": null,
+      "model_move": "challenge",
+      "coerced": true,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "Thanks. What is the one thing you want me to remember?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "a4-cap",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "answer_cap",
+      "hedges": 2,
+      "need": "date",
+      "need_met": false,
+      "model_move": "challenge",
+      "coerced": true,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "Thanks. What is the one thing you want me to remember?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "a3-owner-met",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "hedges": 0,
+      "need": "owner",
+      "need_met": true,
+      "model_move": "wrap_up",
+      "coerced": false,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "Good. It's yours.",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-owner-could",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 0,
+      "need": "owner",
+      "need_met": false,
+      "model_move": "follow_up",
+      "coerced": false,
+      "spoken": {
+        "move": "follow_up",
+        "question": "\"I could lead\", or you will?",
+        "quote": "I could lead",
+        "quote_verified": true
+      },
+      "invalid_need_offered": false,
+      "code_only": "Can you say more about that, in one sentence?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-number-met",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "hedges": 0,
+      "need": "number",
+      "need_met": true,
+      "model_move": "wrap_up",
+      "coerced": false,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "That number helps. Thanks.",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-fr-decision-met",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "hedges": 0,
+      "need": "decision",
+      "need_met": true,
+      "model_move": "wrap_up",
+      "coerced": false,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "Très bien, merci.",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Merci. Quelle est la chose à retenir ?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-fr-date-bientot",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 0,
+      "need": "date",
+      "need_met": false,
+      "model_move": "wrap_up",
+      "coerced": true,
+      "spoken": {
+        "move": "follow_up",
+        "question": "Pouvez-vous en dire plus, en une phrase ?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Pouvez-vous en dire plus, en une phrase ?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-example-met",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "hedges": 0,
+      "need": "example",
+      "need_met": true,
+      "model_move": "wrap_up",
+      "coerced": false,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "That example lands. Thanks.",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "unusable-prose",
+      "unusable": true,
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "unusable-unknown-move",
+      "unusable": true,
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    },
+    {
+      "id": "a2-need-change-ignored",
+      "allowed": [
+        "follow_up",
+        "challenge"
+      ],
+      "reason": "open",
+      "hedges": 0,
+      "need": "date",
+      "need_met": false,
+      "model_move": "challenge",
+      "coerced": false,
+      "spoken": {
+        "move": "challenge",
+        "question": "Soon is not a date.",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Can you say more about that, in one sentence?",
+      "matches_expected": true
+    },
+    {
+      "id": "a3-date-met-follow-up",
+      "allowed": [
+        "wrap_up"
+      ],
+      "reason": "measured_close",
+      "hedges": 0,
+      "need": "date",
+      "need_met": true,
+      "model_move": "follow_up",
+      "coerced": true,
+      "spoken": {
+        "move": "wrap_up",
+        "question": "Thanks. What is the one thing you want me to remember?",
+        "quote": "",
+        "quote_verified": false
+      },
+      "invalid_need_offered": false,
+      "code_only": "Thanks. What is the one thing you want me to remember?",
+      "matches_expected": true
+    }
+  ]
+}

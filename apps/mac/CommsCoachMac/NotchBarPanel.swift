@@ -702,6 +702,7 @@ struct ReplyCard: View {
         if !compact {
             if card.summary == nil { EvidenceRow(card: card, onLayout: onLayout) }
             if let camera = card.camera { CameraChip(metrics: camera) }
+            if card.needLine != nil || card.codeOnly { NeedLine(card: card) }
             RecordingNote(note: card.recordingNote)
         }
     }

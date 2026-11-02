@@ -37,7 +37,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 144 | A `node --test` run of the other test files (all must pass), plus this one |
+| `node-tests` | Node test cases, as `npm test` reports them | 159 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 22 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
@@ -99,6 +99,17 @@ Every number or name we state about this project, and where it comes from. `test
 | `hosted-live-transcript` | Same rounds: release to the final transcript, p50 / max, and how it was transcribed | 482 / 493 ms; Meta realtime in 5 of 5 | `voice_latency.live_rounds` in docs/hosted-latency.json |
 | `hosted-live-steps` | Same rounds, measured on the server: reply model p50 / max, and the reply to its first audio (Wit), p50 / max | model 2203 / 2804 ms; reply to audio 1043 / 2679 ms | `voice_latency.live_rounds` in docs/hosted-latency.json |
 | `hosted-speech-prefetch` | Hosted WAV round: the spoken reply requested after the receipt, first byte and server time | 284 ms, server 5.9 ms (made while the round was saved; no commit) | `voice_latency.wav_round` in docs/hosted-latency.json |
+
+## The other person's need (voice rounds)
+
+| ID | Claim | Value | Checked against |
+|---|---|---|---|
+| `counterpart-needs` | What the other person can need from you, and how code checks an answer for it | number, date, decision, owner, example; fixed English and French word patterns, counterpart-needs-v1 | `NEEDS`, `NEED_METHOD` and `needMet` (src/counterpart.mjs); HTTP: the need the model picks on answer 1 comes back in `counterpart` |
+| `counterpart-move-gate` | Who ends a practice round | code: from answer 2, once the answer meets the need with no hedges (no hedges, when there is no need); at answer 4 at the latest | `allowedMoves` over every need state, hedge count and answer 1–6; HTTP: a model wrap-up on answer 1 is replaced (`gate.coerced`) |
+| `counterpart-code-only` | Model calls in a code-only round (`X-Reply-Mode: code`) | 0 | HTTP with a counting fake model: the reply quotes the first hedge, `model` is null |
+| `counterpart-need-stored` | The need is stored on the round | no; the round keeps gate (allowed, reason, hedges, coerced) | HTTP: the record's fields after a round with `X-Counterpart-Need` |
+| `voice-practice-round` | Where a practice round starts | after the newest wrap-up in the last 15 minutes | HTTP: the answer after a wrap-up is answer 1, with no last question |
+| `counterpart-eval` | Offline move-gate eval on scripted replies, not live model runs: replies outside the gate, and how many reach the speaker without and with it | 8 of 20; 8 without the gate, 0 with it | `eval/counterpart-results.json`, regenerated |
 
 ## Faced the camera (Mac, optional)
 

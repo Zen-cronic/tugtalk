@@ -121,7 +121,9 @@ test('POST /v1/voice-rounds: the contract response, a stored round without audio
     const audio = wav(7);
     const { status, data } = await round(audio, { headers: { 'X-Goal-Id': goal.id, 'X-Prompt-Ended-At': '2026-11-02T15:00:00.000Z', 'X-Occurred-At': '2026-11-02T15:00:01.200Z' } });
     assert.equal(status, 200);
-    assert.deepEqual(Object.keys(data).sort(), ['latency_ms', 'metrics', 'model', 'provider_request_id', 'receipt_id', 'replayed', 'reply', 'round_id', 'transcript'].sort());
+    assert.deepEqual(Object.keys(data).sort(), ['counterpart', 'gate', 'latency_ms', 'metrics', 'model', 'provider_request_id', 'receipt_id', 'replayed', 'reply', 'reply_mode', 'round_id', 'transcript'].sort());
+    assert.deepEqual(data.gate, { allowed: ['follow_up', 'challenge'], reason: 'open', hedges: 2, coerced: false });
+    assert.deepEqual(data.counterpart, { need: null, need_met: null, allowed: ['follow_up', 'challenge'], reason: 'open', answer: 1, reply_mode: 'model' });
     assert.deepEqual(Object.keys(data.metrics).sort(), ['filler_count', 'hedge_count', 'onset_ms_approx', 'pauses', 'restart_count', 'word_count', 'words_per_minute'].sort());
     assert.deepEqual(Object.keys(data.reply).sort(), ['move', 'question', 'quote', 'quote_verified']);
     assert.deepEqual(Object.keys(data.latency_ms).sort(), ['asr', 'model', 'total']);

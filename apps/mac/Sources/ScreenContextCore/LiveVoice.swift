@@ -14,6 +14,9 @@ public struct LiveStart: Sendable, Equatable, Encodable {
     public var screen_context_id: String?
     public var prompt_ended_at: String?
     public var occurred_at: String?
+    /// The round's need and the reply mode: the WAV route's `X-Counterpart-Need` and `X-Reply-Mode`. Left out when nil.
+    public var need: String?
+    public var reply_mode: String?
     /// False when this Mac speaks the reply itself: the coach then makes no audio.
     public var speech: Bool
 
@@ -21,6 +24,7 @@ public struct LiveStart: Sendable, Equatable, Encodable {
         self.speech = speech
         idempotency_key = round.idempotencyKey; language = round.language.rawValue; goal_id = round.goalID; screen_context_id = round.screenContextID
         prompt_ended_at = round.promptEndedAt.map(VoiceRoundRequest.timestamp); occurred_at = round.occurredAt.map(VoiceRoundRequest.timestamp)
+        need = round.need; reply_mode = round.replyMode
     }
 }
 
@@ -36,10 +40,12 @@ public struct LiveReply: Decodable, Sendable, Equatable {
     public let transcript: String
     public let metrics: VoiceMetrics?
     public let reply: VoiceReply
-    public let model: String
+    /// Nil for a code-only reply (no model call).
+    public let model: String?
     public let provider_request_id: String?
     public let latency_ms: LiveLatency?
     public let transcription: String?
+    public let counterpart: VoiceCounterpart?
 }
 
 public enum LiveVoiceEvent: Sendable, Equatable {
