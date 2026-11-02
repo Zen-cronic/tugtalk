@@ -367,7 +367,9 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 elif 'response' in message:
                     if not held:
                         raise RuntimeError('Worker answered without the database lock')
-                    timing.add('handler', float((message.get('timing') or {}).get('handler', 0)))
+                    for name, ms in (message.get('timing') or {}).items():
+                        if name in ('handler', 'checkpoint', 'close', 'reopen'):
+                            timing.add(name, float(ms))
                     if message.get('dirty'):
                         state['pending'] = True
                     # Commit before acknowledging: a failed commit means no success is claimed.
