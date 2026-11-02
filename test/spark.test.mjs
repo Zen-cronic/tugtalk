@@ -85,3 +85,22 @@ test('sparkJSON: braces in the prose cost no retry, and attempts counts the requ
   assert.equal(scriptedModelResult(['no json']).attempts, 1, 'the offline replay counts the replies it read');
   assert.equal(scriptedModelResult(['{"labels": "x"} then {"labels": []}']).attempts, 1);
 });
+
+// The offline eval cannot wait on fetch, so scriptedModelResult (src/evaluate.mjs) applies sparkJSON's rule synchronously.
+// This keeps the two from drifting: every scripted reply set, plus edge cases, gives the same outcome through the live loop.
+test('scriptedModelResult: every scripted reply set gives the same labels and attempts as sparkJSON', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { scriptedModelResult, SCRIPTED_URL } = await import('../src/evaluate.mjs');
+  const { acceptLabels } = await import('../src/adjudicate.mjs');
+  const sets = JSON.parse(readFileSync(SCRIPTED_URL, 'utf8')).items.map(i => i.replies);
+  sets.push(['no json'], ['no json', '{"labels": []}'], ['{"labels": "x"}', 'still no'], ['nope', 'still nope', '{"labels": []}'], ['{"labels": [{"id": "c1"}]} and {"other": 1}']);
+  for (const replies of sets) {
+    // Past the scripted replies nothing more is sent, as if the time budget refused the next call.
+    let n = 0;
+    const fetchImpl = async () => { if (n >= replies.length) throw Object.assign(new Error('no more'), { budgetRefused: true }); return reply(replies[n++]); };
+    const live = await sparkJSON({ env, fetchImpl, system: 's', user: 'u', accept: acceptLabels, temperature: 0, label: 'Adjudication' });
+    const offline = scriptedModelResult(replies);
+    assert.deepEqual({ ok: offline.status === 'model_labels', labels: offline.labels ?? null, attempts: offline.attempts },
+      { ok: live.ok, labels: live.ok ? live.value : null, attempts: live.attempts }, JSON.stringify(replies));
+  }
+});
