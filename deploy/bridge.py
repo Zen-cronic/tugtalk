@@ -28,6 +28,8 @@ MODEL_DEADLINE = 150
 MODEL_ROUTES = ('/v1/recordings', '/v1/screen-contexts', '/v1/voice-rounds')
 # Routes whose body is a WAV upload (the audio limit, and a Bearer credential before buffering it).
 AUDIO_ROUTES = ('/v1/recordings', '/v1/voice-rounds')
+# A spoken reply calls a speech model but has no body. The adapter returns it whole, not streamed.
+SPEECH_ROUTE = re.compile(r'/v1/voice-rounds/[A-Za-z0-9-]{1,64}/speech')
 BUSY = {'error': 'storage_or_worker_unavailable',
         'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'}
 
@@ -55,7 +57,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
             return
         recording = scope['method'] == 'POST' and scope['path'] in AUDIO_ROUTES
         # A screen context is a small JSON body (JSON limit) but waits on a reasoning model.
-        model_call = scope['method'] == 'POST' and scope['path'] in MODEL_ROUTES
+        model_call = scope['method'] == 'POST' and (scope['path'] in MODEL_ROUTES or SPEECH_ROUTE.fullmatch(scope['path']) is not None)
         early_headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}
         # Only a request that at least presents a Bearer credential may buffer a large audio body.
         # Node still performs the real token check; this keeps anonymous uploads at the JSON limit.

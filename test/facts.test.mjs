@@ -16,6 +16,7 @@ import { adjudicationCandidates, adjudicateCapture, buildAdjudication, verifyLab
 import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
 import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS } from '../src/voice.mjs';
 import { runVoiceEval } from '../src/voice-eval.mjs';
+import { createSpeechModel, SPEECH_PROVIDERS } from '../src/speech.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -214,7 +215,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
 
       // Measurement by Meta's models
       ...measurementChecks(evalResult),
-      ...voiceChecks(base, store, dbPath, calls)
+      ...voiceChecks(base, store, dbPath, calls),
+      ...await speechChecks()
     };
 
     const facts = parseFacts();
@@ -386,4 +388,45 @@ function voiceChecks(base, store, dbPath, calls) {
       return String(saved);
     }
   };
+}
+
+// The speech route on its own server, with a fake provider that streams three chunks.
+async function speechChecks() {
+  const dir = mkdtempSync(join(tmpdir(), 'facts-speech-')), dbPath = join(dir, 'speech.sqlite');
+  const store = new Store(dbPath);
+  store.addToken('speech-secret', 'speech-user');
+  store.put('speech-user', 'voice-rounds', { id: 'r1', version: 1, language: 'en', occurred_at: '2026-11-02T15:00:00Z', created_at: '2026-11-02T15:00:00Z', deleted: false,
+    transcript: 't', metrics: {}, reply: { move: 'follow_up', question: 'Stored question?', quote: '', quote_verified: false } });
+  const audio = [Buffer.from('RIFFfake-wav-'), Buffer.alloc(3000, 9), Buffer.from('-end')];
+  const sent = [];
+  const fetchImpl = async (url, init) => { sent.push(JSON.parse(init.body));
+    return new Response(new ReadableStream({ start(c) { for (const a of audio) c.enqueue(a); c.close(); } }), { status: 200, headers: { 'content-type': 'audio/wav' } }); };
+  const run = async env => {
+    const server = createApp(store, { models: createSpeechModel({ env, fetchImpl }) }); await new Promise(r => server.listen(0, '127.0.0.1', r));
+    try {
+      const r = await fetch(`http://127.0.0.1:${server.address().port}/v1/voice-rounds/r1/speech`, { method: 'POST', headers: { Authorization: 'Bearer speech-secret', 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'Client text.' }) });
+      return { status: r.status, headers: r.headers, body: Buffer.from(await r.arrayBuffer()) };
+    } finally { await new Promise(r => server.close(r)); }
+  };
+  try {
+    const none = await run({});
+    const spoken = await run({ SPEECH_PROVIDER: 'wit', WIT_TTS_TOKEN: 't' });
+    assert.deepEqual(spoken.body, Buffer.concat(audio));
+    store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    const stored = readFileSync(dbPath).includes(audio[1].subarray(0, 64));
+    const worker = read('scripts/handle-request.mjs');
+    assert.match(worker, /write\(chunk\) \{ chunks\.push/, 'the worker collects streamed writes');
+    const mms = read('deploy/mms_tts_app.py');
+    return {
+      'speech-providers': () => { assert.equal(createSpeechModel({ env: { SPEECH_PROVIDER: 'other' } }).speechReady(), false); return Object.keys(SPEECH_PROVIDERS).sort().join(', '); },
+      'speech-unconfigured': () => { assert.equal(sent.length, 1, 'only the configured request reached the provider'); return `${none.status} ${JSON.parse(none.body).error}, no provider call`; },
+      'speech-text': () => sent[0].q === 'Stored question?' && !JSON.stringify(sent).includes('Client text') ? 'the stored reply.question only' : 'client text',
+      'speech-stored': () => stored ? 'yes' : 'no',
+      'speech-hosted': () => `${spoken.headers.get('transfer-encoding') === 'chunked' ? 'streamed' : 'not streamed'} locally; whole file through the hosting adapter`,
+      'mms-licence': () => {
+        const models = [...mms.match(/^MODELS = \{(.+)\}$/m)[1].matchAll(/'(facebook\/[a-z-]+)'/g)].map(m => m[1]);
+        return `${models.join(', ')}; ${mms.match(/licensed (CC-BY-NC-4\.0)/)[1]}`;
+      }
+    };
+  } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
 }

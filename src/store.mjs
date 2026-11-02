@@ -149,6 +149,12 @@ export class Store {
     return this.db.prepare(`SELECT COUNT(*) AS n FROM requests WHERE user_id=? AND method=? AND path=? AND created_at>=? AND status IN (${statuses.map(()=>'?').join(',')})`)
       .get(user,method,path,since,...statuses).n;
   }
+  // The same count for a family of paths, as a SQL LIKE pattern (for example '/v1/voice-rounds/%/speech').
+  recentRequestsMatching(user,method,pattern,statuses,windowMs) {
+    const since=new Date(Date.now()-windowMs).toISOString();
+    return this.db.prepare(`SELECT COUNT(*) AS n FROM requests WHERE user_id=? AND method=? AND path LIKE ? AND created_at>=? AND status IN (${statuses.map(()=>'?').join(',')})`)
+      .get(user,method,pattern,since,...statuses).n;
+  }
   receipts(user) { return this.db.prepare('SELECT result FROM receipts WHERE user_id=? ORDER BY created_at').all(user).map(x=>JSON.parse(x.result)); }
   mutate(user,method,path,body,key,fn) {
     const fingerprint=digest(JSON.stringify({method,path,body}));

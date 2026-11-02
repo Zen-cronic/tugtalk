@@ -2,7 +2,7 @@
 
 A voice round is one spoken exchange of practice. The person holds a key on the Mac and answers out loud. On release, the Mac posts the clip to `POST /v1/voice-rounds`. Meta transcribes it and code measures it. Then Muse Spark Open, playing the other person in the conversation, picks the next move and asks one question, and the Mac speaks it. Code checks the reply before it is returned. The round joins the same record as watch captures and screen cards, so a Muse chat can read it.
 
-Meta has no text-to-speech model, so the Mac speaks the question with an on-device Apple voice. The whole reply is spoken once it is ready, not word by word.
+Meta's Model API has no text-to-speech model. The spoken reply comes from `POST /v1/voice-rounds/{round_id}/speech` (below), with a Meta voice when one is configured, and otherwise from an on-device Apple voice on the Mac. The whole reply is spoken once it is ready, not word by word.
 
 ## Request
 
@@ -51,6 +51,21 @@ An exact retry (same key, same audio and the same headers) returns the stored ro
 - `onset_ms_approx` is the time from `X-Prompt-Ended-At` to the first speech the transcriber found: (`X-Occurred-At` − `X-Prompt-Ended-At`) + the start of the first turn. It is `null` unless both headers are sent and turns were measured, and `null` if negative (the person spoke before the question ended) or over 120 s. It is approximate: both times come from the device clock, and the first turn's start is the transcriber's endpoint, not an acoustic onset, so it can be off by a few hundred milliseconds.
 - `latency_ms` is measured on the server: `asr` and `model` are the two provider calls, `total` runs from the request's arrival at the API handler to the saved receipt. On the hosted service, the hosting adapter's queueing and worker start come before `total` starts. A replay returns the original round's numbers.
 
+## Spoken reply: `POST /v1/voice-rounds/{round_id}/speech`
+
+- `Authorization: Bearer <key>` with write scope. No body is read; any body is ignored.
+- It speaks the round's stored `reply.question` and nothing else, so only text this server produced and checked is ever synthesized.
+- 200 returns the audio (`audio/wav`), with `X-Speech-Provider` and `X-Speech-Voice` headers. The local server streams it chunked as the provider sends it. Through the hosting adapter on Modal it comes back as one whole file, because the adapter returns each response in one piece.
+- 503 `speech_unconfigured` when no provider is set up: the Mac then speaks the question with an Apple voice. 404 for an unknown, hidden or other account's round, 429 over 60 spoken replies per hour, 502 `speech_failed` if the provider fails or returns something other than audio.
+- The audio is not stored or logged. The request log records the route and status, with a hash of a fixed label, not of the audio.
+
+`SPEECH_PROVIDER` picks one of two Meta voices:
+
+| Value | Voice | Needs | Status |
+|---|---|---|---|
+| `mms` | Meta MMS-TTS, `facebook/mms-tts-eng` and `facebook/mms-tts-fra`, self-hosted on Modal as its own app (`deploy/mms_tts_app.py`, CPU). **Licence CC-BY-NC-4.0: non-commercial use, with attribution.** | `MMS_TTS_URL`, `MMS_TTS_TOKEN` (a shared secret only the backend holds) | Code and tests ready; not deployed |
+| `wit` | Wit.ai text-to-speech, the service behind Meta's Voice SDK | `WIT_TTS_TOKEN`, optional `WIT_TTS_VOICE` (default `Rebecca`) | Built to Wit.ai's documented `POST /synthesize`; not yet tried against the live API |
+
 ## Errors
 
 The usual JSON error shape, `{error, message, request_id}`:
@@ -66,7 +81,7 @@ The usual JSON error shape, `{error, message, request_id}`:
 | 415 | `content_type` | Not `audio/wav` |
 | 429 | `rate_limited` | Over 60 rounds in the last hour |
 | 502 | `transcription_failed`, `transcription_empty`, `reply_failed` | A provider failed; nothing is saved, and a retry with the same key runs the round again |
-| 503 | `transcription_unconfigured`, `reply_unconfigured`, `storage_or_worker_unavailable` | Not configured, or the hosting adapter could not run the request in time; retry with the same key |
+| 503 | `transcription_unconfigured`, `reply_unconfigured`, `speech_unconfigured`, `storage_or_worker_unavailable` | Not configured, or the hosting adapter could not run the request in time; retry with the same key |
 
 ## What is stored, and what is not
 
@@ -100,7 +115,7 @@ npm run stub    # prints token_file; stub models, throwaway database, port 4319
 node scripts/voice-client.mjs --token-file <token_file> --say "So, um, I think I could maybe lead the launch." --onset-ms 900 --repeat
 ```
 
-`--say` renders the text with macOS `say` and `afconvert` (24 kHz mono 16-bit). `--repeat` sends the same request twice to show the replay. `--realtime` holds for the clip's length before sending. With `STUB_BAD_QUOTE=1` the stub model returns a quote the speaker never said, so you can watch code drop it. `npm run stub -- --live-models` uses the real Meta and Baseten clients instead (paid) with the same throwaway database.
+`--say` renders the text with macOS `say` and `afconvert` (24 kHz mono 16-bit). `--repeat` sends the same request twice to show the replay. `--realtime` holds for the clip's length before sending. `--speech FILE` then fetches the spoken reply, saves it to FILE and prints the time to its first byte. With `STUB_BAD_QUOTE=1` the stub model returns a quote the speaker never said, so you can watch code drop it. `npm run stub -- --live-models` uses the real Meta and Baseten clients instead (paid) with the same throwaway database.
 
 ## Limits
 

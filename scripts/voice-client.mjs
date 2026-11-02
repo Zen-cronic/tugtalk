@@ -15,8 +15,9 @@
 //   --realtime             hold for the clip's length before sending, as a person speaking would
 //   --key KEY              Idempotency-Key (default: a new random one); --repeat sends the same request twice
 //   --create-goal "Title|Target"  create a goal first and use it
+//   --speech FILE          then fetch the spoken reply, save it to FILE, and print time to first byte and total
 //   --json                 print one JSON line instead of the summary
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -98,4 +99,20 @@ for (const run of runs) {
     `quote:    ${d.reply.quote_verified ? `"${d.reply.quote}" (verified)` : 'none kept'}`,
     `latency:  asr ${d.latency_ms.asr} ms, model ${d.latency_ms.model} ms, server ${d.latency_ms.total} ms, release to reply ${run.client_ms} ms (clip ${clipMs} ms)`
   ].join('\n'));
+}
+
+const speechFile = option('speech');
+const last = runs.at(-1);
+if (speechFile && last.status === 200) {
+  const start = performance.now();
+  const r = await fetch(`${base}/v1/voice-rounds/${last.data.round_id}/speech`, { method: 'POST', headers: auth });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); console.log(`speech:   HTTP ${r.status} ${e.error ?? ''}`); }
+  else {
+    const chunks = []; let first = null;
+    for await (const chunk of r.body) { first ??= Math.round(performance.now() - start); chunks.push(Buffer.from(chunk)); }
+    writeFileSync(speechFile, Buffer.concat(chunks));
+    const timing = { provider: r.headers.get('x-speech-provider'), voice: r.headers.get('x-speech-voice'), type: r.headers.get('content-type'),
+      first_byte_ms: first, total_ms: Math.round(performance.now() - start), bytes: chunks.reduce((n, c) => n + c.length, 0), file: speechFile };
+    console.log(flag('json') ? JSON.stringify({ speech: timing }) : `speech:   ${timing.provider} ${timing.voice}, first byte ${timing.first_byte_ms} ms, total ${timing.total_ms} ms, ${timing.bytes} bytes -> ${speechFile}`);
+  }
 }

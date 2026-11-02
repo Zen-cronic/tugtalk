@@ -10,6 +10,7 @@ import { runEval } from './evaluate.mjs';
 import { createAdjudicationModel, adjudicateCapture } from './adjudicate.mjs';
 import { createScreenModel, handleScreenContext, SCREEN_CONTEXT_PATH } from './screen-context.mjs';
 import { createVoiceModel, handleVoiceRound, voiceParams, VOICE_ROUNDS_PATH } from './voice.mjs';
+import { createSpeechModel, handleSpeech, SPEECH_PATH } from './speech.mjs';
 
 export function validate(body,schema) {
   if (!body || Array.isArray(body) || typeof body!=='object') throw new ApiError(400,'invalid_body','Expected a JSON object.');
@@ -171,7 +172,7 @@ export function connectorDocument(baseUrl) {
   ].join('\n');
 }
 // screenContextHooks: optional system(ctx) prompt and extendRecord(record, ctx), as for recordings (src/screen-context.mjs).
-export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel(),...createVoiceModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={}}={}) {
+export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel(),...createVoiceModel(),...createSpeechModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={}}={}) {
   return async(req,res)=>{
     const requestId=randomUUID(), startedAt=performance.now(); let user;
     const path=new URL(req.url,'http://local').pathname;
@@ -208,6 +209,8 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
         const key=requireIdempotencyKey(req.headers), params=voiceParams(req.headers);
         return send(200,await handleVoiceRound(store,models,user,{params,audio:await audioOf(req),startedAt},key,requestId,phases));
       }
+      const speech=req.method==='POST'&&path.match(SPEECH_PATH);
+      if(speech) return await handleSpeech(store,models,user,speech[1],{res,requestId,phases,audit:(status,label)=>store.audit(requestId,user,req.method,path,status,label)});
       const parts=path.split('/').filter(Boolean); const kind=parts[1]; const id=parts[2];
       const isCreate=req.method==='POST'&&parts.length===2&&['goals','exercises','check-ins'].includes(kind);
       const isPatch=req.method==='PATCH'&&parts.length===3&&['goals','sessions','screen-contexts'].includes(kind);

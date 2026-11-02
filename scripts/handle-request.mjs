@@ -42,7 +42,12 @@ try {
   const req = Readable.from([Buffer.from(envelope.body_b64 ?? '', 'base64')]);
   Object.assign(req, { method: envelope.method, url: envelope.path, headers: envelope.headers ?? {} });
   let output;
-  const res = { writeHead(status, headers) { this.status = status; this.headers = headers; }, end(body) { output = { status: this.status, headers: this.headers, body_b64: Buffer.from(body).toString('base64') }; } };
+  // Collects a streamed response (write, then end) into one body: the adapter returns whole responses only.
+  const chunks = [];
+  const res = { writeHead(status, headers) { this.status = status; this.headers = headers; }, write(chunk) { chunks.push(Buffer.from(chunk)); return true; },
+    on() {}, get writableEnded() { return output !== undefined; },
+    destroy(error) { throw error ?? new Error('Response destroyed'); },
+    end(body) { if (body !== undefined) chunks.push(Buffer.from(body)); output = { status: this.status, headers: this.headers, body_b64: Buffer.concat(chunks).toString('base64') }; } };
   await createHandler(store, { baseUrl: envelope.base_url, phases })(req, res);
   if (!output) throw new Error('Handler did not produce a response');
   checkpointAndClose();

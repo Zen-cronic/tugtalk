@@ -30,7 +30,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 87 | A `node --test` run of the other test files (all must pass), plus this one |
+| `node-tests` | Node test cases, as `npm test` reports them | 93 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 10 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
@@ -69,3 +69,9 @@ Every number or name we state about this project, and where it comes from. `test
 | `voice-retry-no-rebill` | An exact voice-round retry calls a model again | no | HTTP: the same Idempotency-Key and audio twice calls each fake model once |
 | `voice-eval` | Offline voice-reply eval on scripted replies, not live model runs: quotes accepted and rejected, and replies that would speak unsaid words with and without the check | 7 of 16 accepted, 9 rejected; 10 without the check, 0 with it | `eval/voice-results.json`, regenerated |
 | `voice-rate-limit` | Voice rounds per hour, refused before any model call | 60 | HTTP on a fresh account: 60 are saved, the 61st returns 429 without a model call |
+| `speech-providers` | Speech providers `SPEECH_PROVIDER` can select, all Meta voices | mms, wit | `SPEECH_PROVIDERS` (src/speech.mjs); any other value is not ready |
+| `speech-unconfigured` | Spoken reply with no provider configured | 503 speech_unconfigured, no provider call | HTTP with a counting fake fetch |
+| `speech-text` | Text the speech route sends to the provider | the stored reply.question only | HTTP: a client body with other text is ignored (fake fetch) |
+| `speech-stored` | Speech audio is stored | no | HTTP: the audio bytes are not in the database file |
+| `speech-hosted` | How the spoken reply comes back | streamed locally; whole file through the hosting adapter | HTTP `Transfer-Encoding: chunked` locally; the worker in scripts/handle-request.mjs collects writes into one body |
+| `mms-licence` | Self-hosted Meta MMS-TTS models and their licence | facebook/mms-tts-eng, facebook/mms-tts-fra; CC-BY-NC-4.0 | `MODELS` and the licence line in deploy/mms_tts_app.py |
