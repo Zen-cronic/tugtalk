@@ -228,3 +228,29 @@ final class CameraUploadTests: XCTestCase {
         XCTAssertNil(plain.metrics?.camera)
     }
 }
+
+private final class CameraFakeSocket: LiveSocket, @unchecked Sendable {
+    var texts: [String] = []
+    let incoming: AsyncStream<LiveSocketFrame>
+    init() { incoming = AsyncStream { $0.finish() } }
+    func sendText(_ text: String) { texts.append(text) }
+    func sendData(_ d: Data) {}
+    func close() {}
+}
+
+final class CameraLiveEndTests: XCTestCase {
+    func testTheLiveEndFrameCarriesTheCameraNumbers() throws {
+        let socket = CameraFakeSocket()
+        let session = LiveVoiceSession(socket: socket, start: LiveStart(VoiceRoundRequest(wav: Data(), idempotencyKey: "voice-cam-live-1")))
+        session.end(camera: CameraMetrics(faced_camera_pct: 62, looked_away_count: 3, longest_look_away_ms: 4100, frames: 148))
+        XCTAssertEqual(socket.texts.last, #"{"camera":{"faced_camera_pct":62,"frames":148,"longest_look_away_ms":4100,"looked_away_count":3},"type":"end"}"#)
+        let frame = try JSONSerialization.jsonObject(with: Data(socket.texts.last!.utf8)) as! [String: Any]
+        XCTAssertEqual(frame["type"] as? String, "end")
+        session.end(camera: nil)
+        XCTAssertEqual(socket.texts.count, 2, "one end only")
+
+        let plain = CameraFakeSocket()
+        LiveVoiceSession(socket: plain, start: LiveStart(VoiceRoundRequest(wav: Data(), idempotencyKey: "voice-cam-live-2"))).end()
+        XCTAssertEqual(plain.texts.last, #"{"type":"end"}"#, "camera off: the end frame is unchanged")
+    }
+}

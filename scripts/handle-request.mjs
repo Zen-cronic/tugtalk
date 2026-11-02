@@ -164,7 +164,7 @@ lines.on('line', line => {
   // Both messages grant the database lock, so this is where a database closed for a commit is reopened.
   if (message.go) { const resolve = granted.get(message.id); granted.delete(message.id); reopen(); resolve?.(); return; }
   if (message.audio) { sessions.get(message.id)?.audio(Buffer.from(message.audio, 'base64')); return; }
-  if (message.end) { sessions.get(message.id)?.end(); return; }
+  if (message.end) { sessions.get(message.id)?.end({ camera: message.camera }); return; }
   if (message.cancel) { sessions.get(message.id)?.cancel(); return; }
   if (message.envelope?.live) { reopen(); live(message.id, message.envelope, message.budget_ms); return; }
   if (message.envelope) { reopen(); serve(message.id, message.envelope, message.budget_ms); }

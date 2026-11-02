@@ -494,11 +494,14 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                         await worker.send({'id': rid, 'audio': base64.b64encode(data).decode()})
                     elif event.get('text'):
                         try:
-                            kind = json.loads(event['text']).get('type')
+                            frame = json.loads(event['text'])
+                            kind = frame.get('type') if isinstance(frame, dict) else None
                         except Exception:
-                            kind = None
+                            frame, kind = None, None
                         if kind == 'end':
-                            await worker.send({'id': rid, 'end': True})
+                            # The hold's camera numbers ride on "end"; the worker checks them (src/camera-metrics.mjs).
+                            camera = frame.get('camera') if len(event['text']) <= 1024 else None
+                            await worker.send({'id': rid, 'end': True, **({'camera': camera} if camera is not None else {})})
             except Exception:
                 pass
             session['client_gone'] = True

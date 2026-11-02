@@ -271,7 +271,7 @@ final class VoiceFlow {
         }
         if liveKey == key, let live {
             finishFixtureFeed(to: live)
-            live.end()
+            live.end(camera: CameraSession.shared.metrics(for: key))
             voiceLog.notice("live round ended at release (\(live.samplesSent, privacy: .public) samples streamed)")
             // No reply in time: the same clip goes by upload, with the same key.
             liveFallback = Task { [weak self] in

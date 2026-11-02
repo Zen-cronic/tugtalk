@@ -245,3 +245,29 @@ test('live through the hosting worker: a wrong key is refused before anything el
     assert.deepEqual(await next(), { id: 'l2', closed: true });
   } finally { child.kill(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('live: the camera numbers on "end" go with the reply over the realtime path, and the fallback upload replays the same round', async () => {
+  const s = setup();
+  try {
+    const camera = { faced_camera_pct: 62, frames: 148, longest_look_away_ms: 4100, looked_away_count: 3 };
+    const round = s.open({ ...START, idempotency_key: 'live-camera-01' });
+    await tick();
+    const socket = s.meta.sockets[0];
+    metaAnswers(socket);
+    const frames = [pcm(1000, 4), pcm(900, 5)];
+    frames.forEach(f => round.audio(f));
+    await tick();
+    round.end({ camera });
+    const result = await round.done;
+    assert.equal(result.status, 200);
+    await result.speechDone;
+    assert.equal(s.events.find(e => e.type === 'reply').transcription, 'realtime');
+    const stored = { ...camera, method: 'vision-face-pose-v1' };
+    assert.deepEqual(s.events.find(e => e.type === 'reply').metrics.camera, stored);
+    assert.deepEqual(s.store.get('alice', 'voice-rounds', result.body.round_id).metrics.camera, stored);
+    // The Mac's fallback upload sends the same numbers as a header; the fingerprint ignores them, so it replays the round.
+    const params = voiceParams({ 'x-language': 'en', 'x-occurred-at': START.occurred_at, 'x-prompt-ended-at': START.prompt_ended_at, 'x-camera-metrics': JSON.stringify(camera) });
+    const replay = await handleVoiceRound(s.store, s.models, 'alice', { params, audio: wavFromPcm(Buffer.concat(frames)) }, 'live-camera-01', 'req');
+    assert.equal(replay.replayed, true); assert.equal(replay.round_id, result.body.round_id);
+  } finally { s.cleanup(); }
+});

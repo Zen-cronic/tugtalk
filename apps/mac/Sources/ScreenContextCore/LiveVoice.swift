@@ -180,12 +180,12 @@ public final class LiveVoiceSession: @unchecked Sendable {
         }
     }
 
-    /// The key was released: no more samples.
-    public func end() {
+    /// The key was released: no more samples. The hold's camera numbers, when the camera was on, ride on the same frame.
+    public func end(camera: CameraMetrics? = nil) {
         lock.withLock {
             guard !ended else { return }
             ended = true
-            socket.sendText(#"{"type":"end"}"#)
+            socket.sendText(camera.map { #"{"camera":\#($0.headerValue),"type":"end"}"# } ?? #"{"type":"end"}"#)
         }
     }
 

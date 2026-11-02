@@ -9,6 +9,7 @@ import { Store } from '../src/store.mjs';
 import { createApp, connectorDocument } from '../src/server.mjs';
 import { parseCameraMetrics, CAMERA_METHOD, CAMERA_HEADER_MAX_BYTES } from '../src/camera-metrics.mjs';
 import { voiceParams } from '../src/voice.mjs';
+import { createLiveRound } from '../src/live-voice.mjs';
 
 // The exact header the Mac sends (CameraMeterTests.testHeaderIsSortedCompactJSONAndValuesAreClamped).
 const MAC_HEADER = '{"faced_camera_pct":62,"frames":148,"longest_look_away_ms":4100,"looked_away_count":3}';
@@ -129,4 +130,36 @@ test('connector text: Muse is told what metrics.camera is, in plain terms', () =
   assert.match(doc, /say "faced the camera"/);
   assert.match(doc, /No camera image is stored or sent/);
   for (const banned of ['confident', 'nervous', 'body language', 'personality', 'emotion', 'mood', 'energy']) assert.equal(doc.toLowerCase().includes(banned), false, banned);
+});
+
+test('live round: the camera numbers on the end message reach the reply event and the saved round; bad ones are dropped, not fatal', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'camera-live-'));
+  const store = new Store(join(dir, 'live.sqlite'));
+  store.addToken('alice-secret', 'alice'); store.seed('alice');
+  const phases = { async release() {}, async acquire() {} };
+  const run = async (key, extra) => {
+    const events = [];
+    const round = createLiveRound({ store, models: fakeModels().models, token: 'Bearer alice-secret', phases, emit: e => events.push(e),
+      start: { type: 'start', idempotency_key: key, language: 'en', speech: false } });
+    round.audio(Buffer.alloc(48 * 1500, 1));
+    round.end(extra);
+    return { result: await round.done, events };
+  };
+  try {
+    const ok = await run('camera-live-0001', { camera: JSON.parse(MAC_HEADER) });
+    assert.equal(ok.result.status, 200);
+    assert.deepEqual(ok.result.body.metrics.camera, STORED);
+    assert.deepEqual(ok.events.find(e => e.type === 'reply').metrics.camera, STORED, 'the card gets it with the reply');
+    assert.deepEqual(store.get('alice', 'voice-rounds', ok.result.body.round_id).metrics.camera, STORED);
+
+    const bad = await run('camera-live-0002', { camera: { ...JSON.parse(MAC_HEADER), faced_camera_pct: 400 } });
+    assert.equal(bad.result.status, 200, 'the answer is still saved');
+    assert.equal('camera' in bad.result.body.metrics, false);
+    assert.match(bad.events.find(e => e.type === 'camera_ignored').message, /^X-Camera-Metrics faced_camera_pct must be from 0 to 100/);
+
+    const none = await run('camera-live-0003');
+    assert.equal(none.result.status, 200);
+    assert.equal('camera' in none.result.body.metrics, false);
+    assert.equal(none.events.some(e => e.type === 'camera_ignored'), false);
+  } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
 });

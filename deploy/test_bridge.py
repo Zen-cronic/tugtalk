@@ -598,7 +598,8 @@ class LiveBridgeTests(BridgeTests):
               out({{ id, closed: true }});
             }}
         """))
-        sent = await self.socket(app, [self.START, ('bytes', b'\\x01\\x02' * 1000), ('bytes', b'\\x03\\x04' * 1000), ('text', '{"type":"end"}')])
+        camera = {'faced_camera_pct': 62, 'frames': 148, 'longest_look_away_ms': 4100, 'looked_away_count': 3}
+        sent = await self.socket(app, [self.START, ('bytes', b'\\x01\\x02' * 1000), ('bytes', b'\\x03\\x04' * 1000), ('text', json.dumps({'type': 'end', 'camera': camera}))])
         self.assertEqual(sent[0], {'type': 'websocket.accept'})
         kinds = [('text', json.loads(e['text'])['type']) if 'text' in e else ('bytes', e['bytes']) if 'bytes' in e else (e['type'], e.get('code')) for e in sent[1:]]
         self.assertEqual(kinds, [('text', 'ready'), ('text', 'reply'), ('bytes', b'mp3-1'), ('text', 'saved'), ('bytes', b'mp3-2'), ('websocket.close', 1000)])
@@ -611,6 +612,7 @@ class LiveBridgeTests(BridgeTests):
         self.assertTrue(0 < saw[0]['budget_ms'] < 150_000)
         self.assertEqual([base64.b64decode(m['audio']) for m in saw if 'audio' in m], [b'\\x01\\x02' * 1000, b'\\x03\\x04' * 1000])
         self.assertTrue(any(m.get('end') for m in saw))
+        self.assertEqual([m.get('camera') for m in saw if m.get('end')], [camera], 'the camera numbers ride on "end" to the worker')
 
     async def test_live_round_whose_commit_fails_is_never_called_saved(self):
         self.volume.fail = True

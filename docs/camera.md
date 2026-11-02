@@ -15,7 +15,7 @@ It follows your **head**, not your eyes. Your eyes can drop to your notes while 
 1. Key down: the camera opens (the green camera light comes on). It uses the camera macOS prefers, which is the iPhone when Continuity Camera is in use, or else the built-in camera.
 2. About 10 frames a second go to Apple Vision's face detector (`VNDetectFaceRectanglesRequest`, revision 3) for the largest face's head turn (yaw) and tilt (pitch). Each frame is dropped as soon as it is read. Only the two angles are kept, in memory.
 3. While you talk, Tug looks back at you when your head faces the camera and its eyes drift off when you turn away. A small dot under the camera, at the top centre of the screen, is filled while you face it and an open ring while you don't. With Reduce Motion both change without animation.
-4. Key up: the camera closes at once (the light goes off), and code turns the angles into four numbers. They are sent with the clip as the `X-Camera-Metrics` header.
+4. Key up: the camera closes at once (the light goes off), and code turns the angles into four numbers. A live round (`WS /v1/voice-rounds/live`) sends them on its end message, `{"type":"end","camera":{…}}`; a file upload, including the fallback after a live round fails, sends them as the `X-Camera-Metrics` header.
 
 The camera never opens while presenting (⌃⌥H) or while a meeting app is in front, and never outside a hold. If it is somehow still open 63 s after a hold started, it closes itself.
 
@@ -46,7 +46,7 @@ Compact JSON, at most 512 bytes, exactly these four integer fields:
 | `longest_look_away_ms` | 0–120000; 0 exactly when `looked_away_count` is 0 |
 | `frames` | 1–1200 (a 60 s hold at 10 a second is 600) |
 
-Anything else (another field, a missing field, a non-integer, a value out of range, or inconsistent values) is a 400 `invalid_value` before any model call, and nothing is saved. The round stores the four numbers plus `method: "vision-face-pose-v1"` as `metrics.camera`; the overview's `latest_voice_round.metrics.camera` and `/v1/context` carry it. Rounds without the header have no `camera` field. The numbers are not part of the idempotency fingerprint: a retry with the same key and audio returns the round first saved. The reply model is not given them.
+Anything else (another field, a missing field, a non-integer, a value out of range, or inconsistent values) is a 400 `invalid_value` before any model call, and nothing is saved. On a live round, numbers that fail the same check are dropped instead (a `camera_ignored` event says why), so the answer is still saved. The round stores the four numbers plus `method: "vision-face-pose-v1"` as `metrics.camera`; the overview's `latest_voice_round.metrics.camera` and `/v1/context` carry it. Rounds without the header have no `camera` field. The numbers are not part of the idempotency fingerprint: a retry with the same key and audio returns the round first saved. The reply model is not given them.
 
 ## Accuracy
 

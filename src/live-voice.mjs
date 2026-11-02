@@ -18,6 +18,7 @@ import { ApiError } from './store.mjs';
 import { TRANSCRIBE_MODEL, LANGUAGES, MAX_AUDIO_BYTES, inspectWav } from './capture.mjs';
 import { voiceParams, prepareVoiceRound, replyToAnswer, saveVoiceRound, voiceFingerprint, voiceResponse, VOICE_ROUNDS_PATH } from './voice.mjs';
 import { createBudget, MIN_START_MS } from './budget.mjs';
+import { parseCameraMetrics } from './camera-metrics.mjs';
 
 export const LIVE_PATH = '/v1/voice-rounds/live';
 export const REALTIME_URL = 'wss://api.meta.ai/v1/asr/realtime';
@@ -159,7 +160,7 @@ export function createRealtimeModel({ env = process.env, WebSocketImpl = globalT
 export function createLiveRound({ store, models, token, start, requestId = randomUUID(), phases, budget = createBudget(), emit = () => {}, emitAudio = () => {} }) {
   const chunks = [];
   let bytes = 0, ended = false, cancelled = false, audioStopped = false, transcriber = null, released = false, user = null, lastPartial = '';
-  let endHold;
+  let endHold, endCamera;
   const holdEnded = new Promise(r => { endHold = r; });
   const capTimer = setTimeout(() => { ended = true; endHold('capped'); }, MAX_HOLD_MS);
   const audit = (path, status, label) => { try { store.audit(requestId, user, 'POST', path, status, label); } catch {} };
@@ -199,6 +200,12 @@ export function createLiveRound({ store, models, token, start, requestId = rando
         return { status: 499, body: { error: 'cancelled', message: 'The hold ended before release.', request_id: requestId }, dirty: false };
       }
       const releasedAt = performance.now();
+      // "Faced the camera" numbers come with the end message, since they are known only at release. The answer is never
+      // refused for them: numbers that fail the check are dropped, and the client is told.
+      if (endCamera !== undefined) {
+        try { const camera = parseCameraMetrics(endCamera); if (camera) params = { ...params, camera }; }
+        catch (error) { emit({ type: 'camera_ignored', message: error.message }); }
+      }
       const audio = wavFromPcm(Buffer.concat(chunks));
       const wav = inspectWav(audio);
       let transcription = null, mode = 'realtime';
@@ -254,7 +261,8 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       bytes += buffer.length; chunks.push(Buffer.from(buffer));
       transcriber?.send(buffer);
     },
-    end() { if (!ended && !cancelled) { ended = true; endHold('released'); } },
+    // extra.camera: the hold's camera numbers from the end message (src/camera-metrics.mjs), if any.
+    end(extra = {}) { if (!ended && !cancelled) { ended = true; endCamera = extra?.camera; endHold('released'); } },
     // The client went away. Before release, the round is dropped; after it, the round is still saved (so a retry with
     // the same key replays it) and only the audio stops.
     cancel() { audioStopped = true; if (!ended && !cancelled) { cancelled = true; endHold('cancelled'); } }

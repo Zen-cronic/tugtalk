@@ -291,7 +291,7 @@ function serveLive(store, options, req, socket) {
   ws.onMessage = message => {
     if (session) {
       if (typeof message !== 'string') return session.audio(message);
-      try { if (JSON.parse(message).type === 'end') session.end(); } catch {}
+      try { const m = JSON.parse(message); if (m.type === 'end') session.end({ camera: m.camera }); } catch {}
       return;
     }
     if (typeof message !== 'string') { early.push(message); return; }
