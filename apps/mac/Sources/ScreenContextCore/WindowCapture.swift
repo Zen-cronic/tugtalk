@@ -48,7 +48,7 @@ public struct CaptureGate: Sendable {
         "com.1password.1password", "com.agilebits.onepassword7", "com.agilebits.onepassword-osx",
         "com.bitwarden.desktop", "com.apple.keychainaccess", "com.apple.Passwords",
         "com.apple.systempreferences", "com.apple.Settings", "com.apple.MobileSMS",
-        "com.zencronic.commscoach.mac",
+        "com.kaungzinhein.commscoach.mac",
     ]
 
     public var denyList: Set<String>

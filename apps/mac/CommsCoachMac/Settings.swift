@@ -19,7 +19,7 @@ enum Palette {
 
 /// User-adjustable settings, stored in UserDefaults. The connector key is never stored here (see Keychain).
 enum Settings {
-    static let keychainService = "com.zencronic.commscoach.mac"
+    static let keychainService = "com.kaungzinhein.commscoach.mac"
     static let keychainAccount = "connector"
 
     /// Bundle ids of meeting apps; while one is frontmost the companion hides itself.

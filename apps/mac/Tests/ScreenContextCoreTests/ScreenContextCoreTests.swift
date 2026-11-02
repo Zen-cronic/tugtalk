@@ -101,7 +101,7 @@ final class GateTests: XCTestCase {
         let pipeline = ScreenContextPipeline(capturer: capture)
         for app in [FrontApp(name: "1Password", bundleID: "com.1password.1password", processID: 2),
                     FrontApp(name: "Messages", bundleID: "com.apple.MobileSMS", processID: 3),
-                    FrontApp(name: "Coach", bundleID: "com.zencronic.commscoach.mac", processID: 4)] {
+                    FrontApp(name: "Coach", bundleID: "com.kaungzinhein.commscoach.mac", processID: 4)] {
             do { _ = try await pipeline.run(app: app, secureInput: false); XCTFail("should block \(app.name)") }
             catch { XCTAssertEqual(error as? CaptureError, .blocked(app.name)) }
         }

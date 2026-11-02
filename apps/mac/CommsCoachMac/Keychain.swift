@@ -4,7 +4,7 @@ import Security
 
 /// Where the companion gets its backend and key. The key lives in the login Keychain, never in
 /// the app bundle, UserDefaults or logs. Add it once with:
-///   security add-generic-password -s com.zencronic.commscoach.mac -a connector -w
+///   security add-generic-password -s com.kaungzinhein.commscoach.mac -a connector -w
 enum Connection {
     enum Source: Equatable { case keychain, localDevelopment }
 
