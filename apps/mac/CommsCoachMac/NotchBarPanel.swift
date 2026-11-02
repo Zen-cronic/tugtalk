@@ -408,13 +408,10 @@ struct NotchBarBody: View {
         case .speaking(let card):
             ContextCardView(card: card, compact: compact, pointing: model.pointing, onClose: close, onUndo: { model.onUndo() })
         case .notice(let text):
-            HStack(alignment: .center, spacing: 8) {
-                ShortcutLine(text: text, font: TypeFace.body(15, weight: 650))
+            HStack(alignment: .top, spacing: 8) {
+                NoticeText(text: text)
                 Spacer(minLength: 4)
                 CloseButton(action: close)
-            }
-            if text == model.hotkeyNotice {
-                Text("Quit the other copy, then open this one again.").font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted))
             }
         default:
             HStack(alignment: .center, spacing: 8) {
@@ -433,8 +430,7 @@ struct NotchBarBody: View {
     @ViewBuilder private var latestCard: some View {
         if let notice = model.hotkeyNotice {
             Text("Shortcut").font(TypeFace.body(12, weight: 600)).foregroundStyle(Color(Tok.muted))
-            ShortcutLine(text: notice, font: TypeFace.body(15, weight: 600))
-            Text("Quit the other copy, then open this one again.").font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted))
+            NoticeText(text: notice)
         } else if ui.latest == .round, let round = model.latestVoiceCard {
             HStack {
                 Text("Latest round").font(TypeFace.body(12, weight: 600))
@@ -444,6 +440,7 @@ struct NotchBarBody: View {
             .foregroundStyle(Color(Tok.muted))
             if let number = LatestRoundNumber.make(summary: round.summary, latest: round.metrics) { RoundNumber(number: number) }
             SaidDisclosure(quote: round.quote, transcript: round.transcriptSnippet, onLayout: { model.layoutNeeded() })
+            RecordingNote(note: round.recordingNote)
         } else if ui.latest == .card, let card = model.lastCard {
             Text("Latest card · \(card.appName)").font(TypeFace.body(12, weight: 600)).foregroundStyle(Color(Tok.muted))
             CoachText(card.observation)
@@ -580,6 +577,7 @@ struct ReplyCard: View {
                 if let stat = LatestRoundNumber.make(summary: nil, latest: card.metrics) {
                     HabitCount(count: stat.value, habit: stat.habit, caption: "in this answer")
                 }
+                RecordingNote(note: card.recordingNote)
             } else {
                 ShortcutLine(text: "Hold ⌃⌥T to start again", font: TypeFace.body(13, weight: 600), ink: Tok.muted)
             }
@@ -647,6 +645,36 @@ struct SaidDisclosure: View {
                 .accessibilityHint(open ? "Hides what you said." : "Shows what you said.")
                 if open, !transcript.isEmpty { Transcript(text: transcript, mark: quote) }
             }
+        }
+    }
+}
+
+/// A notice: its first sentence on one line with the keys as keycaps, the rest underneath in muted text that wraps.
+struct NoticeText: View {
+    let text: String
+    var body: some View {
+        let parts = text.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: true)
+        // The first line ends on the keycaps, without a stray full stop after them.
+        let first = parts.first.map { String($0).trimmingCharacters(in: .whitespaces) } ?? text
+        let rest = parts.count > 1 ? String(parts[1]).trimmingCharacters(in: .whitespaces) : ""
+        VStack(alignment: .leading, spacing: 4) {
+            ShortcutLine(text: first, font: TypeFace.body(15, weight: 650))
+            if !rest.isEmpty {
+                Text(rest).font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted)).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text.replacingOccurrences(of: "⌃⌥", with: "Control Option "))
+    }
+}
+
+/// "Recording kept": shown when Keep my recordings is on and the server kept this answer's audio.
+struct RecordingNote: View {
+    let note: String?
+    var body: some View {
+        if let note {
+            Label { Text(note).font(TypeFace.body(13, weight: 550)) } icon: { Image(systemName: "waveform").font(.system(size: 12, weight: .semibold)) }
+                .foregroundStyle(Color(Tok.muted))
         }
     }
 }
