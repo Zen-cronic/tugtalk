@@ -19,6 +19,8 @@ public struct VoiceRoundRequest: Sendable, Equatable {
     /// When the recording started (key down). With `promptEndedAt` it gives the approximate onset.
     /// Part of the request's fingerprint, so a retry must send the same value.
     public var occurredAt: Date?
+    /// "Faced the camera" numbers for this hold, sent as `X-Camera-Metrics` when the camera was on. Set after init.
+    public var camera: CameraMetrics?
 
     public init(wav: Data, idempotencyKey: String, goalID: String? = nil, screenContextID: String? = nil, language: VoiceLanguage = .en,
                 promptEndedAt: Date? = nil, occurredAt: Date? = nil) {
@@ -44,6 +46,8 @@ public struct VoiceMetrics: Decodable, Sendable, Equatable {
     public let hedge_count: Int?
     public let restart_count: Int?
     public let onset_ms_approx: Double?
+    /// Present when the camera was on during the hold (see CameraMeter).
+    public let camera: CameraMetrics?
 }
 
 public struct VoiceReply: Decodable, Sendable, Equatable {
@@ -95,6 +99,7 @@ extension CoachAPI {
         if let card = round.screenContextID { request.setValue(card, forHTTPHeaderField: "X-Screen-Context-Id") }
         if let ended = round.promptEndedAt { request.setValue(VoiceRoundRequest.timestamp(ended), forHTTPHeaderField: "X-Prompt-Ended-At") }
         if let started = round.occurredAt { request.setValue(VoiceRoundRequest.timestamp(started), forHTTPHeaderField: "X-Occurred-At") }
+        if let camera = round.camera { request.setValue(camera.headerValue, forHTTPHeaderField: "X-Camera-Metrics") }
         request.httpBody = round.wav
         return try await send(request, as: VoiceRoundReceipt.self)
     }

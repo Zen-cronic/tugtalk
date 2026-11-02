@@ -1,0 +1,1085 @@
+{
+  "count_match_rate" : 1,
+  "method" : "vision-face-pose-v1 meter on synthetic head angles (camera-eval synthetic)",
+  "note" : "Expected = the same rule on the noise-free angles. This checks the counting and its robustness to noise and missed frames, not Vision's accuracy on a real face.",
+  "rule" : {
+    "max_pitch_deg" : 15,
+    "max_yaw_deg" : 20
+  },
+  "scenarios" : [
+    {
+      "count_matches" : 20,
+      "expected" : {
+        "faced_camera_pct" : 100,
+        "frames" : 300,
+        "longest_look_away_ms" : 0,
+        "looked_away_count" : 0
+      },
+      "measured" : [
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 99,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 300,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        }
+      ],
+      "scenario" : "faces the camera throughout",
+      "seconds" : 30,
+      "worst_pct_error" : 1
+    },
+    {
+      "count_matches" : 20,
+      "expected" : {
+        "faced_camera_pct" : 75,
+        "frames" : 320,
+        "longest_look_away_ms" : 2000,
+        "looked_away_count" : 4
+      },
+      "measured" : [
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2100,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2100,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2100,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 74,
+          "frames" : 320,
+          "longest_look_away_ms" : 2100,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 74,
+          "frames" : 320,
+          "longest_look_away_ms" : 2100,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 74,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2000,
+          "looked_away_count" : 4
+        },
+        {
+          "faced_camera_pct" : 75,
+          "frames" : 320,
+          "longest_look_away_ms" : 2100,
+          "looked_away_count" : 4
+        }
+      ],
+      "scenario" : "reads notes below the screen every 8 s",
+      "seconds" : 32,
+      "worst_pct_error" : 1
+    },
+    {
+      "count_matches" : 20,
+      "expected" : {
+        "faced_camera_pct" : 72,
+        "frames" : 250,
+        "longest_look_away_ms" : 4000,
+        "looked_away_count" : 2
+      },
+      "measured" : [
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4100,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 71,
+          "frames" : 250,
+          "longest_look_away_ms" : 4300,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4100,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 70,
+          "frames" : 250,
+          "longest_look_away_ms" : 4200,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        },
+        {
+          "faced_camera_pct" : 72,
+          "frames" : 250,
+          "longest_look_away_ms" : 4000,
+          "looked_away_count" : 2
+        }
+      ],
+      "scenario" : "turns to a second screen twice",
+      "seconds" : 25,
+      "worst_pct_error" : 2
+    },
+    {
+      "count_matches" : 20,
+      "expected" : {
+        "faced_camera_pct" : 86,
+        "frames" : 210,
+        "longest_look_away_ms" : 0,
+        "looked_away_count" : 0
+      },
+      "measured" : [
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 85,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 85,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 85,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 85,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 85,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 85,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 85,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 85,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 86,
+          "frames" : 210,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        }
+      ],
+      "scenario" : "quick glances under a second",
+      "seconds" : 21,
+      "worst_pct_error" : 1
+    },
+    {
+      "count_matches" : 20,
+      "expected" : {
+        "faced_camera_pct" : 100,
+        "frames" : 200,
+        "longest_look_away_ms" : 0,
+        "looked_away_count" : 0
+      },
+      "measured" : [
+        {
+          "faced_camera_pct" : 97,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 99,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 97,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 94,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 97,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 99,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 97,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 96,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 99,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 91,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 99,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 94,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 97,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 99,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 97,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 200,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        }
+      ],
+      "scenario" : "holds the head near the cone's edge",
+      "seconds" : 20,
+      "worst_pct_error" : 9
+    },
+    {
+      "count_matches" : 20,
+      "expected" : {
+        "faced_camera_pct" : 80,
+        "frames" : 150,
+        "longest_look_away_ms" : 3000,
+        "looked_away_count" : 1
+      },
+      "measured" : [
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 79,
+          "frames" : 150,
+          "longest_look_away_ms" : 3100,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 79,
+          "frames" : 150,
+          "longest_look_away_ms" : 3100,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 79,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 80,
+          "frames" : 150,
+          "longest_look_away_ms" : 3000,
+          "looked_away_count" : 1
+        }
+      ],
+      "scenario" : "leaves the frame for 3 s",
+      "seconds" : 15,
+      "worst_pct_error" : 1
+    },
+    {
+      "count_matches" : 20,
+      "expected" : {
+        "faced_camera_pct" : 25,
+        "frames" : 160,
+        "longest_look_away_ms" : 12000,
+        "looked_away_count" : 1
+      },
+      "measured" : [
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 24,
+          "frames" : 160,
+          "longest_look_away_ms" : 12100,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 24,
+          "frames" : 160,
+          "longest_look_away_ms" : 12100,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        },
+        {
+          "faced_camera_pct" : 25,
+          "frames" : 160,
+          "longest_look_away_ms" : 12000,
+          "looked_away_count" : 1
+        }
+      ],
+      "scenario" : "looks down at a phone most of the answer",
+      "seconds" : 16,
+      "worst_pct_error" : 1
+    },
+    {
+      "count_matches" : 20,
+      "expected" : {
+        "faced_camera_pct" : 100,
+        "frames" : 250,
+        "longest_look_away_ms" : 0,
+        "looked_away_count" : 0
+      },
+      "measured" : [
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 94,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 97,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 98,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 100,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 99,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        },
+        {
+          "faced_camera_pct" : 97,
+          "frames" : 250,
+          "longest_look_away_ms" : 0,
+          "looked_away_count" : 0
+        }
+      ],
+      "scenario" : "noisy detection while facing",
+      "seconds" : 25,
+      "worst_pct_error" : 6
+    }
+  ],
+  "seeds" : 20,
+  "worst_pct_error" : 9
+}

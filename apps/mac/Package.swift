@@ -11,6 +11,7 @@ let package = Package(
         .executable(name: "sc-capture", targets: ["sc-capture"])
     ],
     targets: [
+        .executableTarget(name: "camera-eval", dependencies: ["ScreenContextCore"]),
         .target(name: "ScreenContextCore"),
         .executableTarget(name: "sc-capture", dependencies: ["ScreenContextCore"]),
         .testTarget(name: "ScreenContextCoreTests", dependencies: ["ScreenContextCore"], resources: [.copy("Fixtures/tone.mp3")])
