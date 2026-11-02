@@ -13,12 +13,16 @@ Every number or name we state about this project, and where it comes from. `test
 | `transcribe-model` | Speech-to-text model | muse-voice-transcribe-1.0 | `TRANSCRIBE_MODEL` and the request body sent to Meta (fake fetch) |
 | `analysis-model` | Observation model | meta-models/muse-spark-open-1026 | `ANALYSIS_MODEL` and the request body sent to Baseten (fake fetch) |
 | `analysis-budgets` | Observation token budgets | 4000, then 8000 on retry | `max_tokens` sent to Baseten (fake fetch) when the first reply runs out of tokens |
-| `contract-version` | API contract version | 0.5.0 | `/openapi.json` `info.version`, `/connector.md` and the titles of docs/capture.md and docs/voice.md |
+| `contract-version` | API contract version | 0.6.0 | `/openapi.json` `info.version`, `/connector.md` and the titles of docs/capture.md and docs/voice.md |
 | `languages` | Capture languages | en, fr | The `X-Language` check in `captureParams`: each listed value passes, others fail |
 | `devices` | Capture device labels the API accepts | watch, mac, phone, api | The `X-Capture-Device` check in `captureParams`: each listed value passes, others fail |
 | `lexicons` | Habit-count methods | lexicon-en-v2, lexicon-fr-v1 | `measure().method` |
 | `filler-forms` | Spellings counted as the filler "uh" (English) | ah, er | `measure()` on each spelling, and on "are", "her" and "aha", which do not count |
-| `audio-retained` | Uploaded audio is stored | no | HTTP capture with fake models: `audio_retained` is false and the audio bytes are not in the database file |
+| `audio-retained` | Uploaded audio is stored with Keep my recordings off (the default) | no | HTTP capture with fake models: `audio_retained` is false and the audio bytes are not in the database file |
+| `keep-recordings-default` | "Keep my recordings" on a new account | off | HTTP: `GET /v1/settings` on a fresh account returns `keep_recordings` false, and a capture then writes no media folder |
+| `keep-recordings-kept` | What is kept with Keep my recordings on | the uploaded WAV, byte for byte, with its SHA-256 on the record | HTTP with fake models: the file under `media/`, `media.sha256`, and `GET /v1/media/{id}` (404 for another account) |
+| `media-cap` | Kept audio per account | 200 MB | `MEDIA_CAP_BYTES` (src/media.mjs); test/keep-recordings.test.mjs fills a smaller cap and the capture is saved without its audio |
+| `media-download-limit` | Kept-recording downloads per hour | 120 | `MEDIA_DOWNLOAD_LIMIT` (src/media.mjs); test/keep-recordings.test.mjs is refused on the 121st |
 | `retry-no-rebill` | An exact retry calls the models again | no | HTTP: the same Idempotency-Key and audio twice calls each fake model once |
 | `screen-text-max` | Largest redacted screen text accepted | 6000 characters, 12 KiB | HTTP: 6001 characters returns 400 |
 | `screen-text-retained` | Screen text is stored | no | HTTP screen context with a fake model: `text_retained` is false and the text is not in the database file |
@@ -32,8 +36,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 103 | A `node --test` run of the other test files (all must pass), plus this one |
-| `python-tests` | Python hosting-adapter tests | 16 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
+| `node-tests` | Node test cases, as `npm test` reports them | 109 | A `node --test` run of the other test files (all must pass), plus this one |
+| `python-tests` | Python hosting-adapter tests | 17 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `hosting-worker` | How the hosting adapter runs requests | one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload | deploy/bridge.py and its tests in deploy/test_bridge.py |
@@ -69,7 +73,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `voice-attempts` | Reply calls per round, and the cut-off for each | 1, a second only after an unusable reply; 8 s each | `createVoiceModel` with a counting fake fetch (an unusable reply, a 403) and `VOICE_TIMEOUT_MS` |
 | `voice-quote-check` | A quote whose words are not in the transcript, word for word, is kept | no | HTTP with a fake model: `quote` is empty and `quote_verified` false |
 | `voice-question-words` | Longest question returned to be spoken | 25 words | `safeQuestion` on a 40-word question |
-| `voice-stored` | What a voice round stores | transcript, metrics and reply; not the audio | HTTP with fake models: the record's fields, `audio_retained` false, and the audio bytes are not in the database file |
+| `voice-stored` | What a voice round stores with Keep my recordings off (the default) | transcript, metrics and reply; not the audio | HTTP with fake models: the record's fields, `audio_retained` false, and the audio bytes are not in the database file |
 | `voice-retry-no-rebill` | An exact voice-round retry calls a model again | no | HTTP: the same Idempotency-Key and audio twice calls each fake model once |
 | `voice-eval` | Offline voice-reply eval on scripted replies, not live model runs: quotes accepted and rejected, and replies that would speak unsaid words with and without the check | 7 of 16 accepted, 9 rejected; 10 without the check, 0 with it | `eval/voice-results.json`, regenerated |
 | `voice-rate-limit` | Voice rounds per hour, refused before any model call | 60 | HTTP on a fresh account: 60 are saved, the 61st returns 429 without a model call |

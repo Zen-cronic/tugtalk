@@ -44,9 +44,11 @@ MODEL_ROUTES = ('/v1/recordings', '/v1/screen-contexts', '/v1/voice-rounds')
 AUDIO_ROUTES = ('/v1/recordings', '/v1/voice-rounds')
 # A spoken reply calls a speech model but has no body. Its audio is streamed to the client.
 SPEECH_ROUTE = re.compile(r'/v1/voice-rounds/[A-Za-z0-9-]{1,64}/speech')
+# Re-measuring a session may re-transcribe its kept recording (src/remeasure.mjs), so it is a model route too.
+REMEASURE_ROUTE = re.compile(r'/v1/sessions/[A-Za-z0-9-]{1,64}/remeasure')
 # Timing log: one line per request with the route shape (ids replaced), the status and each phase in ms.
 # Never the body, headers, query or ids.
-ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds))/[^/]+')
+ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds|media))/[^/]+')
 BUSY = {'error': 'storage_or_worker_unavailable',
         'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'}
 
@@ -234,7 +236,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         recording = scope['method'] == 'POST' and scope['path'] in AUDIO_ROUTES
         speech = scope['method'] == 'POST' and SPEECH_ROUTE.fullmatch(scope['path']) is not None
         # A screen context is a small JSON body (JSON limit) but waits on a reasoning model.
-        model_call = scope['method'] == 'POST' and (scope['path'] in MODEL_ROUTES or speech)
+        model_call = scope['method'] == 'POST' and (scope['path'] in MODEL_ROUTES or speech or REMEASURE_ROUTE.fullmatch(scope['path']) is not None)
         early_headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}
         # Only a request that at least presents a Bearer credential may buffer a large audio body.
         # Node still performs the real token check; this keeps anonymous uploads at the JSON limit.

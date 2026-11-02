@@ -107,11 +107,16 @@ export class Store {
       // The same for voice rounds: accounts without one keep their earlier revision.
       const allRounds=this.list(user,'voice-rounds');
       if(allRounds.length) revised.voice_rounds=allRounds.map(r=>({id:r.id,version:r.version}));
+      // Keep my recordings (src/settings.mjs, src/media.mjs): the setting and what is kept. A saved setting changes the revision;
+      // accounts that never changed it keep their earlier revision.
+      const setting=this.list(user,'settings').find(x=>x.id==='settings'), kept=['sessions','voice-rounds'].flatMap(k=>this.list(user,k)).filter(r=>r.media?.kept===true);
+      if(setting) revised.settings={version:setting.version};
       if(extension?.revision!==undefined) revised.extension=extension.revision;
       const common={synthetic:true,as_of:context.as_of,
         snapshot_revision:digest(JSON.stringify(revised)),
         freshness:{source:'committed_database',cache_policy:'no-store',require_new_read_each_turn:true},
         evidence_scope:'Captured sessions are linked to a goal only when the capturing device supplied goal_id. Fixture and unlinked sessions are account-wide. Measured metrics are code-computed from an automatic transcript; observations are model-written. measured_improvement stays null until a comparison method exists.',
+        settings:{keep_recordings:setting?.keep_recordings===true,version:setting?.version??1,kept_recordings:kept.length,kept_bytes:kept.reduce((n,r)=>n+r.media.bytes,0)},
         instructions:'Fetch a new overview at the start of every goal-related turn. For a focused chat bind to the explicit goal ID, then fetch its context. Re-read after writes and 409 conflicts. On retrieval failure say current state is unavailable; never present prior chat content as current. Completion is a self-report, not measured improvement.'};
       const result=goalId ? {...common,goal:summaries.find(g=>g.id===goalId),
         exercises:context.exercises.filter(e=>e.goal_id===goalId),

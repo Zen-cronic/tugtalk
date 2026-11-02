@@ -1,13 +1,13 @@
 // Recomputes every value in FACTS.md from code, the HTTP handler or the eval. No network, no paid calls.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { Store } from '../src/store.mjs';
+import { Store, digest } from '../src/store.mjs';
 import { createApp, captureParams } from '../src/server.mjs';
 import { MAX_AUDIO_BYTES, MAX_AUDIO_MS, TRANSCRIBE_MODEL, ANALYSIS_MODEL, LANGUAGES, LEXICON, inspectWav, measure, createModelClients } from '../src/capture.mjs';
 import { runEval, parseItem, goldSpans, CORPUS_URL } from '../src/evaluate.mjs';
@@ -19,6 +19,7 @@ import { runVoiceEval } from '../src/voice-eval.mjs';
 import { createSpeechModel, SPEECH_PROVIDERS } from '../src/speech.mjs';
 import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
 import { MODEL_BUDGET_MS, ADAPTER_DEADLINE_MS, MIN_START_MS } from '../src/budget.mjs';
+import { MEDIA_CAP_BYTES, MEDIA_DOWNLOAD_LIMIT } from '../src/media.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -152,6 +153,32 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.equal(file.includes(audio.subarray(1000, 1064)), false, 'audio bytes are not stored');
         return data.record.audio_retained === false ? 'no' : 'yes';
       },
+      'keep-recordings-default': async () => {
+        // A fresh account: the setting reads off, and a capture then writes no file.
+        store.addToken('facts-keep-default', 'facts-default-user');
+        const headers = { Authorization: 'Bearer facts-keep-default' };
+        const settings = (await (await fetch(base + '/v1/settings', { headers })).json()).settings;
+        const r = await fetch(base + '/v1/recordings', { method: 'POST', headers: { ...headers, 'Content-Type': 'audio/wav', 'Idempotency-Key': 'facts-keep-default-1' }, body: wav(1) });
+        assert.equal(r.status, 200); assert.equal('media' in (await r.json()).record, false);
+        assert.equal(existsSync(join(dir, 'media', 'facts-default-user')), false, 'no media folder for this account');
+        assert.equal(settings.label, 'Keep my recordings');
+        return settings.keep_recordings === false ? 'off' : 'on';
+      },
+      'keep-recordings-kept': async () => {
+        store.addToken('facts-keep-on', 'facts-keep-user');
+        const headers = { Authorization: 'Bearer facts-keep-on' };
+        const patch = await fetch(base + '/v1/settings', { method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json', 'Idempotency-Key': 'facts-keep-on-1' }, body: JSON.stringify({ expected_version: 1, keep_recordings: true }) });
+        assert.equal(patch.status, 200);
+        const audio = wav(1.1);
+        const { record } = await (await fetch(base + '/v1/recordings', { method: 'POST', headers: { ...headers, 'Content-Type': 'audio/wav', 'Idempotency-Key': 'facts-keep-on-2' }, body: audio })).json();
+        assert.deepEqual(readFileSync(join(dir, 'media', 'facts-keep-user', `${record.id}.wav`)), audio);
+        const download = Buffer.from(await (await fetch(base + `/v1/media/${record.id}`, { headers })).arrayBuffer());
+        assert.deepEqual(download, audio);
+        assert.equal((await fetch(base + `/v1/media/${record.id}`, { headers: auth })).status, 404, 'not another account');
+        return record.media.kept && record.media.sha256 === digest(audio) ? 'the uploaded WAV, byte for byte, with its SHA-256 on the record' : 'something else';
+      },
+      'media-cap': () => `${MEDIA_CAP_BYTES / 1e6} MB`,
+      'media-download-limit': () => String(MEDIA_DOWNLOAD_LIMIT.requests),
       'retry-no-rebill': async () => {
         const before = { ...calls }, audio = wav(1.5);
         const send = () => fetch(base + '/v1/recordings', { method: 'POST', headers: { ...auth, 'Content-Type': 'audio/wav', 'Idempotency-Key': 'facts-capture-2' }, body: audio });

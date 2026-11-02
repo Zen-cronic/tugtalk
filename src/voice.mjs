@@ -2,13 +2,14 @@
 // Meta transcribes it (file ASR, ENDPOINTING), code measures the answer, and one Muse Spark Open call plays the
 // other person in the conversation and picks the next move. Code then checks the reply: the quote must be the
 // person's own words, word for word, or it is dropped, and any quoted words in the question that the person did
-// not say are removed before the question is returned to be spoken. Audio is never stored.
+// not say are removed before the question is returned to be spoken. Audio is not stored unless the person turned on Keep my recordings (src/media.mjs).
 import { randomUUID } from 'node:crypto';
 import { ApiError, digest } from './store.mjs';
 import { inspectWav, measure, habitHits, tokenize, parseObject, shapeOf, LANGUAGES } from './capture.mjs';
 import { scrub } from './screen-context.mjs';
 import { sparkCall, SPARK_STREAM_MODEL, DEFAULT_MAX_TOKENS } from './spark-stream.mjs';
 import { createBudget, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
+import { attachMedia } from './media.mjs';
 
 const NO_PHASES = { async release() {}, async acquire() {} };
 export const VOICE_ROUNDS_PATH = '/v1/voice-rounds';
@@ -175,7 +176,7 @@ const newest = list => list.slice().sort((a, b) => b.occurred_at.localeCompare(a
 export function voiceResponse(receipt) {
   const r = receipt.record;
   return { round_id: r.id, receipt_id: receipt.receipt_id, replayed: receipt.replayed, transcript: r.transcript, metrics: r.metrics, reply: r.reply,
-    model: r.model, provider_request_id: r.provider_request_id, latency_ms: r.latency_ms };
+    model: r.model, provider_request_id: r.provider_request_id, latency_ms: r.latency_ms, ...(r.media ? { media: r.media } : {}) };
 }
 
 // input: { params (voiceParams), audio (Buffer), startedAt (performance.now() at request start) }.
@@ -230,6 +231,7 @@ export async function handleVoiceRound(store, models, user, { params, audio, sta
       transcription: { model: transcription.model, provider_session_id: transcription.provider_session_id },
       latency_ms: { asr: asrMs, model: modelMs, total: Math.round(performance.now() - startedAt) },
       audio_retained: false, deleted: false, created_at: timestamp, updated_at: timestamp };
+    attachMedia(store, user, 'voice-rounds', record, audio); // Keep my recordings: no-op unless the person turned it on
     store.put(user, 'voice-rounds', record); return record;
   });
   return voiceResponse(receipt);
