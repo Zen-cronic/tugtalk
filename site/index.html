@@ -112,7 +112,7 @@
           </li>
           <li class="step">
             <p class="step-n"><span class="dot" aria-hidden="true"></span>Step 4 of 4</p>
-            <h3>One exercise, in words</h3>
+            <h3>One exercise</h3>
             <p class="step-text">Muse Spark Open reads the transcript and your goal, then writes one observation and one exercise.</p>
             <div class="step-art">
               <p class="frag frag-sans">Next time, answer in one take: "The main point is…", then "because…". Skip "I think" and "basically".</p>
@@ -135,7 +135,7 @@
             <li><span class="sw sw-filler" aria-hidden="true"></span>Filler</li>
             <li><span class="sw sw-hedge" aria-hidden="true"></span>Hedge</li>
             <li><span class="sw sw-restart" aria-hidden="true"></span>Restart</li>
-            <li><span class="sw sw-rep" aria-hidden="true"></span>Repeated word</li>
+            <li><span class="rep">Repeated word</span></li>
           </ul>
           <figure class="note-margin">
             <figcaption>Observation from Muse Spark Open</figcaption>
@@ -149,9 +149,9 @@
             <span class="tally-label">words per minute</span>
           </div>
           <div class="tally-row">
-            <div><span class="tally-num tally-sm"><mark class="hl hl-filler">3</mark></span><span class="tally-label">fillers, 7.1 per 100 words</span></div>
-            <div><span class="tally-num tally-sm"><mark class="hl hl-hedge">1</mark></span><span class="tally-label">hedge</span></div>
-            <div><span class="tally-num tally-sm"><mark class="hl hl-restart">2</mark></span><span class="tally-label">restarts</span></div>
+            <div><span class="tally-num tally-sm">3</span><span class="tally-label"><mark class="hl hl-filler">fillers</mark> 7.1 per 100 words</span></div>
+            <div><span class="tally-num tally-sm">1</span><span class="tally-label"><mark class="hl hl-hedge">hedge</mark></span></div>
+            <div><span class="tally-num tally-sm">2</span><span class="tally-label"><mark class="hl hl-restart">restarts</mark></span></div>
           </div>
           <p class="tally-note">Counted from the transcript with a fixed English word list. The model writes the observation; it never supplies a number.</p>
         </div>
@@ -178,7 +178,11 @@
                 <p class="screen-label">Muse chat, example</p>
                 <p class="bub bub-you">How did my last practice go?</p>
                 <div class="bub bub-muse">
-                  <p>Your watch capture for "Answer clearly" had 3 fillers, 1 hedge and 2 restarts at 174 wpm. On the second try you put the main point first.</p>
+                  <p>Your watch capture for "Answer clearly" had 3 <mark class="hl hl-filler">fillers</mark>, 1 <mark class="hl hl-hedge">hedge</mark> and 2 <mark class="hl hl-restart">restarts</mark> at 174 wpm. On the second try you put the main point first.</p>
+                </div>
+                <p class="bub bub-you bub-extra">What should I practise next?</p>
+                <div class="bub bub-muse bub-extra">
+                  <p>One answer in one take: "The main point is…", then "because…".</p>
                 </div>
               </div>
             </div>
@@ -206,8 +210,12 @@
 
     <!-- Statement -->
     <section class="statement" aria-label="Positioning">
-      <div class="wrap">
-        <p>Most new tools give you another assistant. Comms Coach gives the assistant you already use a memory of how you speak, on every device.</p>
+      <div class="wrap statement-grid">
+        <p class="statement-line">Most new tools give you another assistant. Comms Coach gives the assistant you already use a memory of how you speak, on every device.</p>
+        <dl class="attempts" aria-label="The same answer, first and second attempt">
+          <div><dt>First attempt</dt><dd class="transcript"><mark class="hl hl-filler">Um</mark>, so <mark class="hl hl-hedge">I think</mark> the main point is, <mark class="hl hl-filler">uh</mark>, <mark class="hl hl-filler">basically</mark> that we should ship the smaller version first.</dd></div>
+          <div><dt>Second attempt</dt><dd class="transcript">The main point is ship the smaller version first because it lets us test with real users this week.</dd></div>
+        </dl>
       </div>
     </section>
 
@@ -234,12 +242,18 @@
           <h2 id="french-title">French speaking practice</h2>
           <p>A short spoken debrief in French becomes a few phrases worth fixing. You confirm each one, repair it, and reuse it later on a new prompt. Confirmed phrases export to Anki. The learner sets the target level; nothing here measures or claims one.</p>
         </div>
+        <div class="fr-side">
+        <dl class="fr-pair" aria-label="Example phrase">
+          <div><dt>Said</dt><dd class="transcript" lang="fr">« J'ai besoin de ça. »</dd></div>
+          <div><dt>Repaired</dt><dd class="transcript" lang="fr">« J'en ai besoin. »</dd></div>
+        </dl>
         <ol class="lifecycle" aria-label="Phrase stages">
-          <li><span class="lc-word">Suggested</span><span class="lc-ex" lang="fr">« j'en ai besoin »</span></li>
+          <li><span class="lc-word">Suggested</span><span class="lc-ex">from your spoken debrief</span></li>
           <li><span class="lc-word">Confirmed</span><span class="lc-ex">by you or a tutor</span></li>
           <li><span class="lc-word">Repaired</span><span class="lc-ex">said correctly in a retry</span></li>
           <li><span class="lc-word">Reused</span><span class="lc-ex">unaided, days later, on a new prompt</span></li>
         </ol>
+        </div>
       </div>
     </section>
 
