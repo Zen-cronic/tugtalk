@@ -319,8 +319,23 @@ enum TugDrawing {
     }
 }
 
-/// Tug, animated for its state. Pose changes ease over 0.28 s; with Reduce Motion the clock stops,
-/// each state is its still, and a change is a crossfade.
+extension TugPose {
+    /// States that act something out over time. The rest (idle, hidden, notices, problems, permission cards,
+    /// a card that is not being read aloud) are one still pose, so nothing redraws while Tug waits.
+    static func moves(_ phase: MascotPhase, talking: Bool) -> Bool {
+        switch phase {
+        case .listening, .voiceListening, .thinking, .voiceThinking: true
+        case .speaking: talking
+        case .voiceSpeaking(let card): !(card.finished && card.endsRound)
+        case .nudging(_, let opened): !opened
+        case .idle, .hidden, .notice, .blocked, .offline, .voiceError, .permission, .micPermission: false
+        }
+    }
+}
+
+/// Tug, animated for its state. Pose changes ease over 0.28 s. The clock runs only while the state moves
+/// (`TugPose.moves`) or a change is easing; a resting state is its still and does not redraw. With Reduce
+/// Motion the clock stops, each state is its still, and a change is a crossfade.
 struct TugView: View {
     let phase: MascotPhase
     var talking = false
@@ -329,12 +344,19 @@ struct TugView: View {
     @State private var previous: TugPose?
     @State private var changedAt = Date.distantPast
     @State private var shown: MascotPhase?
+    @State private var settling = false
+
+    static let ease: TimeInterval = 0.28
+    /// The still's moment: the same one the Reduce Motion stills use.
+    static let stillT = 0.35
+
+    private var moving: Bool { !reduceMotion && TugPose.moves(phase, talking: talking) }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
-            let t = reduceMotion ? 0.35 : context.date.timeIntervalSinceReferenceDate
-            let target = TugPose(phase: phase, t: t, talking: talking, animated: !reduceMotion)
-            let k = reduceMotion ? 1 : min(1, context.date.timeIntervalSince(changedAt) / 0.28)
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: !(moving || (settling && !reduceMotion)))) { context in
+            let t = moving ? context.date.timeIntervalSinceReferenceDate : Self.stillT
+            let target = TugPose(phase: phase, t: t, talking: talking, animated: moving)
+            let k = reduceMotion || !settling ? 1 : min(1, context.date.timeIntervalSince(changedAt) / Self.ease)
             let eased = 1 - pow(1 - k, 3)
             TugCanvas(pose: previous.map { TugPose.lerp($0, target, eased) } ?? target, facesRight: facesRight, t: t)
         }
@@ -342,9 +364,18 @@ struct TugView: View {
         .transition(.opacity.animation(Motion.crossfade))
         .onChange(of: phase.name + (talking ? "-talking" : "")) { _, _ in
             let now = Date()
-            if let shown { previous = TugPose(phase: shown, t: now.timeIntervalSinceReferenceDate, talking: false, animated: !reduceMotion) }
+            if let shown {
+                let wasMoving = !reduceMotion && TugPose.moves(shown, talking: false)
+                previous = TugPose(phase: shown, t: wasMoving ? now.timeIntervalSinceReferenceDate : Self.stillT, talking: false, animated: wasMoving)
+            }
             changedAt = now
             shown = phase
+            settling = true
+            // The clock stops once the change has eased in, unless the new state moves.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(Self.ease + 0.05))
+                if Date().timeIntervalSince(changedAt) >= Self.ease { settling = false }
+            }
         }
         .onAppear { shown = phase }
     }
