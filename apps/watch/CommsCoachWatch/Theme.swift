@@ -32,8 +32,8 @@ enum Palette {
     static let tugOutline = Color(hex: 0x171411)
     static let tugString = inkDark                 // one token: the string's colour changes here only
 
-    // The recording light. Ink, because red means fillers only.
-    static let recordDot = inkDark
+    // The recording light. Red is the universal recording signal: the one exception to "red means fillers".
+    static let recordDot = Color(hex: 0xE5412F)
 }
 
 extension Color {
