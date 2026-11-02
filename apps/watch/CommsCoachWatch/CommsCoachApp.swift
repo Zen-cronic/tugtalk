@@ -29,6 +29,7 @@ final class CaptureModel: ObservableObject {
     private var pending: PendingCapture?
     private(set) var isPreview = false
     private(set) var scrollToObservation = false
+    private(set) var scrollToActions = false
 
     init() {
         // At the cap the recorder stops itself; the capture goes to upload exactly as a Stop tap would.
@@ -45,6 +46,7 @@ final class CaptureModel: ObservableObject {
         if arguments.contains("-previewResult") {
             isPreview = true
             scrollToObservation = arguments.contains("-scrollToObservation")
+            scrollToActions = arguments.contains("-scrollToActions") // the result's buttons, at the end of the screen
             phase = .done(.preview)
             return
         }
