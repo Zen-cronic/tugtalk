@@ -24,9 +24,13 @@ public struct ScreenContextPipeline: Sendable {
         public let windowID: CGWindowID?
     }
 
-    /// Refuses deny-listed apps and secure input before any pixels are captured.
+    /// Refuses the companion itself, deny-listed apps and secure input before any pixels are captured.
     public func run(app: FrontApp, secureInput: Bool) async throws -> Result {
-        if case .blocked(let name) = gate.check(app, secureInput: secureInput) { throw CaptureError.blocked(name) }
+        switch gate.check(app, secureInput: secureInput) {
+        case .ownWindow: throw CaptureError.ownWindow
+        case .blocked(let name): throw CaptureError.blocked(name)
+        case .allowed: break
+        }
         let window = try await capturer.capture(app)
         let lines = try reader.readLines(window.image)
         let text = lines.map(\.text).joined(separator: "\n")

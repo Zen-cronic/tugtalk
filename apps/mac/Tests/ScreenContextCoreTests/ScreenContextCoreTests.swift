@@ -100,8 +100,7 @@ final class GateTests: XCTestCase {
         let capture = CountingCapture()
         let pipeline = ScreenContextPipeline(capturer: capture)
         for app in [FrontApp(name: "1Password", bundleID: "com.1password.1password", processID: 2),
-                    FrontApp(name: "Messages", bundleID: "com.apple.MobileSMS", processID: 3),
-                    FrontApp(name: "Coach", bundleID: "com.kaungzinhein.commscoach.mac", processID: 4)] {
+                    FrontApp(name: "Messages", bundleID: "com.apple.MobileSMS", processID: 3)] {
             do { _ = try await pipeline.run(app: app, secureInput: false); XCTFail("should block \(app.name)") }
             catch { XCTAssertEqual(error as? CaptureError, .blocked(app.name)) }
         }
@@ -109,6 +108,20 @@ final class GateTests: XCTestCase {
         catch { XCTAssertEqual(error as? CaptureError, .blocked("a password field")) }
         XCTAssertEqual(capture.calls, 0, "no pixels were captured for a blocked app")
         XCTAssertEqual(CaptureGate().check(textEdit, secureInput: false), .allowed)
+    }
+
+    func testOurOwnWindowIsNeverReadEvenWithAnEditedDenyList() async {
+        let capture = CountingCapture()
+        // A deny list edited down to nothing still never reads the companion, by bundle id or by process.
+        let pipeline = ScreenContextPipeline(gate: CaptureGate(denyList: [], ownProcessID: 4242), capturer: capture)
+        for app in [FrontApp(name: "Comms Coach", bundleID: CaptureGate.ownBundleID, processID: 4),
+                    FrontApp(name: "Renamed copy", bundleID: "com.example.other", processID: 4242)] {
+            do { _ = try await pipeline.run(app: app, secureInput: false); XCTFail("should refuse \(app.name)") }
+            catch { XCTAssertEqual(error as? CaptureError, .ownWindow) }
+        }
+        XCTAssertEqual(capture.calls, 0, "no pixels of our own window were captured")
+        XCTAssertEqual(CaptureGate(denyList: [], ownProcessID: 4242).check(textEdit, secureInput: false), .allowed)
+        XCTAssertTrue(CaptureGate.defaultDenyList.contains(CaptureGate.ownBundleID))
     }
 }
 

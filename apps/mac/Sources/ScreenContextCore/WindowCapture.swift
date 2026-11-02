@@ -29,6 +29,8 @@ public struct CapturedWindow: @unchecked Sendable {
 
 public enum CaptureError: LocalizedError, Equatable {
     case blocked(String)
+    /// The front app is the companion itself: its own window is never read or sent.
+    case ownWindow
     case permissionNeeded
     case noWindow
     case unreadableImage
@@ -37,6 +39,7 @@ public enum CaptureError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .blocked(let app): return "I don't read \(app)."
+        case .ownWindow: return "Click the window you want me to read, then try again."
         case .permissionNeeded: return "Screen Recording permission is needed to read a window."
         case .noWindow: return "There is no window to read in the front app."
         case .unreadableImage: return "The image could not be read."
@@ -58,13 +61,21 @@ public struct CaptureGate: Sendable {
         "com.kaungzinhein.commscoach.mac",
     ]
 
-    public var denyList: Set<String>
-    public init(denyList: Set<String> = CaptureGate.defaultDenyList) { self.denyList = denyList }
+    /// The companion's own bundle id. Refused even when an edited deny list leaves it out.
+    public static let ownBundleID = "com.kaungzinhein.commscoach.mac"
 
-    public enum Decision: Equatable, Sendable { case allowed, blocked(String) }
+    public var denyList: Set<String>
+    /// This process: its windows are never read, whatever the deny list says.
+    public var ownProcessID: Int32
+    public init(denyList: Set<String> = CaptureGate.defaultDenyList, ownProcessID: Int32 = ProcessInfo.processInfo.processIdentifier) {
+        self.denyList = denyList; self.ownProcessID = ownProcessID
+    }
+
+    public enum Decision: Equatable, Sendable { case allowed, blocked(String), ownWindow }
 
     /// `secureInput` is true while a password field anywhere has secure keyboard entry on.
     public func check(_ app: FrontApp, secureInput: Bool) -> Decision {
+        if app.bundleID == Self.ownBundleID || (app.processID != 0 && app.processID == ownProcessID) { return .ownWindow }
         if denyList.contains(app.bundleID) { return .blocked(app.name) }
         if secureInput { return .blocked("a password field") }
         return .allowed

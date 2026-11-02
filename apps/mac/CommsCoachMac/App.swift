@@ -69,12 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pointing.avoid = { [weak self] rect in self?.panel.moveAway(from: rect) }
         dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown() }
         dock.onTalkUp = { [weak self] in self?.voice.keyUp() }
-        dock.onReadWindow = { [weak self] in
-            guard let self else { return }
-            // Our panel was in front; give the front back to the window the person was using, then read it.
-            self.lastOtherApp?.activate()
-            Task { try? await Task.sleep(for: .seconds(0.35)); self.capture(trigger: "dock") }
-        }
+        dock.onReadWindow = { [weak self] in self?.readLastOtherWindow() }
         menu.onDockMode = { [weak self] on in self?.dock.setEnabled(on) }
         voice.afterSave = { [weak self] in self?.poller.pollSoon() }
         model.onVoiceRetry = { [weak self] in self?.voice.retry() }
@@ -119,9 +114,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// "Read This Window" in the docked panel: our panel is in front, so give the front back to the window the
+    /// person was using, then read it. Never our own window: with no other app to return to, it says so instead.
+    private func readLastOtherWindow() {
+        guard let other = lastOtherApp, !other.isTerminated, other.bundleIdentifier != Bundle.main.bundleIdentifier, other.activate() else {
+            captureLog.notice("read this window: no other app to read")
+            model.set(.notice(CaptureError.ownWindow.localizedDescription), collapseAfter: 4)
+            return
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(0.35))
+            // The capture's own gate refuses our window too, if the switch did not happen.
+            self.capture(trigger: "dock")
+        }
+    }
+
     /// Hides the companion while a known meeting app is in front. A heuristic: macOS offers no
     /// public way to know whether the screen is being shared.
     private func watchFrontmostApp() {
+        // The app in front at launch counts as the last other app, so the docked panel can read it before any switch.
+        if let front = NSWorkspace.shared.frontmostApplication, front.bundleIdentifier != Bundle.main.bundleIdentifier,
+           front.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+            lastOtherApp = front
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
+            MainActor.assumeIsolated {
+                if let self, let pid, self.lastOtherApp?.processIdentifier == pid { self.lastOtherApp = nil }
+            }
+        }
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
             let running = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             let bundleID = running?.bundleIdentifier ?? ""

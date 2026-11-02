@@ -46,6 +46,12 @@ final class CaptureFlow {
             return
         }
         let front = frontApp()
+        // Our own panel is in front (the docked panel, say): never read or send it.
+        if pipeline.gate.check(front, secureInput: false) == .ownWindow {
+            captureLog.notice("refused: our own window is in front")
+            model.set(.notice(CaptureError.ownWindow.localizedDescription), collapseAfter: 4)
+            return
+        }
         if !usesFixture && !PermissionGate.granted {
             // The explainer first; the system prompt only after the person presses Continue.
             model.set(.permission)
@@ -59,6 +65,10 @@ final class CaptureFlow {
             let result: ScreenContextPipeline.Result
             do {
                 result = try await pipeline.run(app: front, secureInput: IsSecureEventInputEnabled())
+            } catch CaptureError.ownWindow {
+                captureLog.notice("refused: our own window is in front")
+                model.set(.notice(CaptureError.ownWindow.localizedDescription), collapseAfter: 4)
+                return
             } catch CaptureError.blocked(let name) {
                 model.set(.blocked(name), collapseAfter: 2.5)
                 return
