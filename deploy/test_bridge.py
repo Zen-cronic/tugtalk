@@ -6,6 +6,7 @@ import os
 import re
 from pathlib import Path
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 from bridge import create_bridge, FORWARDED
@@ -23,17 +24,50 @@ class Volume:
         self.events = []; self.fail = False
         self.reload = Operation(self, 'reload'); self.commit = Operation(self, 'commit')
 
+# The adapter's side of scripts/handle-request.mjs, for fake workers: each test supplies handle(id, env, message).
+FAKE_WORKER = """
+import { createInterface } from 'node:readline';
+import { appendFileSync } from 'node:fs';
+const out = m => process.stdout.write(JSON.stringify(m) + '\\n');
+const pause = ms => new Promise(r => setTimeout(r, ms));
+const granted = new Map();
+const release = id => out({ id, phase: 'release' });
+const acquire = id => new Promise(r => { granted.set(id, r); out({ id, phase: 'acquire' }); });
+const respond = (id, status, body, dirty = true) => out({ id, dirty,
+  response: { status, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from(JSON.stringify(body)).toString('base64') } });
+createInterface({ input: process.stdin }).on('line', line => {
+  const m = JSON.parse(line);
+  if (m.go) { const r = granted.get(m.id); granted.delete(m.id); r?.(); return; }
+  handle(m.id, m.envelope, m).catch(() => process.exit(1));
+});
+out({ ready: true, dirty: false });
+"""
+
+
 class BridgeTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.volume = Volume()
         self.env = patch.dict(os.environ, {'CONNECTOR_TOKEN_HASH': hashlib.sha256(b'local-test-only').hexdigest()})
         self.env.start()
-        self.app = create_bridge(self.volume, worker_path=str(ROOT/'scripts/handle-request.mjs'), database_path=self.temp.name+'/state.sqlite')
+        self.apps = []
+        self.app = self.bridge(self.volume, worker_path=str(ROOT/'scripts/handle-request.mjs'), database_path=self.temp.name+'/state.sqlite')
         self.sequence = 0
 
     async def asyncTearDown(self):
+        for app in self.apps:
+            await app.worker.kill()
         self.env.stop(); self.temp.cleanup()
+
+    def bridge(self, volume, **options):
+        app = create_bridge(volume, **options)
+        self.apps.append(app)
+        return app
+
+    def fake(self, name, handle):
+        path = Path(self.temp.name) / name
+        path.write_text(FAKE_WORKER + 'async function handle(id, env, m) {\n' + handle + '\n}\n')
+        return str(path)
 
     async def call(self, method, path, body=None, key=None, auth=True):
         self.sequence += 1
@@ -51,10 +85,10 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         except ValueError: data = raw.decode()
         return sent[0]['status'], data
 
-    async def test_full_loop_survives_separate_processes(self):
+    async def test_full_loop_runs_on_one_long_lived_worker(self):
         status, context = await self.call('GET','/v1/context')
         self.assertEqual(status,200); self.assertEqual(len(context['sessions']),2)
-        self.assertEqual(self.volume.events,['reload','commit','response'])
+        self.assertEqual(self.volume.events,['commit','response'], 'the bootstrap token and seed rows are committed before the first answer')
         status, data = await self.call('POST','/v1/goals',{'title':'Pause','target':'Wait for the question'})
         self.assertEqual(status,200); goal = data['record']
         status, data = await self.call('POST','/v1/exercises',{'goal_id':goal['id'],'title':'One pause','instructions':'Wait, pause, answer'})
@@ -76,16 +110,35 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(context['progress']['measured_improvement'])
         self.assertIn('80ms',(await self.call('GET','/v1/files/evidence.txt'))[1])
         self.assertEqual((await self.call('GET','/v1/context',auth=False))[0],401)
+        self.assertEqual(self.app.worker.starts, 1, 'every request ran on the same Node process')
+        self.assertNotIn('reload', self.volume.events)
+
+    async def test_one_worker_serves_every_request_reads_skip_the_commit_and_nothing_reloads(self):
+        await self.call('GET', '/health')
+        self.volume.events.clear()
+        for _ in range(5):
+            self.assertEqual((await self.call('GET', '/health'))[0], 200)
+            self.assertEqual((await self.call('GET', '/v1/overview'))[0], 200)
+        self.assertEqual(self.volume.events, ['response'] * 10, 'reads are answered without a reload or a commit')
+        self.volume.events.clear()
+        self.assertEqual((await self.call('POST', '/v1/goals', {'title': 'Pace', 'target': 'Slow down'}))[0], 200)
+        self.assertEqual(self.volume.events, ['commit', 'response'], 'a write is committed before it is answered')
+        self.assertEqual(self.app.worker.starts, 1)
 
     async def test_commit_failure_never_reports_success_and_retry_is_idempotent(self):
         self.volume.fail = True
         body = {'title':'Retry safely','target':'A single goal'}
         self.assertEqual((await self.call('POST','/v1/goals',body,key='commit-failure'))[0],503)
+        # While storage keeps failing, even a read is refused: nothing uncommitted is shown as stored.
+        self.assertEqual((await self.call('GET','/v1/context'))[0],503)
         self.volume.fail = False
+        self.volume.events.clear()
+        status, context = await self.call('GET','/v1/context')
+        self.assertEqual(self.volume.events,['commit','response'], 'the failed commit is retried before the next answer')
+        self.assertEqual(len(context['goals']),1)
         status, data = await self.call('POST','/v1/goals',body,key='commit-failure')
         self.assertEqual(status,200); self.assertTrue(data['replayed'])
-        context = (await self.call('GET','/v1/context'))[1]
-        self.assertEqual(len(context['goals']),1)
+        self.assertEqual(len((await self.call('GET','/v1/context'))[1]['goals']),1)
 
     async def raw(self, path, body, headers):
         sent = []
@@ -121,22 +174,14 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_reads_are_served_while_a_recording_is_in_model_calls(self):
         # A fake worker that follows the release/acquire protocol with a slow "inference" step.
-        fake = Path(self.temp.name) / 'fake-worker.mjs'
-        fake.write_text("""
-import { createInterface } from 'node:readline';
-const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
-const env = JSON.parse((await lines.next()).value);
-const out = m => process.stdout.write(JSON.stringify(m) + '\\n');
+        app = self.bridge(self.volume, worker_path=self.fake('fake-worker.mjs', """
 if (env.path === '/v1/recordings') {
-  out({ phase: 'release' });
-  await new Promise(r => setTimeout(r, 1500));
-  out({ phase: 'acquire' });
-  if ((await lines.next()).value !== 'go') process.exit(1);
+  release(id);
+  await pause(1500);
+  await acquire(id);
 }
-out({ response: { status: 200, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from(JSON.stringify({ path: env.path })).toString('base64') } });
-process.exit(0);
-""")
-        app = create_bridge(self.volume, worker_path=str(fake), database_path=self.temp.name + '/fake.sqlite')
+respond(id, 200, { path: env.path }, env.method !== 'GET');
+"""), database_path=self.temp.name + '/fake.sqlite')
         finished = []
         async def request(path, method):
             sent = []
@@ -154,20 +199,12 @@ process.exit(0);
 
     async def test_screen_context_gets_the_model_deadline_and_json_limit(self):
         # A fake worker that answers after 1 s, with the read deadline cut to 0.3 s: only model routes may wait that long.
-        fake = Path(self.temp.name) / 'slow-worker.mjs'
-        fake.write_text("""
-import { createInterface } from 'node:readline';
-const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
-const env = JSON.parse((await lines.next()).value);
-out({ phase: 'release' });
-await new Promise(r => setTimeout(r, 1000));
-out({ phase: 'acquire' });
-if ((await lines.next()).value !== 'go') process.exit(1);
-out({ response: { status: 200, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from(JSON.stringify({ path: env.path })).toString('base64') } });
-process.exit(0);
-function out(m) { process.stdout.write(JSON.stringify(m) + '\\n'); }
-""")
-        app = create_bridge(self.volume, worker_path=str(fake), database_path=self.temp.name + '/slow.sqlite')
+        app = self.bridge(self.volume, worker_path=self.fake('slow-worker.mjs', """
+release(id);
+await pause(1000);
+await acquire(id);
+respond(id, 200, { path: env.path });
+"""), database_path=self.temp.name + '/slow.sqlite')
         async def request(app, path, body=b'{}'):
             sent = []
             async def receive(): return {'type': 'http.request', 'body': body}
@@ -179,7 +216,6 @@ function out(m) { process.stdout.write(JSON.stringify(m) + '\\n'); }
             self.assertEqual(await request(app, '/v1/screen-contexts'), 200)
             self.assertEqual(await request(app, '/v1/goals'), 503, 'ordinary writes keep the short deadline')
         self.assertEqual(await request(self.app, '/v1/screen-contexts', b'x' * 20000), 413, 'screen contexts keep the 16 KiB JSON limit')
-
 
     async def test_voice_round_route_takes_audio_and_forwards_voice_headers_to_node(self):
         data = bytes(96000)
@@ -212,23 +248,15 @@ function out(m) { process.stdout.write(JSON.stringify(m) + '\\n'); }
 
     async def test_voice_round_gets_the_model_deadline_and_releases_the_database_during_model_calls(self):
         # A fake worker that releases the database for 1 s of "transcription and reply", with the read deadline cut to 0.3 s.
-        fake = Path(self.temp.name) / 'voice-worker.mjs'
-        fake.write_text("""
-import { createInterface } from 'node:readline';
-const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
-const env = JSON.parse((await lines.next()).value);
-const out = m => process.stdout.write(JSON.stringify(m) + '\\n');
+        app = self.bridge(self.volume, worker_path=self.fake('voice-worker.mjs', """
 if (env.path === '/v1/voice-rounds') {
-  out({ phase: 'release' });
-  await new Promise(r => setTimeout(r, 1000));
-  out({ phase: 'acquire' });
-  if ((await lines.next()).value !== 'go') process.exit(1);
+  release(id);
+  await pause(1000);
+  await acquire(id);
 }
 const size = Buffer.from(env.body_b64, 'base64').length;
-out({ response: { status: 200, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from(JSON.stringify({ path: env.path, size, prompt: env.headers['x-prompt-ended-at'] ?? null })).toString('base64') } });
-process.exit(0);
-""")
-        app = create_bridge(self.volume, worker_path=str(fake), database_path=self.temp.name + '/voice.sqlite')
+respond(id, 200, { path: env.path, size, prompt: env.headers['x-prompt-ended-at'] ?? null }, env.method !== 'GET');
+"""), database_path=self.temp.name + '/voice.sqlite')
         finished = []
         async def request(method, path, body=b''):
             sent = []
@@ -261,34 +289,24 @@ process.exit(0);
         class LoggingVolume(Volume):
             def __init__(self):
                 super().__init__()
-                outer = self
                 class Op(Operation):
                     async def aio(self): note(self.name); await asyncio.sleep(0.01)
                 self.reload = Op(self, 'reload'); self.commit = Op(self, 'commit')
-        fake = Path(self.temp.name) / 'logging-worker.mjs'
-        fake.write_text("""
-import { createInterface } from 'node:readline';
-import { appendFileSync } from 'node:fs';
-const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
-const env = JSON.parse((await lines.next()).value);
-const id = env.headers['idempotency-key'];
-const note = s => appendFileSync(process.env.TIMELINE, s + ' ' + id + '\\n');
-const out = m => process.stdout.write(JSON.stringify(m) + '\\n');
-const pause = ms => new Promise(r => setTimeout(r, ms));
+        worker = self.fake('logging-worker.mjs', """
+const key = env.headers['idempotency-key'];
+const note = s => appendFileSync(process.env.TIMELINE, s + ' ' + key + '\\n');
 note('db-open'); await pause(30);
 if (env.path === '/v1/recordings') {
-  note('db-close'); out({ phase: 'release' });
+  note('db-close'); release(id);
   note('model-start'); await pause(400); note('model-end');
-  out({ phase: 'acquire' });
-  if ((await lines.next()).value !== 'go') process.exit(1);
+  await acquire(id);
   note('db-open'); await pause(30);
 }
 note('db-close');
-out({ response: { status: 200, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from('{}').toString('base64') } });
-process.exit(0);
+respond(id, 200, {}, env.method !== 'GET');
 """)
         with patch.dict(os.environ, {'TIMELINE': str(log)}):
-            app = create_bridge(LoggingVolume(), worker_path=str(fake), database_path=self.temp.name + '/log.sqlite')
+            app = self.bridge(LoggingVolume(), worker_path=worker, database_path=self.temp.name + '/log.sqlite')
             finished = []
             async def request(method, path, key):
                 sent = []
@@ -303,36 +321,35 @@ process.exit(0);
                                  *(request('GET', '/v1/overview', f'read-{i}') for i in range(3)))
         self.assertEqual(sorted(s for _, s in finished), [200] * 6)
         events = log.read_text().split('\n')[:-1]
-        holder, in_model = None, None
+        holder, in_model, commits = None, None, 0
         for event in events:
             name, _, key = event.partition(' ')
             if name == 'db-open':
-                self.assertIsNone(holder, f'two workers had the database open: {events}'); holder = key
+                self.assertIn(holder, (None, 'closed'), f'two requests had the database at once: {events}'); holder = key
             elif name == 'db-close':
                 self.assertEqual(holder, key); holder = 'closed'
             elif name == 'commit':
-                self.assertEqual(holder, 'closed', 'commit only after the worker closed the database'); holder = None
+                self.assertEqual(holder, 'closed', 'commit only after the request finished with the database'); holder = None; commits += 1
             elif name == 'reload':
-                self.assertIsNone(holder, 'reload only while no worker has the database open')
+                self.fail('the volume is never reloaded while the container runs')
             elif name == 'model-start':
                 self.assertIsNone(in_model, 'requests that call a model run one at a time'); in_model = key
             elif name == 'model-end':
                 in_model = None
-        self.assertIsNone(holder)
+        self.assertIn(holder, (None, 'closed'))
+        self.assertEqual(commits, 3, 'the three captures commit; the reads do not')
         # Reads were served while a capture was in its model calls, not queued behind it.
         first_model = events.index(next(e for e in events if e.startswith('model-start')))
         last_model = len(events) - 1 - events[::-1].index(next(e for e in reversed(events) if e.startswith('model-end')))
         self.assertTrue(any(e.startswith('db-open read-') for e in events[first_model:last_model]))
-        self.assertEqual(sum(e.startswith('model-start') for e in events), 3, 'each capture runs its own worker; Node replays the retry')
+        self.assertEqual(sum(e.startswith('model-start') for e in events), 3, 'each capture ran once in the worker; the real handler replays the retry')
+        self.assertEqual(app.worker.starts, 1, 'six requests, one Node process')
 
     async def test_a_request_that_cannot_get_the_lock_in_time_gets_a_503(self):
-        fake = Path(self.temp.name) / 'hold-worker.mjs'
-        fake.write_text("""
-await new Promise(r => setTimeout(r, 800));
-process.stdout.write(JSON.stringify({ response: { status: 200, headers: {}, body_b64: '' } }) + '\\n');
-process.exit(0);
-""")
-        app = create_bridge(self.volume, worker_path=str(fake), database_path=self.temp.name + '/hold.sqlite')
+        app = self.bridge(self.volume, worker_path=self.fake('hold-worker.mjs', """
+await pause(800);
+respond(id, 200, {});
+"""), database_path=self.temp.name + '/hold.sqlite')
         async def request(method, path):
             sent = []
             async def receive(): return {'type': 'http.request', 'body': b'{}'}
@@ -346,5 +363,96 @@ process.exit(0);
             status, body = await request('GET', '/v1/overview')
             self.assertEqual(status, 503); self.assertEqual(body['error'], 'storage_or_worker_unavailable')
             await slow
+
+    async def test_speech_audio_streams_through_the_adapter_before_the_worker_finishes(self):
+        app = self.bridge(self.volume, worker_path=self.fake('speech-worker.mjs', """
+release(id);
+out({ id, head: { status: 200, headers: { 'Content-Type': 'audio/mpeg', 'X-Speech-Provider': 'wit' } } });
+for (const part of ['first-', 'second-', 'third']) { out({ id, chunk: Buffer.from(part).toString('base64') }); await pause(250); }
+await acquire(id);
+out({ id, dirty: true, response: { status: 200, headers: {}, body_b64: '' } });
+"""), database_path=self.temp.name + '/speech.sqlite')
+        began, events = time.perf_counter(), []
+        async def receive(): return {'type': 'http.request', 'body': b''}
+        async def send(event):
+            events.append((round(time.perf_counter() - began, 3), event))
+            self.volume.events.append('start' if event['type'] == 'http.response.start' else 'more' if event.get('more_body') else 'end')
+        headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x')]
+        await app({'type': 'http', 'method': 'POST', 'path': '/v1/voice-rounds/round-1/speech', 'headers': headers}, receive, send)
+        start = events[0][1]
+        self.assertEqual(start['status'], 200)
+        self.assertIn((b'content-type', b'audio/mpeg'), start['headers'])
+        self.assertTrue(any(k == b'server-timing' for k, _ in start['headers']))
+        body = b''.join(e.get('body', b'') for _, e in events[1:])
+        self.assertEqual(body, b'first-second-third')
+        first_chunk, last = events[1][0], events[-1][0]
+        self.assertLess(first_chunk, last - 0.4, 'the first audio reached the client while the rest was still being made')
+        self.assertEqual(self.volume.events, ['start', 'more', 'more', 'more', 'commit', 'end'], 'the stream ends only after the commit')
+
+    async def test_model_routes_get_a_budget_that_ends_before_their_deadline_and_counts_the_wait(self):
+        app = self.bridge(self.volume, worker_path=self.fake('budget-worker.mjs', """
+if (env.method === 'POST') { release(id); await pause(1000); await acquire(id); }
+respond(id, 200, { budget_ms: m.budget_ms ?? null }, env.method !== 'GET');
+"""), database_path=self.temp.name + '/budget.sqlite')
+        async def request(method, path, key):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': b''}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x'), (b'idempotency-key', key.encode())]
+            await app({'type': 'http', 'method': method, 'path': path, 'headers': headers}, receive, send)
+            return sent[0]['status'], json.loads(sent[1]['body'])
+        with patch('bridge.MODEL_DEADLINE', 4), patch('bridge.COMMIT_RESERVE', 1):
+            first, second = await asyncio.gather(request('POST', '/v1/recordings', 'budget-a'), request('POST', '/v1/voice-rounds', 'budget-b'))
+            read = await request('GET', '/v1/overview', 'budget-read')
+        self.assertEqual((first[0], second[0]), (200, 200))
+        self.assertTrue(2800 <= first[1]['budget_ms'] <= 3000, first)
+        self.assertTrue(1700 <= second[1]['budget_ms'] <= 2000, f'the wait for the first model call came off the budget: {second}')
+        self.assertIsNone(read[1]['budget_ms'], 'reads carry no budget')
+
+    async def test_a_model_request_that_outlives_its_deadline_still_finishes_and_commits(self):
+        log = Path(self.temp.name) / 'late.log'
+        app = self.bridge(self.volume, worker_path=self.fake('late-worker.mjs', """
+release(id);
+await pause(800);
+await acquire(id);
+appendFileSync(process.env.TIMELINE, 'saved\\n');
+respond(id, 200, { saved: true });
+"""), database_path=self.temp.name + '/late.sqlite')
+        sent = []
+        async def receive(): return {'type': 'http.request', 'body': b''}
+        async def send(event): sent.append(event)
+        headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x'), (b'idempotency-key', b'late-1')]
+        with patch.dict(os.environ, {'TIMELINE': str(log)}), patch('bridge.MODEL_DEADLINE', 0.3):
+            await app({'type': 'http', 'method': 'POST', 'path': '/v1/screen-contexts', 'headers': headers}, receive, send)
+            self.assertEqual(sent[0]['status'], 503, 'the client is told no success is claimed')
+            self.assertNotIn('commit', self.volume.events)
+            await asyncio.sleep(1.0)
+        self.assertEqual(log.read_text(), 'saved\n', 'the request finished in the background')
+        self.assertIn('commit', self.volume.events, 'and its write was committed, so a retry replays it')
+
+    async def test_a_worker_that_exits_fails_its_requests_and_the_next_request_starts_a_new_one(self):
+        app = self.bridge(self.volume, worker_path=self.fake('crash-worker.mjs', """
+if (env.path === '/v1/crash') process.exit(3);
+respond(id, 200, { ok: true }, false);
+"""), database_path=self.temp.name + '/crash.sqlite')
+        async def request(path):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': b''}
+            async def send(event): sent.append(event)
+            await app({'type': 'http', 'method': 'GET', 'path': path, 'headers': [(b'host', b'example--web.us-east.modal.run')]}, receive, send)
+            return sent[0]['status']
+        self.assertEqual(await request('/v1/crash'), 503)
+        self.assertEqual(await request('/health'), 200)
+        self.assertEqual(app.worker.starts, 2)
+
+    async def test_lifespan_startup_starts_the_worker_and_commits_its_bootstrap(self):
+        events = [{'type': 'lifespan.startup'}, {'type': 'lifespan.shutdown'}]
+        sent = []
+        async def receive(): return events.pop(0)
+        async def send(event): sent.append(event['type'])
+        await self.app({'type': 'lifespan'}, receive, send)
+        self.assertEqual(sent, ['lifespan.startup.complete', 'lifespan.shutdown.complete'])
+        self.assertEqual(self.app.worker.starts, 1)
+        self.assertEqual(self.volume.events, ['commit'], 'the bootstrap rows were committed once, at startup')
 
 if __name__ == '__main__': unittest.main()

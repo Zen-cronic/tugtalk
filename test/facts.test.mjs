@@ -210,6 +210,19 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.match(modal, /max_containers=1\b/);
         return `1 container, ${modal.match(/memory=(\d+)/)[1]} MB, ${modal.match(/timeout=(\d+)/)[1]} s timeout`;
       },
+      'hosting-worker': () => {
+        const bridge = read('deploy/bridge.py'), tests = read('deploy/test_bridge.py');
+        assert.doesNotMatch(bridge, /volume\.reload/, 'the adapter never reloads the volume');
+        assert.match(bridge, /if not worker\.alive:/, 'a worker is started only when none is running');
+        for (const name of ['test_one_worker_serves_every_request_reads_skip_the_commit_and_nothing_reloads', 'test_commit_failure_never_reports_success_and_retry_is_idempotent'])
+          assert.match(tests, new RegExp(`def ${name}\\(`));
+        return 'one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload';
+      },
+      'keep-warm': () => {
+        assert.match(modal, /min_containers=1 if keep_warm else 0/);
+        assert.match(modal, /keep_warm = os\.environ\.get\('KEEP_WARM', ''\) == '1'/);
+        return `off by default, KEEP_WARM=1 keeps 1 container; idle containers stay up ${modal.match(/^SCALEDOWN_SECONDS = (\d+)$/m)[1]} s`;
+      },
       'watch-target': () => `watchOS ${read('apps/watch/project.yml').match(/watchOS: "([\d.]+)"/)[1]}`,
       'mac-target': () => `macOS ${read('apps/mac/project.yml').match(/macOS: "([\d.]+)"/)[1]}`,
 
@@ -415,8 +428,10 @@ async function speechChecks() {
     assert.deepEqual(spoken.body, Buffer.concat(audio));
     store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     const stored = readFileSync(dbPath).includes(audio[1].subarray(0, 64));
-    const worker = read('scripts/handle-request.mjs');
-    assert.match(worker, /write\(chunk\) \{ chunks\.push/, 'the worker collects streamed writes');
+    const worker = read('scripts/handle-request.mjs'), bridge = read('deploy/bridge.py');
+    assert.match(worker, /emit\(\{ id, chunk: /, 'the worker passes each written chunk on');
+    assert.match(bridge, /if speech:\n\s+envelope\['stream'\] = True/, 'the adapter asks for a stream on the speech route only');
+    assert.match(read('deploy/test_bridge.py'), /def test_speech_audio_streams_through_the_adapter_before_the_worker_finishes\(/);
     const mms = read('deploy/mms_tts_app.py');
     return {
       'speech-providers': () => { assert.equal(createSpeechModel({ env: { SPEECH_PROVIDER: 'other' } }).speechReady(), false); return Object.keys(SPEECH_PROVIDERS).sort().join(', '); },
@@ -429,7 +444,7 @@ async function speechChecks() {
       'speech-unconfigured': () => { assert.equal(sent.length, 1, 'only the configured request reached the provider'); return `${none.status} ${JSON.parse(none.body).error}, no provider call`; },
       'speech-text': () => sent[0].q === 'Stored question?' && !JSON.stringify(sent).includes('Client text') ? 'the stored reply.question only' : 'client text',
       'speech-stored': () => stored ? 'yes' : 'no',
-      'speech-hosted': () => `${spoken.headers.get('transfer-encoding') === 'chunked' ? 'streamed' : 'not streamed'} locally; whole file through the hosting adapter`,
+      'speech-hosted': () => `${spoken.headers.get('transfer-encoding') === 'chunked' ? 'streamed' : 'not streamed'} locally and through the hosting adapter`,
       'mms-licence': () => {
         const models = [...mms.match(/^MODELS = \{(.+)\}$/m)[1].matchAll(/'(facebook\/[a-z-]+)'/g)].map(m => m[1]);
         return `${models.join(', ')}; ${mms.match(/licensed (CC-BY-NC-4\.0)/)[1]}`;

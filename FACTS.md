@@ -31,9 +31,11 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
 | `node-tests` | Node test cases, as `npm test` reports them | 94 | A `node --test` run of the other test files (all must pass), plus this one |
-| `python-tests` | Python hosting-adapter tests | 10 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
+| `python-tests` | Python hosting-adapter tests | 16 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
+| `hosting-worker` | How the hosting adapter runs requests | one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload | deploy/bridge.py and its tests in deploy/test_bridge.py |
+| `keep-warm` | Containers kept running with no traffic | off by default, KEEP_WARM=1 keeps 1 container; idle containers stay up 300 s | deploy/modal_app.py |
 | `watch-target` | Watch app minimum OS | watchOS 11.0 | apps/watch/project.yml |
 | `mac-target` | Mac companion minimum OS | macOS 14.0 | apps/mac/project.yml |
 
@@ -74,7 +76,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `speech-unconfigured` | Spoken reply with no provider configured | 503 speech_unconfigured, no provider call | HTTP with a counting fake fetch |
 | `speech-text` | Text the speech route sends to the provider | the stored reply.question only | HTTP: a client body with other text is ignored (fake fetch) |
 | `speech-stored` | Speech audio is stored | no | HTTP: the audio bytes are not in the database file |
-| `speech-hosted` | How the spoken reply comes back | streamed locally; whole file through the hosting adapter | HTTP `Transfer-Encoding: chunked` locally; the worker in scripts/handle-request.mjs collects writes into one body |
+| `speech-hosted` | How the spoken reply comes back | streamed locally and through the hosting adapter | HTTP `Transfer-Encoding: chunked` locally; scripts/handle-request.mjs passes each chunk on, and the adapter streams it (deploy/test_bridge.py) |
 | `mms-licence` | Self-hosted Meta MMS-TTS models and their licence | facebook/mms-tts-eng, facebook/mms-tts-fra; CC-BY-NC-4.0 | `MODELS` and the licence line in deploy/mms_tts_app.py |
 | `voice-live-latency` | Live voice rounds on a local server (no Modal hop), Nov 2: total server time p50 / p90 / max | 3546 / 4968 / 7616 ms over 12 rounds | `eval/voice-live-latency.json` (linear-interpolated percentiles) |
 | `voice-live-steps` | Same run: transcription and reply p50 / max | ASR 1378 / 2506 ms; reply 2248 / 6368 ms | `eval/voice-live-latency.json` |

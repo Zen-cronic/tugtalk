@@ -55,7 +55,7 @@ An exact retry (same key, same audio and the same headers) returns the stored ro
 
 - `Authorization: Bearer <key>` with write scope. No body is read; any body is ignored.
 - It speaks the round's stored `reply.question` and nothing else, so only text this server produced and checked is ever synthesized.
-- 200 returns the audio (`audio/mpeg` from wit, `audio/wav` from mms), with `X-Speech-Provider` and `X-Speech-Voice` headers. The local server streams it chunked as the provider sends it. Through the hosting adapter on Modal it comes back as one whole file, because the adapter returns each response in one piece.
+- 200 returns the audio (`audio/mpeg` from wit, `audio/wav` from mms), with `X-Speech-Provider` and `X-Speech-Voice` headers. The local server streams it chunked as the provider sends it, and so does the hosting adapter on Modal: the worker passes each chunk on as it arrives, and the adapter sends it to the client before the rest is made.
 - 503 `speech_unconfigured` when no provider is set up: the Mac then speaks the question with an Apple voice. 404 for an unknown, hidden or other account's round, 429 over 60 spoken replies per hour, 502 `speech_failed` if the provider fails or returns something other than audio.
 - The audio is not stored or logged. The request log records the route and status, with a hash of a fixed label, not of the audio.
 
