@@ -216,7 +216,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       // Measurement by Meta's models
       ...measurementChecks(evalResult),
       ...voiceChecks(base, store, dbPath, calls),
-      ...await speechChecks()
+      ...await speechChecks(),
+      ...liveVoiceChecks()
     };
 
     const facts = parseFacts();
@@ -435,4 +436,22 @@ async function speechChecks() {
       }
     };
   } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+}
+
+// The one live voice-round latency run (eval/voice-live-latency.json), and the copy rule it decides.
+function liveVoiceChecks() {
+  const live = JSON.parse(read('eval/voice-live-latency.json'));
+  const pct = (xs, p) => { const s = [...xs].sort((a, b) => a - b), k = (s.length - 1) * p, f = Math.floor(k), c = Math.min(f + 1, s.length - 1); return Math.round(s[f] + (s[c] - s[f]) * (k - f)); };
+  const step = key => live.rounds.map(r => r.latency_ms[key]);
+  const offered = live.rounds.filter(r => r.reply_checks.quote_offered);
+  return {
+    'voice-live-latency': () => { assert.match(live.ran_at, /^2026-11-02T/); const t = step('total'); return `${pct(t, 0.5)} / ${pct(t, 0.9)} / ${Math.max(...t)} ms over ${t.length} rounds`; },
+    'voice-live-steps': () => `ASR ${pct(step('asr'), 0.5)} / ${Math.max(...step('asr'))} ms; reply ${pct(step('model'), 0.5)} / ${Math.max(...step('model'))} ms`,
+    'voice-live-quotes': () => `${offered.filter(r => r.reply.quote_verified).length} of ${offered.length} (${live.rounds.length - offered.length} round offered none)`,
+    'voice-wording': () => {
+      const t = step('total');
+      return t.length >= 10 && pct(t, 0.5) <= 2000 && Math.max(...t) <= 3500 ? 'real-time' : 'voice reply, not real-time';
+    },
+    'speech-wit-live': () => { const s = live.speech_route_sample; return `first byte ${s.first_byte_ms} ms, total ${s.total_ms} ms, ${s.content_type}`; }
+  };
 }

@@ -1,0 +1,505 @@
+{
+ "eval": "voice-rounds-live-latency",
+ "label": "Live, one run on 2026-11-02: 12 headless voice rounds against a local server (no Modal hop), synthetic say clips.",
+ "setup": "scripts/local-stub-server.mjs --live-models on a Mac in Toronto; scripts/voice-client.mjs --say (macOS voice Samantha, 24 kHz mono 16-bit WAV) with --onset-ms; one goal; rounds sent back to back. Server timings are latency_ms; client_ms runs from sending the WAV to the parsed reply.",
+ "ran_at": "2026-11-02T15:35:12.437Z",
+ "calls": {
+  "meta_asr": 12,
+  "spark_open": 12,
+  "non_200": 0
+ },
+ "rounds": [
+  {
+   "n": 1,
+   "clip_ms": 5958,
+   "onset_ms_sent": 900,
+   "latency_ms": {
+    "asr": 2506,
+    "model": 1647,
+    "total": 4155
+   },
+   "client_ms": 4158,
+   "transcript": "So, um, I think I could maybe lead the Q1 launch. launch, I've ah done the beta already",
+   "metrics": {
+    "word_count": 18,
+    "words_per_minute": 180,
+    "filler_count": 2,
+    "hedge_count": 2,
+    "restart_count": 0,
+    "onset_ms_approx": 900
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You said \"maybe\" lead the Q1 launch - are you asking me to let you lead it?",
+    "quote": "maybe",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce67a337bf7b8261f1e19142e22",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 2,
+   "clip_ms": 4718,
+   "onset_ms_sent": 1400,
+   "latency_ms": {
+    "asr": 2252,
+    "model": 2749,
+    "total": 5002
+   },
+   "client_ms": 5017,
+   "transcript": "because the beta ship two weeks two weeks early and um the team already knows the plan",
+   "metrics": {
+    "word_count": 17,
+    "words_per_minute": 216,
+    "filler_count": 1,
+    "hedge_count": 0,
+    "restart_count": 0,
+    "onset_ms_approx": 1400
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You said the team already knows the plan, but are you asking me to let you lead Q1?",
+    "quote": "the team already knows the plan",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce68bb07e4ba43d14f8fa149dbc",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 3,
+   "clip_ms": 3827,
+   "onset_ms_sent": 600,
+   "latency_ms": {
+    "asr": 1645,
+    "model": 1543,
+    "total": 3193
+   },
+   "client_ms": 3208,
+   "transcript": "I guess the risk is the timeline, but we have a buffer of about a week",
+   "metrics": {
+    "word_count": 16,
+    "words_per_minute": 250,
+    "filler_count": 0,
+    "hedge_count": 1,
+    "restart_count": 0,
+    "onset_ms_approx": 600
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You said I guess the risk is the timeline. Are you confident, and will you directly ask me to let you lead?",
+    "quote": "I guess",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce69f3f7873a471d73cd2b27540",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 4,
+   "clip_ms": 5401,
+   "onset_ms_sent": 1100,
+   "latency_ms": {
+    "asr": 1365,
+    "model": 2549,
+    "total": 3915
+   },
+   "client_ms": 3929,
+   "transcript": "Sorry, let me restart. The budget stays the same, and I'd report to you every Friday",
+   "metrics": {
+    "word_count": 16,
+    "words_per_minute": 176,
+    "filler_count": 0,
+    "hedge_count": 0,
+    "restart_count": 2,
+    "onset_ms_approx": 1100
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You said you'd report every Friday, but you restarted twice. Can you directly ask me to let you lead?",
+    "quote": "let me restart",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce6ad037551bb62864c344b42e1",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 5,
+   "clip_ms": 3795,
+   "onset_ms_sent": 800,
+   "latency_ms": {
+    "asr": 1438,
+    "model": 1787,
+    "total": 3225
+   },
+   "client_ms": 3241,
+   "transcript": "Probably by the end of January, if the design review goes well",
+   "metrics": {
+    "word_count": 12,
+    "words_per_minute": 188,
+    "filler_count": 0,
+    "hedge_count": 1,
+    "restart_count": 0,
+    "onset_ms_approx": 800
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You said \"Probably\" again. Can you ask me directly, without hedging, to let you lead the Q1 launch?",
+    "quote": "Probably",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce6bf487ef9a6da3fcc5004d843",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 6,
+   "clip_ms": 4629,
+   "onset_ms_sent": 1600,
+   "latency_ms": {
+    "asr": 1248,
+    "model": 6368,
+    "total": 7616
+   },
+   "client_ms": 7632,
+   "transcript": "I mean I'd ask Sam to own the QA and I'd keep the launch plan myself",
+   "metrics": {
+    "word_count": 16,
+    "words_per_minute": 207,
+    "filler_count": 1,
+    "hedge_count": 0,
+    "restart_count": 0,
+    "onset_ms_approx": 1600
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You said you'd keep the plan yourself, but can you ask me directly to let you lead the Q1 launch?",
+    "quote": "I mean",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce6cd837cfea7deb030154cf7ef",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 7,
+   "clip_ms": 4980,
+   "onset_ms_sent": 700,
+   "latency_ms": {
+    "asr": 1606,
+    "model": 3057,
+    "total": 4665
+   },
+   "client_ms": 4680,
+   "transcript": "conversion on the beta is up 8%, which is, you you know, kind of the point",
+   "metrics": {
+    "word_count": 16,
+    "words_per_minute": 190,
+    "filler_count": 1,
+    "hedge_count": 1,
+    "restart_count": 0,
+    "onset_ms_approx": 700
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You said it's \"kind of the point\" — can you drop the hedge and ask me directly to let you lead the Q1 launch?",
+    "quote": "kind of",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce6efae74b1b6f0b2567f6916d8",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 8,
+   "clip_ms": 3279,
+   "onset_ms_sent": 1000,
+   "latency_ms": {
+    "asr": 1131,
+    "model": 2152,
+    "total": 3283
+   },
+   "client_ms": 3298,
+   "transcript": "Ah, I'd start Monday with with a kickoff and a one page plan",
+   "metrics": {
+    "word_count": 13,
+    "words_per_minute": 238,
+    "filler_count": 1,
+    "hedge_count": 0,
+    "restart_count": 0,
+    "onset_ms_approx": 1000
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You described the plan, but you didn't ask to lead. Can you ask me directly now?",
+    "quote": "I'd start Monday",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce702bc7addbc23216bac586d47",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 9,
+   "clip_ms": 4072,
+   "onset_ms_sent": 500,
+   "latency_ms": {
+    "asr": 1294,
+    "model": 1752,
+    "total": 3047
+   },
+   "client_ms": 3062,
+   "transcript": "If we slip, I'd cut the cut the onboarding tour first, not the core feature",
+   "metrics": {
+    "word_count": 15,
+    "words_per_minute": 221,
+    "filler_count": 0,
+    "hedge_count": 0,
+    "restart_count": 0,
+    "onset_ms_approx": 500
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You explained the trade-off, but you still haven't asked to lead. Can you ask me directly now?",
+    "quote": "",
+    "quote_verified": false
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce71296773ba0e96c28f006a18f",
+   "reply_checks": {
+    "quote_offered": false,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 10,
+   "clip_ms": 3640,
+   "onset_ms_sent": 1200,
+   "latency_ms": {
+    "asr": 1191,
+    "model": 1734,
+    "total": 2927
+   },
+   "client_ms": 2941,
+   "transcript": "Honestly, I think I'm ready. I just need your yes today",
+   "metrics": {
+    "word_count": 11,
+    "words_per_minute": 179,
+    "filler_count": 0,
+    "hedge_count": 1,
+    "restart_count": 0,
+    "onset_ms_approx": 1200
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "You said \"I think\" — are you ready? Ask me directly to lead the Q1 launch without hedging.",
+    "quote": "I think",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce720a7747b8e104b0dc670cdaa",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 11,
+   "clip_ms": 3572,
+   "onset_ms_sent": 850,
+   "latency_ms": {
+    "asr": 1391,
+    "model": 2344,
+    "total": 3735
+   },
+   "client_ms": 3750,
+   "transcript": "I'll send you the plan by Friday. With the three risks and their owners",
+   "metrics": {
+    "word_count": 14,
+    "words_per_minute": 233,
+    "filler_count": 0,
+    "hedge_count": 0,
+    "restart_count": 0,
+    "onset_ms_approx": 1070
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "That's a status update — but you didn't ask me. Will you ask directly to lead the Q1 launch?",
+    "quote": "I'll send you the plan by Friday. With the three risks and their owners",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce72f4175358eef3b64cd529cce",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  },
+  {
+   "n": 12,
+   "clip_ms": 2846,
+   "onset_ms_sent": 650,
+   "latency_ms": {
+    "asr": 936,
+    "model": 2420,
+    "total": 3357
+   },
+   "client_ms": 3372,
+   "transcript": "thank you. So I'll lead it. Starting Monday",
+   "metrics": {
+    "word_count": 8,
+    "words_per_minute": 167,
+    "filler_count": 0,
+    "hedge_count": 0,
+    "restart_count": 0,
+    "onset_ms_approx": 650
+   },
+   "reply": {
+    "move": "challenge",
+    "question": "That's you deciding, not asking. Will you ask me directly to let you lead it?",
+    "quote": "I'll lead it",
+    "quote_verified": true
+   },
+   "model": "meta-models/muse-spark-open-1026",
+   "provider_request_id": "54ca701a19ce73e6872c6baf514c964cce8b4",
+   "reply_checks": {
+    "quote_offered": true,
+    "quote_rejection": null,
+    "stripped_quotes": 0,
+    "cut_to_words": null,
+    "scrubbed": 0,
+    "replaced": false
+   }
+  }
+ ],
+ "speech_route_sample": {
+  "provider": "wit",
+  "voice": "wit$Rebecca",
+  "content_type": "audio/mpeg",
+  "first_byte_ms": 340,
+  "total_ms": 1589,
+  "bytes": 42816,
+  "round": 12,
+  "note": "One call through POST /v1/voice-rounds/{id}/speech on the local server, which streams; the hosting adapter would return the file whole."
+ },
+ "wit_direct_calls": [
+  {
+   "voice": "wit$Rebecca",
+   "accept": "audio/wav",
+   "chars": 156,
+   "status": 200,
+   "type": "audio/wav",
+   "transfer_encoding": "chunked",
+   "first_byte_ms": 3597,
+   "total_ms": 3654,
+   "chunks": 221,
+   "bytes": 476250
+  },
+  {
+   "voice": "wit$Charlie",
+   "accept": "audio/wav",
+   "chars": 156,
+   "status": 200,
+   "type": "audio/wav",
+   "transfer_encoding": "chunked",
+   "first_byte_ms": 3151,
+   "total_ms": 3258,
+   "chunks": 229,
+   "bytes": 450138
+  },
+  {
+   "voice": "wit$Colin",
+   "accept": "audio/wav",
+   "chars": 156,
+   "status": 200,
+   "type": "audio/wav",
+   "transfer_encoding": "chunked",
+   "first_byte_ms": 2785,
+   "total_ms": 2843,
+   "chunks": 205,
+   "bytes": 475994
+  },
+  {
+   "voice": "wit$Rebecca",
+   "accept": "audio/mpeg",
+   "chars": 156,
+   "status": 200,
+   "type": "audio/mpeg",
+   "transfer_encoding": "chunked",
+   "first_byte_ms": 387,
+   "total_ms": 2843,
+   "chunks": 69,
+   "bytes": 79872
+  }
+ ]
+}

@@ -76,3 +76,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `speech-stored` | Speech audio is stored | no | HTTP: the audio bytes are not in the database file |
 | `speech-hosted` | How the spoken reply comes back | streamed locally; whole file through the hosting adapter | HTTP `Transfer-Encoding: chunked` locally; the worker in scripts/handle-request.mjs collects writes into one body |
 | `mms-licence` | Self-hosted Meta MMS-TTS models and their licence | facebook/mms-tts-eng, facebook/mms-tts-fra; CC-BY-NC-4.0 | `MODELS` and the licence line in deploy/mms_tts_app.py |
+| `voice-live-latency` | Live voice rounds on a local server (no Modal hop), Nov 2: total server time p50 / p90 / max | 3546 / 4968 / 7616 ms over 12 rounds | `eval/voice-live-latency.json` (linear-interpolated percentiles) |
+| `voice-live-steps` | Same run: transcription and reply p50 / max | ASR 1378 / 2506 ms; reply 2248 / 6368 ms | `eval/voice-live-latency.json` |
+| `voice-live-quotes` | Same run: offered quotes that passed code's check | 11 of 11 (1 round offered none) | `eval/voice-live-latency.json` |
+| `voice-wording` | What the latency lets us call the reply | voice reply, not real-time | Rule on `eval/voice-live-latency.json`: real-time needs at least 10 rounds, p50 ≤ 2000 ms and none over 3500 ms |
+| `speech-wit-live` | One spoken reply through the speech route with wit, locally | first byte 340 ms, total 1589 ms, audio/mpeg | `speech_route_sample` in `eval/voice-live-latency.json` |

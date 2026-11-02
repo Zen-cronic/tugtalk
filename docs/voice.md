@@ -94,7 +94,21 @@ The usual JSON error shape, `{error, message, request_id}`:
 
 ## Latency
 
-Measured live against a local server: see "Live latency" below. These numbers do not include the Modal hop. The hosted service runs each request in a new Node worker; on Nov 2 a warm `GET /health` took 6.7 s, so the hosted round will be slower until that is fixed.
+Live, one run on 2026-11-02 (`eval/voice-live-latency.json`): 12 headless rounds of one practice conversation against a local server with the real providers, synthetic `say` clips of 2.8–6.0 s, from Toronto. 24 provider calls (12 Meta transcriptions, 12 Spark Open replies), all HTTP 200, no retries.
+
+| Step | p50 | p90 | max |
+|---|---|---|---|
+| Meta file transcription (`asr`) | 1378 ms | 2191 ms | 2506 ms |
+| Spark Open reply, low effort (`model`) | 2248 ms | 3026 ms | 6368 ms |
+| Server total, request to saved round (`total`) | 3546 ms | 4968 ms | 7616 ms |
+| Client, WAV sent to reply parsed | 3561 ms | 4983 ms | 7632 ms |
+
+- p90 and the percentiles are linear-interpolated over 12 rounds; the 6.4 s reply was one outlier.
+- 11 of 11 offered quotes passed code's check; one round offered no quote.
+- One spoken reply through the speech route with `wit` (`wit$Rebecca`, MP3): first byte 340 ms, total 1589 ms, locally.
+- What it does not include: the Modal hop. The hosted service runs each request in a new Node worker; on Nov 2 a warm `GET /health` took 6.7 s, so a hosted round will be slower until that is fixed. Meta's realtime transcription would save about 2 s of the `asr` step; it is not wired in.
+- What we saw in the replies: every one of the 12 moves was `challenge`, including round 12, although the prompt asks for `wrap_up` by about round 4. The model presses well on what was said, but code does not yet end a round.
+- The file transcription repeated words in 5 of 12 clips that were not in the audio ("two weeks two weeks", "you you know", "cut the cut the"). A repeated single word shows up in `immediate_repeats`; neither kind counts as a restart.
 
 Copy rule: the mascot's replies are called "voice replies", not "real-time", unless at least 10 live turns have a median of 2.0 s or less and none over 3.5 s, measured from release to reply.
 
