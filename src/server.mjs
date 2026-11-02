@@ -147,6 +147,9 @@ export function connectorDocument(baseUrl) {
       + `Captured sessions (source capture, measurement_status measured) come from a watch, Mac or phone via POST /v1/recordings, which capture devices call, not you. `
       + `Their metrics are code-measured from an automatic Meta transcript that may contain errors and does not separate speakers; their analysis.observation is model-written. `
       + `Cite the session ID, capture_device and metrics, and keep measured numbers distinct from the model's observation. `
+      + `metrics.pauses is measured by code from the gaps between the transcript's speech segments; it misses short pauses inside a segment, so treat it as a floor. `
+      + `The adjudication block holds two counts: lexicon_count from the word list, and adjudicated_count after Muse Spark Open labelled ambiguous hits habit or content and code checked each label. `
+      + `adjudicated_count is never higher; say which count you cite, and if adjudication.status is fallback or no_candidates the two are the same. `
       + `Do not claim measured improvement from a single session. `
       + `Confirm saved actions only using returned receipt_id and record_version.`,
     `Screen contexts (latest_screen_context in the overview and per goal, linked_screen_contexts in focused context) come from the Mac companion via POST /v1/screen-contexts, which capture devices call, not you. `
