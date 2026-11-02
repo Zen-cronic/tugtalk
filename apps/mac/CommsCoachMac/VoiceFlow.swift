@@ -60,26 +60,41 @@ final class VoiceFlow {
 
     // Hotkey
 
-    func keyDown() {
+    /// `source` says where the press came from (the hotkey, the docked panel's Talk button, or a script), so the
+    /// log tells a press that never arrived from one that was refused. Every refusal is logged with both states.
+    func keyDown(source: String = "hotkey") {
         let speaking: Bool = if case .speaking = machine.phase { true } else { false }
+        let states = "machine \(machine.phase.name), companion \(model.phase.name)"
+        voiceLog.notice("talk pressed (\(source, privacy: .public)): \(states, privacy: .public)")
         // A screen capture in progress keeps the companion busy.
-        if !speaking, case .listening = model.phase { return }
-        if !speaking, case .thinking = model.phase { return }
+        if !speaking, case .listening = model.phase { voiceLog.notice("press refused: a window is being read"); return }
+        if !speaking, case .thinking = model.phase { voiceLog.notice("press refused: a window card is on its way"); return }
         if fixture == nil {
             switch MicPermission.status {
             case .granted: break
-            case .undetermined: if speaking { speech.stop(); _ = machine.dismiss() }; model.set(.micPermission(denied: false)); return
-            case .denied: if speaking { speech.stop(); _ = machine.dismiss() }; model.set(.micPermission(denied: true)); return
+            case .undetermined:
+                voiceLog.notice("press refused: microphone permission not asked yet")
+                if speaking { speech.stop(); _ = machine.dismiss() }; model.set(.micPermission(denied: false)); return
+            case .denied:
+                voiceLog.notice("press refused: microphone permission denied")
+                if speaking { speech.stop(); _ = machine.dismiss() }; model.set(.micPermission(denied: true)); return
             }
         }
         guard Connection.api() != nil else {
+            voiceLog.notice("press refused: no connection to the coach")
             model.set(.voiceError(Connection.unavailableReason, retryable: false))
             return
         }
-        perform(machine.keyDown(at: Date()))
+        let effects = machine.keyDown(at: Date())
+        if effects.isEmpty { voiceLog.notice("press ignored by the voice turn: \(states, privacy: .public)") }
+        perform(effects)
     }
 
-    func keyUp() { perform(machine.keyUp(at: Date())) }
+    func keyUp(source: String = "hotkey") {
+        let effects = machine.keyUp(at: Date())
+        voiceLog.notice("talk released (\(source, privacy: .public)): machine now \(self.machine.phase.name, privacy: .public)\(effects.isEmpty ? ", nothing to send" : "", privacy: .public)")
+        perform(effects)
+    }
 
     func retry() { perform(machine.retry(at: Date())) }
 
@@ -177,7 +192,7 @@ final class VoiceFlow {
     }
 
     private func send(_ key: String, promptEndedAt: Date?, live: [Int16]?) {
-        guard case .thinking = machine.phase else { return }
+        guard case .thinking = machine.phase, machine.currentKey == key else { return }
         let wav: Data
         if store.exists(key), let kept = try? store.read(key) {
             wav = kept
@@ -228,7 +243,10 @@ final class VoiceFlow {
         let ms = Self.ms(since: releasedAt)
         voiceLog.notice("reply in \(ms, privacy: .public) ms after release (server total \(receipt.latency_ms?.total.map { String(Int($0)) } ?? "n/a", privacy: .public) ms, replayed \(receipt.replayed, privacy: .public))")
         let effects = machine.replyReady(key: key, question: receipt.reply.question, endsRound: receipt.reply.kind == .wrap_up)
-        guard !effects.isEmpty else { return }  // an older hold's reply
+        guard !effects.isEmpty else {
+            voiceLog.notice("an earlier hold's reply arrived after a newer press; not shown")
+            return
+        }
         var next = VoiceCard(receipt)
         let counted = tally.record(receipt.metrics, endsRound: next.endsRound, at: Date())
         next.round = counted.round
@@ -245,6 +263,11 @@ final class VoiceFlow {
     }
 
     private func fail(_ key: String, message: String, retryable: Bool) {
+        // A hold that was replaced by a newer press: its failure must not cover the new hold.
+        if let current = machine.currentKey, current != key {
+            voiceLog.notice("an earlier hold failed after a newer press; ignored")
+            return
+        }
         tally.reset()
         if case .thinking = machine.phase {
             perform(machine.uploadFailed(key: key, retryable: retryable))
@@ -274,8 +297,13 @@ final class VoiceFlow {
     }
 
     private func speechFinished(at ended: Date) {
+        // "Your turn" shows only once the turn is idle, so the press it asks for is always taken.
+        guard case .speaking = machine.phase else {
+            voiceLog.notice("a finished question arrived after the turn moved on (machine \(self.machine.phase.name, privacy: .public)); ignored")
+            return
+        }
         perform(machine.speechFinished(at: ended))
-        voiceLog.notice("question played to the end")
+        voiceLog.notice("question played to the end; machine \(self.machine.phase.name, privacy: .public)")
         markCardFinished()
         if let card, case .voiceSpeaking = model.phase { model.set(.voiceSpeaking(card), collapseAfter: 30) }
     }
@@ -300,8 +328,8 @@ final class VoiceFlow {
                 guard let self else { return }
                 voiceLog.notice("script: \(verb, privacy: .public)")
                 switch verb {
-                case "down": self.keyDown()
-                case "up": self.keyUp()
+                case "down": self.keyDown(source: "script")
+                case "up": self.keyUp(source: "script")
                 case "retry": self.model.onVoiceRetry()
                 case "dismiss": self.model.dismiss()
                 default: break

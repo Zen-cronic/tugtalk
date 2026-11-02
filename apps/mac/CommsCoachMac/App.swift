@@ -69,8 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pointing.avoid = { [weak self] rect in self?.panel.moveAway(from: rect) ?? true }
         pointing.onDismiss = { [weak self] in self?.panel.restoreAnchor() }
         panel.onFrameChange = { [weak self] in self?.pointing.companionMoved() }
-        dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown() }
-        dock.onTalkUp = { [weak self] in self?.voice.keyUp() }
+        dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown(source: "panel") }
+        dock.onTalkUp = { [weak self] in self?.voice.keyUp(source: "panel") }
         dock.onTalkCancel = { [weak self] in self?.voice.cancelHold() }
         dock.onReadWindow = { [weak self] in self?.readLastOtherWindow() }
         menu.onDockMode = { [weak self] on in self?.dock.setEnabled(on) }
@@ -106,7 +106,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// A second copy of the companion (a test build, an older build) registers the same keys, and macOS then
+    /// sends each press to only one of them, so presses can vanish from this copy without a trace.
+    /// Scripted test runs (`-voiceScript`) and `-registerHotkeys NO` register none; any other copy running is logged.
     private func registerHotkeys() {
+        let defaults = UserDefaults.standard
+        #if DEBUG
+        if defaults.string(forKey: "voiceScript") != nil || (defaults.object(forKey: "registerHotkeys") != nil && !defaults.bool(forKey: "registerHotkeys")) {
+            hotkeyLog.notice("global hotkeys not registered (scripted or -registerHotkeys NO run)")
+            return
+        }
+        #endif
+        let others = NSWorkspace.shared.runningApplications.filter {
+            $0.processIdentifier != ProcessInfo.processInfo.processIdentifier && $0.executableURL?.lastPathComponent == "CommsCoachMac"
+        }
+        if !others.isEmpty { hotkeyLog.error("\(others.count, privacy: .public) other copy of the companion is running; ⌃⌥T presses may go to it instead") }
         hotkeys.register(Hotkeys.capture) { [weak self] in self?.capture(trigger: "hotkey") }
         hotkeys.register(Hotkeys.hide) { [weak self] in self?.model.presenting.toggle() }
         hotkeys.register(Hotkeys.ghost) { [weak self] in self?.model.ghost.toggle() }

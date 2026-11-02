@@ -219,7 +219,6 @@ final class VoiceTurnMachineTests: XCTestCase {
         XCTAssertEqual(m.keyDown(at: t0), [.startRecording(key: "k1")])
         XCTAssertEqual(m.keyDown(at: t0 + 0.5), [], "key repeat while held does nothing")
         XCTAssertEqual(m.keyUp(at: t0 + 3), [.upload(key: "k1", promptEndedAt: nil)])
-        XCTAssertEqual(m.keyDown(at: t0 + 3.5), [], "no second round while one is on its way")
         XCTAssertEqual(m.replyReady(key: "old", question: "stale", endsRound: false), [], "a reply for another hold is ignored")
         XCTAssertEqual(m.replyReady(key: "k1", question: " Why you? ", endsRound: false), [.discard(key: "k1"), .speak("Why you?")])
         XCTAssertEqual(m.phase, .speaking(key: "k1", question: "Why you?", endsRound: false))
@@ -233,6 +232,40 @@ final class VoiceTurnMachineTests: XCTestCase {
         XCTAssertEqual(m.speechFinished(at: t0 + 4.1), [], "a late finish from the stopped question changes nothing")
         XCTAssertEqual(m.keyUp(at: t0 + 6), [.upload(key: "k2", promptEndedAt: nil)], "a cut-off question has no end time to send")
         XCTAssertNotEqual("k1", "k2")
+    }
+
+    /// The reported sequence: the reply plays to the end, the card says "Your turn", and the next press must start a
+    /// hold, however long the speech took to start, and whether the server voice or the fallback spoke it.
+    func testAfterTheQuestionPlaysToTheEndEveryPressStartsAHold() {
+        var m = machine()
+        _ = m.keyDown(at: t0)
+        XCTAssertFalse(m.takesPress, "held: key repeat does nothing")
+        _ = m.keyUp(at: t0 + 3.6)
+        XCTAssertTrue(m.takesPress, "even while the reply is on its way")
+        _ = m.replyReady(key: "k1", question: "Why you?", endsRound: false)
+        XCTAssertTrue(m.takesPress, "while speech loads or plays, a press barges in")
+        XCTAssertEqual(m.speechFinished(at: t0 + 18), [])
+        XCTAssertEqual(m.phase, .idle); XCTAssertTrue(m.takesPress, "Your turn")
+        XCTAssertEqual(m.keyDown(at: t0 + 21.6), [.startRecording(key: "k2")])
+        XCTAssertEqual(m.keyUp(at: t0 + 25.2), [.upload(key: "k2", promptEndedAt: t0 + 18)])
+        // A press in the gap before the speech's first sound (reply shown, audio still loading) barges in too.
+        _ = m.replyReady(key: "k2", question: "And then?", endsRound: false)
+        XCTAssertEqual(m.keyDown(at: t0 + 26), [.stopSpeaking, .startRecording(key: "k3")])
+        // A tap that is too short leaves the turn ready for the next real press.
+        XCTAssertEqual(m.keyUp(at: t0 + 26.1), [.discard(key: "k3"), .tooShort])
+        XCTAssertTrue(m.takesPress)
+        XCTAssertEqual(m.keyDown(at: t0 + 27), [.startRecording(key: "k4")])
+        // After a wrap-up ("Hold ⌃⌥T to start again") a press starts a new round.
+        _ = m.keyUp(at: t0 + 30); _ = m.replyReady(key: "k4", question: "Thanks.", endsRound: true); _ = m.speechFinished(at: t0 + 32)
+        XCTAssertTrue(m.takesPress)
+        XCTAssertEqual(m.keyDown(at: t0 + 33), [.startRecording(key: "k5")])
+        // A press while the reply is still on its way starts a new hold; the late reply is then ignored.
+        _ = m.keyUp(at: t0 + 36)
+        XCTAssertEqual(m.keyDown(at: t0 + 36.5), [.discard(key: "k5"), .startRecording(key: "k6")])
+        XCTAssertEqual(m.currentKey, "k6")
+        XCTAssertEqual(m.replyReady(key: "k5", question: "Late?", endsRound: false), [])
+        XCTAssertEqual(m.uploadFailed(key: "k5", retryable: true), [], "nor does its failure")
+        XCTAssertEqual(m.phase, .listening(key: "k6", since: t0 + 36.5, promptEndedAt: nil))
     }
 
     func testAFinishedQuestionsEndTimeGoesWithTheNextHoldOnce() {
