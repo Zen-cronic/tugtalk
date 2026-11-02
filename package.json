@@ -11,6 +11,7 @@
     "test": "node --test",
     "setup": "node scripts/setup.mjs",
     "audit": "node scripts/audit.mjs",
-    "eval": "node scripts/eval.mjs"
+    "eval": "node scripts/eval.mjs",
+    "stub": "node scripts/local-stub-server.mjs"
   }
 }

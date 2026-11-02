@@ -2,7 +2,9 @@ export const schemas={
   goals:{required:['title','target'],properties:{title:{type:'string',minLength:1,maxLength:160},target:{type:'string',minLength:1,maxLength:1000}}},
   exercises:{required:['goal_id','title','instructions'],properties:{goal_id:{type:'string'},title:{type:'string',minLength:1,maxLength:160},instructions:{type:'string',minLength:1,maxLength:1000}}},
   'check-ins':{required:['goal_id','exercise_id','status','feedback'],properties:{goal_id:{type:'string'},exercise_id:{type:'string'},status:{type:'string',enum:['completed','skipped']},feedback:{type:'string',minLength:1,maxLength:1000}}},
-  sessions:{required:['expected_version','correction_reason'],properties:{expected_version:{type:'integer',minimum:1},transcript:{type:'string',minLength:1,maxLength:4000},pause_before_answer_ms:{type:'integer',minimum:0,maximum:10000},deleted:{type:'boolean'},correction_reason:{type:'string',minLength:1,maxLength:1000}}}
+  sessions:{required:['expected_version','correction_reason'],properties:{expected_version:{type:'integer',minimum:1},transcript:{type:'string',minLength:1,maxLength:4000},pause_before_answer_ms:{type:'integer',minimum:0,maximum:10000},deleted:{type:'boolean'},correction_reason:{type:'string',minLength:1,maxLength:1000}}},
+  // Undo from the Mac companion: hide or restore a screen context. Its card is model-written and not editable.
+  'screen-contexts':{required:['expected_version','correction_reason'],properties:{expected_version:{type:'integer',minimum:1},deleted:{type:'boolean'},correction_reason:{type:'string',minLength:1,maxLength:1000}}}
 };
 export function specification(base) {
   const paths={
@@ -16,5 +18,5 @@ export function specification(base) {
   for (const k of ['goals','exercises','check-ins']) paths['/v1/'+k]={post:write('create_'+k.replace('-','_'),schemas[k],'post')};
   paths['/v1/goals/{id}']={patch:write('reviseGoal',{required:['expected_version'],properties:{...schemas.goals.properties,expected_version:{type:'integer',minimum:1}}},'patch')};
   paths['/v1/sessions/{id}']={patch:write('correctSession',schemas.sessions,'patch')};
-  return {openapi:'3.1.0',info:{title:'Synthetic Coaching Connector',version:'0.3.0',description:'Private test service. Seeded fixtures are synthetic; POST /v1/recordings stores the transcript of audio a capture device uploads (audio itself is not retained), so it can contain real speech. Writes only persist authorized user actions. Completion means self-reported, not measured improvement.'},servers:[{url:base}],security:[{bearerAuth:[]}],components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}}},paths};
+  return {openapi:'3.1.0',info:{title:'Synthetic Coaching Connector',version:'0.4.0',description:'Private test service. Seeded fixtures are synthetic; POST /v1/recordings stores the transcript of audio a capture device uploads (audio itself is not retained), so it can contain real speech. Writes only persist authorized user actions. Completion means self-reported, not measured improvement.'},servers:[{url:base}],security:[{bearerAuth:[]}],components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}}},paths};
 }

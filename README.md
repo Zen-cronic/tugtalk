@@ -43,6 +43,8 @@ Setup creates `.data/connector.sqlite` and a private `.data/operator-token.txt`.
 | PATCH | `/v1/sessions/{id}` | Correct or hide synthetic evidence with a reason and version check |
 | GET | `/v1/eval` | Public, read-only. Recomputes the measurement eval over the bundled synthetic corpus (no user data). See `eval/README.md`. |
 | POST | `/v1/recordings` | Capture devices (watch, Mac, phone) upload a mono 16-bit WAV (16/24 kHz, ≤180 s, ≤8 MiB). Meta `muse-voice-transcribe-1.0` transcribes it, code measures habits (en/fr lexicons), Muse Spark Open words one observation, and a measured session is saved. See `docs/capture.md`. |
+| POST | `/v1/screen-contexts` | The Mac companion sends the text of one window, redacted on the Mac (≤6,000 characters). Muse Spark Open writes a short context card; the text and pixels are not stored. See `docs/screen-context.md`. |
+| PATCH | `/v1/screen-contexts/{id}` | Hide (undo) or restore a screen context, with a version check |
 
 All `/v1/` paths except `GET /v1/eval` require `Authorization: Bearer <key>`. Writes additionally require `Idempotency-Key`. An exact retry returns the original receipt; changed content with the same key returns 409. New keys cannot duplicate an exercise's check-in. Use a new assigned exercise for a new attempt. Updates require `expected_version`; stale versions return 409. JSON bodies are limited to 16 KiB. These are this service's limits, not Muse platform limits.
 
@@ -60,7 +62,7 @@ The authenticated identity comes only from the token. Clients cannot choose anot
 - **Transcripts can be wrong.** Meta's transcription can drop or invent words (a repeat run of one clip dropped an "uh"). Speakers are not separated. Audio is not kept, so nobody can re-check a transcript against it.
 - **No improvement score.** `measured_improvement` is always `null`. One session cannot show change, and we have no comparison method yet.
 - **The observation is model-written.** Muse Spark Open words it from the transcript and the counts; code never takes numbers from it. If the model fails, the session is saved with `analysis.status: "unavailable"`.
-- **One small container.** Hosting is one scale-to-zero Modal container, so the first request after idle is slow and requests queue. There is no rate limiting.
+- **One small container.** Hosting is one scale-to-zero Modal container, so the first request after idle is slow and requests queue. The only rate limit is 30 screen contexts per hour.
 
 The limits, model names, eval numbers and test counts we state are listed in [FACTS.md](FACTS.md), and a test checks each one against the code.
 

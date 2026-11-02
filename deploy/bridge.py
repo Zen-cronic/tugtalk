@@ -2,8 +2,8 @@
 
 No framework dependency. Node executes the same tested API handler as local HTTP.
 The Modal function must have max_containers=1; the lock serializes database access within it.
-A recording worker releases the lock during its slow model calls (see scripts/handle-request.mjs),
-so reads are not queued behind inference.
+A recording or screen-context worker releases the lock during its slow model calls
+(see scripts/handle-request.mjs), so reads are not queued behind inference.
 """
 import asyncio
 import base64
@@ -15,6 +15,10 @@ JSON_LIMIT = 16384
 AUDIO_LIMIT = 8 * 1024 * 1024  # matches src/capture.mjs MAX_AUDIO_BYTES
 FORWARDED = ('authorization', 'content-type', 'idempotency-key',
              'x-goal-id', 'x-language', 'x-capture-device', 'x-occurred-at')
+# Requests that call a model get the long deadline; everything else must finish quickly.
+READ_DEADLINE = 20
+MODEL_DEADLINE = 150
+MODEL_ROUTES = ('/v1/recordings', '/v1/screen-contexts')
 
 
 def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', database_path='/data/connector.sqlite'):
@@ -38,6 +42,8 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         if scope['type'] != 'http':
             return
         recording = scope['method'] == 'POST' and scope['path'] == '/v1/recordings'
+        # A screen context is a small JSON body (JSON limit) but waits on a reasoning model.
+        model_call = scope['method'] == 'POST' and scope['path'] in MODEL_ROUTES
         early_headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}
         # Only a request that at least presents a Bearer credential may buffer a large audio body.
         # Node still performs the real token check; this keeps anonymous uploads at the JSON limit.
@@ -65,7 +71,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         envelope = {'method': scope['method'], 'path': scope['path'], 'headers': selected,
                     'base_url': 'https://' + host, 'body_b64': base64.b64encode(body).decode()}
         loop = asyncio.get_running_loop()
-        deadline = loop.time() + (150 if recording else 20)
+        deadline = loop.time() + (MODEL_DEADLINE if model_call else READ_DEADLINE)
         remaining = lambda: max(0.1, deadline - loop.time())
         await asyncio.wait_for(lock.acquire(), timeout=remaining())
         held = True
@@ -104,6 +110,8 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         except (Exception, asyncio.CancelledError) as exc:
             if process is not None and process.returncode is None:
                 process.kill()
+                # Close our end of stdin too; otherwise asyncio may wait forever for the pipe to disconnect.
+                process.stdin.close()
                 await process.wait()
             if isinstance(exc, asyncio.CancelledError):
                 raise

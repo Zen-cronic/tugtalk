@@ -8,6 +8,7 @@ import { Store } from '../src/store.mjs';
 import { createApp } from '../src/server.mjs';
 import { MAX_AUDIO_BYTES, MAX_AUDIO_MS, TRANSCRIBE_MODEL, ANALYSIS_MODEL, ANALYSIS_BUDGETS, LANGUAGES, DEVICES, inspectWav, measure, createModelClients } from '../src/capture.mjs';
 import { runEval } from '../src/evaluate.mjs';
+import { SCREEN_RATE_LIMIT, MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -36,8 +37,11 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
   const calls = { transcribe: 0, analyze: 0 };
   const models = {
     async transcribe() { calls.transcribe++; return { transcript: 'Um, I think we ship it.', turns: [], audio_duration_ms: 2000, model: TRANSCRIBE_MODEL, provider_session_id: 'fake' }; },
-    async analyze() { calls.analyze++; return { status: 'model_observation', observation: 'One filler.', suggested_exercise: 'Answer once.', model: ANALYSIS_MODEL, provider_request_id: 'fake' }; }
+    async analyze() { calls.analyze++; return { status: 'model_observation', observation: 'One filler.', suggested_exercise: 'Answer once.', model: ANALYSIS_MODEL, provider_request_id: 'fake' }; },
+    async describeScreen() { calls.describe = (calls.describe ?? 0) + 1; return { status: 'model_observation', summary: 'Preparing a 1:1.', observation: 'Lead with the ask.', next_step: 'Say it once.', model: ANALYSIS_MODEL }; }
   };
+  const screen = (text, key) => fetch(base + '/v1/screen-contexts', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': key },
+    body: JSON.stringify({ purpose: 'meeting_prep', capture_device: 'mac', text, redaction: { method: 'on-device-v1', counts: {} } }) });
   const server = createApp(store, { models }); await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;
   const auth = { Authorization: 'Bearer facts-secret' };
@@ -110,6 +114,20 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.equal(second.replayed, true); assert.equal(second.receipt_id, first.receipt_id);
         return calls.transcribe - before.transcribe === 1 && calls.analyze - before.analyze === 1 ? 'no' : 'yes';
       },
+      'screen-text-max': async () => {
+        assert.equal((await screen('a'.repeat(MAX_SCREEN_TEXT_CHARS + 1), 'facts-screen-1')).status, 400);
+        assert.equal((await screen('€'.repeat(Math.ceil((MAX_SCREEN_TEXT_BYTES + 1) / 3)), 'facts-screen-2')).status, 400);
+        return `${MAX_SCREEN_TEXT_CHARS} characters, ${MAX_SCREEN_TEXT_BYTES / 1024} KiB`;
+      },
+      'screen-text-retained': async () => {
+        const text = 'Prep note: ask to lead the launch; mention the beta shipped early. Unique marker 7f3e.';
+        const r = await screen(text, 'facts-screen-3'); const data = await r.json();
+        assert.equal(r.status, 200);
+        store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+        assert.equal(readFileSync(dbPath).includes(Buffer.from('Unique marker 7f3e')), false, 'screen text is not stored');
+        return data.record.text_retained === false ? 'no' : 'yes';
+      },
+      'screen-rate-limit': () => String(SCREEN_RATE_LIMIT.requests),
       'measured-improvement': async () => {
         const overview = await (await fetch(base + '/v1/overview', { headers: auth })).json();
         assert.equal(overview.totals.measured_improvement, null);

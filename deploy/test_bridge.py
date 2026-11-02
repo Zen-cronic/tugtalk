@@ -151,4 +151,32 @@ process.exit(0);
         await recording
         self.assertEqual(finished[-1], ('/v1/recordings', 200))
 
+    async def test_screen_context_gets_the_model_deadline_and_json_limit(self):
+        # A fake worker that answers after 1 s, with the read deadline cut to 0.3 s: only model routes may wait that long.
+        fake = Path(self.temp.name) / 'slow-worker.mjs'
+        fake.write_text("""
+import { createInterface } from 'node:readline';
+const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
+const env = JSON.parse((await lines.next()).value);
+out({ phase: 'release' });
+await new Promise(r => setTimeout(r, 1000));
+out({ phase: 'acquire' });
+if ((await lines.next()).value !== 'go') process.exit(1);
+out({ response: { status: 200, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from(JSON.stringify({ path: env.path })).toString('base64') } });
+process.exit(0);
+function out(m) { process.stdout.write(JSON.stringify(m) + '\\n'); }
+""")
+        app = create_bridge(self.volume, worker_path=str(fake), database_path=self.temp.name + '/slow.sqlite')
+        async def request(app, path, body=b'{}'):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': body}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x'), (b'content-type', b'application/json')]
+            await app({'type': 'http', 'method': 'POST', 'path': path, 'headers': headers}, receive, send)
+            return sent[0]['status']
+        with patch('bridge.READ_DEADLINE', 0.3):
+            self.assertEqual(await request(app, '/v1/screen-contexts'), 200)
+            self.assertEqual(await request(app, '/v1/goals'), 503, 'ordinary writes keep the short deadline')
+        self.assertEqual(await request(self.app, '/v1/screen-contexts', b'x' * 20000), 413, 'screen contexts keep the 16 KiB JSON limit')
+
 if __name__ == '__main__': unittest.main()
