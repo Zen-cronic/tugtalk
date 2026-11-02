@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../src/store.mjs';
-import { createApp } from '../src/server.mjs';
+import { createApp, connectorDocument } from '../src/server.mjs';
 import { NEEDS, ANSWER_CAP, checkNeed, needMet, gateReason, allowedMoves, codeOnlyReply } from '../src/counterpart.mjs';
 import { voiceParams, voiceFingerprint, acceptReply, createVoiceModel, FALLBACK_QUESTIONS } from '../src/voice.mjs';
 import { liveStart, createLiveRound } from '../src/live-voice.mjs';
@@ -256,4 +256,11 @@ test('live round: the start frame carries need and reply_mode; the reply event a
     assert.deepEqual(done.body.counterpart, reply.counterpart);
     assert.equal(store.get('alice', 'voice-rounds', done.body.round_id).reply_mode, 'code');
   } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('connector text: Muse is told who ends the round and that a code-only round has no model reply', () => {
+  const doc = connectorDocument('http://127.0.0.1:4318');
+  assert.match(doc, /gate\.reason measured_close means code measured that the answer closed the round; the model chose the words\./);
+  assert.match(doc, /Code-only rounds \(reply_mode code\) have no model reply\./);
+  assert.equal(/counterpart|X-Counterpart-Need/.test(doc), false, 'the need is not readable by the assistant');
 });

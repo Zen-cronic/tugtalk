@@ -190,6 +190,7 @@ export function connectorDocument(baseUrl) {
       + `The transcript is automatic and the metrics are code-measured; the reply is model-written. `
       + `reply.quote is the person's own words only when quote_verified is true; code checked it word for word against the transcript. `
       + `onset_ms_approx is approximate. Audio is not stored unless Keep my recordings is on. `
+      + `gate.reason measured_close means code measured that the answer closed the round; the model chose the words. Code-only rounds (reply_mode code) have no model reply. `
       + `metrics.camera, present only when the person turned on the Mac camera for practice, holds four code-measured numbers for that answer from Apple Vision head angles on the Mac: faced_camera_pct (share of the answer the head faced the camera), looked_away_count (look-aways of 1 s or more), longest_look_away_ms and frames. `
       + `It is head direction, not gaze: say "faced the camera", never eye contact, and do not describe the person's feelings or character from it. No camera image is stored or sent.`,
     `Keep my recordings (settings in the overview, and GET /v1/settings) is off by default. `
