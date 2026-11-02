@@ -189,7 +189,7 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         const inputs = modal.match(/^@modal\.concurrent\(max_inputs=(\d+)\)$/m)[1];
         assert.match(read('deploy/bridge.py'), /^    model_lock = asyncio\.Lock\(\)$/m, 'model routes take their own lock');
         assert.match(read('deploy/test_bridge.py'), /def test_concurrent_requests_keep_one_database_holder_and_one_model_call_at_a_time\(/);
-        return `${inputs} at once; model calls one at a time`;
+        return `${inputs} at once; one model request at a time`;
       },
       'hosting': () => {
         assert.match(modal, /max_containers=1\b/);

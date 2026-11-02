@@ -30,7 +30,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
 | `node-tests` | Node test cases, as `npm test` reports them | 40 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 8 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
-| `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; model calls one at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
+| `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `watch-target` | Watch app minimum OS | watchOS 11.0 | apps/watch/project.yml |
 | `mac-target` | Mac companion minimum OS | macOS 14.0 | apps/mac/project.yml |

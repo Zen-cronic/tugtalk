@@ -248,7 +248,7 @@ process.exit(0);
             elif name == 'reload':
                 self.assertIsNone(holder, 'reload only while no worker has the database open')
             elif name == 'model-start':
-                self.assertIsNone(in_model, 'model calls run one at a time'); in_model = key
+                self.assertIsNone(in_model, 'requests that call a model run one at a time'); in_model = key
             elif name == 'model-end':
                 in_model = None
         self.assertIsNone(holder)

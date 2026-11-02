@@ -5,7 +5,7 @@ The Modal function must have max_containers=1; the lock serializes database acce
 It accepts several inputs at once (@modal.concurrent), all on this one event loop.
 A recording or screen-context worker releases the lock during its slow model calls
 (see scripts/handle-request.mjs), so reads and ordinary writes are not queued behind inference.
-Model routes take a second lock for their whole run, so model calls happen one at a time:
+Model routes take a second lock for their whole run, so only one such request runs at a time:
 a retry that arrives while the first attempt is still running waits and then replays its receipt
 instead of paying for inference twice, and the hourly screen-context count stays exact.
 Only the holder of the database lock has the database open; it reloads the volume before the
