@@ -12,7 +12,18 @@ struct ContextCard: Equatable {
     let observation: String
     let nextStep: String
     let replayed: Bool
+    var modelLabel = "Muse Spark Open"
     var isPreview = false
+}
+
+/// Who writes the card: the real model on the shared record, or a stub on a local test server.
+enum ModelLabel {
+    static func display(_ model: String) -> String {
+        model == "meta-models/muse-spark-open-1026" ? "Muse Spark Open" : model
+    }
+    static var thinking: String {
+        Connection.isLocalDevelopmentRequested ? "The local test server is writing the card" : "Muse Spark Open is reading the redacted text"
+    }
 }
 
 /// What the companion shows when Muse or the watch changed the shared record.
@@ -32,6 +43,7 @@ enum MascotPhase: Equatable {
     case blocked(String)
     case offline(String, retryable: Bool)
     case permission
+    case notice(String)
     case hidden
 
     var name: String {
@@ -44,6 +56,7 @@ enum MascotPhase: Equatable {
         case .blocked: "blocked"
         case .offline: "offline"
         case .permission: "needs permission"
+        case .notice: "notice"
         case .hidden: "hidden"
         }
     }
@@ -58,6 +71,7 @@ enum MascotPhase: Equatable {
         case .blocked: "hand.raised"
         case .offline: "wifi.slash"
         case .permission: "lock.shield"
+        case .notice: "arrow.uturn.backward.circle"
         case .hidden: "eye.slash"
         }
     }
@@ -72,6 +86,7 @@ enum MascotPhase: Equatable {
         case .blocked: Palette.warn
         case .offline: Palette.offline
         case .permission: Palette.warn
+        case .notice: Palette.record
         case .hidden: Palette.offline
         }
     }
@@ -81,12 +96,13 @@ enum MascotPhase: Equatable {
         switch self {
         case .idle: "\(MascotName) · ⌃⌥Space reads this window"
         case .listening(let app): "Reading \(app) (this window only)"
-        case .thinking(let since): "Muse Spark Open is reading the redacted text · \(max(0, Int(now.timeIntervalSince(since))))s"
+        case .thinking(let since): "\(ModelLabel.thinking) · \(max(0, Int(now.timeIntervalSince(since))))s"
         case .speaking(let card): card.isPreview ? "Preview · sample card, not saved" : (card.replayed ? "Already saved to your record" : "Saved to your record")
         case .nudging(let nudge, _): nudge.headline
         case .blocked(let app): "I don't read \(app)"
         case .offline(let reason, _): reason
         case .permission: "Screen Recording is needed to read a window"
+        case .notice(let text): text
         case .hidden: "Hidden while presenting"
         }
     }
@@ -96,12 +112,13 @@ enum MascotPhase: Equatable {
         switch self {
         case .idle, .hidden: nil
         case .listening(let app): "Reading \(app), this window only."
-        case .thinking: "Muse Spark Open is reading the redacted text."
+        case .thinking: "\(ModelLabel.thinking)."
         case .speaking(let card): "Saved. Next step: \(card.nextStep)"
         case .nudging(let nudge, _): "\(nudge.headline). \(nudge.detail)"
         case .blocked(let app): "I don't read \(app)."
         case .offline(let reason, _): "Not saved. \(reason)"
         case .permission: "Screen Recording permission is needed to read a window."
+        case .notice(let text): text
         }
     }
 
@@ -120,11 +137,12 @@ enum PreviewSamples {
                                   summary: "You're preparing to ask to own the Q1 launch in a 1:1.",
                                   observation: "For \"Answer clearly\", lead with the ask; right now it's buried at the end.",
                                   nextStep: "Say the ask in one sentence, out loud, twice.", replayed: false, isPreview: true)
-    static let nudge = NudgeCard(headline: "Muse added an exercise", detail: "State the ask in one sentence (2 min)", goalTitle: "Answer clearly")
+    static let nudge = NudgeCard(headline: "New exercise in your record", detail: "State the ask in one sentence (2 min)", goalTitle: "Answer clearly")
 
     static let all: [MascotPhase] = [
         .idle, .listening(app: "TextEdit"), .thinking(since: Date().addingTimeInterval(-4)), .speaking(card),
         .nudging(nudge, opened: true), .blocked("1Password"), .offline("Can't reach the coach. Check the network.", retryable: true), .hidden,
+        .permission,
     ]
 }
 
@@ -174,7 +192,7 @@ final class CompanionModel: ObservableObject {
     /// Clicking the character: read a window when idle, open a waiting nudge, or close the bubble.
     func clicked() {
         switch phase {
-        case .idle, .blocked: onCapture()
+        case .idle, .blocked, .notice: onCapture()
         case .nudging(let nudge, false): set(.nudging(nudge, opened: true), collapseAfter: 20)
         case .speaking, .nudging, .offline: dismiss()
         case .permission: onPermissionContinue()

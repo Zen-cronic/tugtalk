@@ -138,6 +138,8 @@ struct Pose {
             if animated { shake = CGFloat(sin(t * 28)) * 3 * CGFloat(max(0, 1 - t.truncatingRemainder(dividingBy: 2.0))) }
         case .offline:
             eyeOpen = 0.35; smile = -0.1; bodyColor = Palette.offline
+        case .notice:
+            smile = 0.5
         case .permission:
             eyeOpen = 0.9; smile = 0
         }
@@ -198,6 +200,9 @@ struct Mouth: Shape {
     }
 }
 
+/// The name System Settings shows for this app.
+let appDisplayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Comms Coach"
+
 /// The speech bubble: a saved card, a waiting nudge, an error with Retry, or the permission explainer.
 struct BubbleView: View {
     @ObservedObject var model: CompanionModel
@@ -233,7 +238,7 @@ struct BubbleView: View {
                 Text(card.observation).font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Label { Text(card.nextStep).font(.system(size: 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true) }
                     icon: { Image(systemName: "arrow.forward.circle.fill").foregroundStyle(Color(nsColor: Palette.model)) }
-                Text(card.isPreview ? "Sample text for previewing the companion" : "\(card.appName) · Muse Spark Open · receipt \(card.receiptID.prefix(8))")
+                Text(card.isPreview ? "Sample text for previewing the companion" : "\(card.appName) · \(card.modelLabel) · receipt \(card.receiptID.prefix(8))")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                 HStack {
                     Button("Undo") { model.onUndo() }.disabled(card.isPreview)
@@ -254,7 +259,7 @@ struct BubbleView: View {
             }
         case .permission:
             VStack(alignment: .leading, spacing: 8) {
-                Text("To read a window you choose, macOS needs to allow Screen Recording for \(MascotName). It reads only the front window, and only when you press ⌃⌥Space or click. Pixels never leave this Mac.")
+                Text("To read a window you choose, macOS needs to allow Screen Recording for \(appDisplayName) in System Settings. \(MascotName) reads only the front window, and only when you press ⌃⌥Space or click. Pixels never leave this Mac.")
                     .font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Button("Continue") { model.onPermissionContinue() }

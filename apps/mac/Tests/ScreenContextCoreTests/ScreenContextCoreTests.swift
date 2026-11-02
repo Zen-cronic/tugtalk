@@ -235,6 +235,16 @@ final class CoachAPITests: XCTestCase {
         XCTAssertFalse(CoachError.server(400, "invalid_value", "x").isRetryable)
     }
 
+    func testUndoHidesWithVersionCheckAndReason() async throws {
+        StubProtocol.reply = (200, #"{"receipt_id":"u1","record_version":2,"saved":true,"record":{}}"#)
+        let receipt = try await api().hideScreenContext(id: "s1", expectedVersion: 1, idempotencyKey: "undo-s1-v1")
+        XCTAssertEqual(receipt.record_version, 2)
+        let request = try XCTUnwrap(StubProtocol.requests.first)
+        XCTAssertEqual(request.httpMethod, "PATCH"); XCTAssertEqual(request.url?.path, "/v1/screen-contexts/s1")
+        let sent = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(StubProtocol.bodies.first)) as? [String: Any])
+        XCTAssertEqual(sent["deleted"] as? Bool, true); XCTAssertEqual(sent["expected_version"] as? Int, 1); XCTAssertNotNil(sent["correction_reason"])
+    }
+
     func testOverviewDecodesTheLiveShape() async throws {
         StubProtocol.reply = (200, #"{"as_of":"2026-11-02T04:53:00Z","snapshot_revision":"rev","request_id":"q","goals":[{"id":"g1","version":2,"title":"Answer clearly","target":"t","updated_at":"x","progress":{"assigned_exercises":1,"pending_exercises":1,"self_reported_completions":0,"skipped_exercises":0,"measured_sessions":1,"screen_contexts":1,"measured_improvement":null},"latest_feedback":null,"latest_measurement":{"id":"s","capture_device":"watch"},"latest_screen_context":null}],"latest_screen_context":{"id":"c1","version":1,"app_name":"TextEdit","goal_id":"g1","summary":"s","observation":"o","next_step":"n"}}"#)
         let overview = try await api().overview()

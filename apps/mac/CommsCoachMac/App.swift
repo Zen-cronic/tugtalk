@@ -1,5 +1,10 @@
 import AppKit
+import Combine
+import OSLog
 import ScreenContextCore
+
+/// Records what started each capture. Never the text, the image or the key.
+let captureLog = Logger(subsystem: "com.zencronic.commscoach.mac", category: "capture")
 
 /// Menu-bar accessory app (LSUIElement): no Dock icon, one floating companion panel.
 @main
@@ -18,30 +23,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menu: StatusMenu!
     private let hotkeys = Hotkeys()
     private var previewTask: Task<Void, Never>?
+    private var flow: CaptureFlow!
+    private var poller: Poller!
+    private var phaseWatch: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panel = PanelController(model: model)
         menu = StatusMenu(model: model)
+        flow = CaptureFlow(model: model)
+        poller = Poller(model: model)
         wireActions()
         registerHotkeys()
         watchFrontmostApp()
         panel.show()
         handleLaunchArguments()
+        poller.start()
     }
 
     private func wireActions() {
-        model.onCapture = { [weak self] in self?.capture() }
+        model.onCapture = { [weak self] in self?.capture(trigger: "click") }
         model.onOpenSettings = { PermissionGate.openSettings() }
         model.onPermissionContinue = { [weak self] in
             PermissionGate.request()
             self?.model.dismiss()
         }
-        menu.onCapture = { [weak self] in self?.capture() }
+        model.onUndo = { [weak self] in self?.flow.undo() }
+        model.onRetry = { [weak self] in self?.flow.retry() }
+        model.onAskMuse = { [weak self] in
+            guard let card = self?.model.lastCard else { return }
+            AskMuse.open(for: card)
+            self?.model.set(.notice("Question copied. Paste it into Muse."), collapseAfter: 4)
+        }
+        flow.afterSave = { [weak self] in self?.poller.pollSoon() }
+        menu.onCapture = { [weak self] in self?.capture(trigger: "menu") }
+        menu.onUndo = { [weak self] in self?.flow.undo() }
+        menu.onAskMuse = { [weak self] in self?.model.onAskMuse() }
         menu.onPreview = { [weak self] phase in self?.preview(phase) }
+        menu.onDemoMode = { [weak self] _ in self?.poller.pollSoon() }
+        menu.onSelectGoal = { Settings.goalID = $0 }
+        menu.goals = { [weak self] in self?.poller.goals ?? [] }
+        menu.connectionStatus = { [weak self] in
+            let source = Connection.isLocalDevelopmentRequested ? "Local test server" : "Shared record"
+            return "\(source) · \(self?.poller.lastStatus ?? "")"
+        }
+        // A nudge that arrived during a capture shows once the companion is free again.
+        phaseWatch = model.$phase.sink { [weak self] phase in
+            if phase == .idle { DispatchQueue.main.async { self?.poller.showWaitingIfFree() } }
+        }
     }
 
     private func registerHotkeys() {
-        hotkeys.register(Hotkeys.capture) { [weak self] in self?.capture() }
+        hotkeys.register(Hotkeys.capture) { [weak self] in self?.capture(trigger: "hotkey") }
         hotkeys.register(Hotkeys.hide) { [weak self] in self?.model.presenting.toggle() }
         hotkeys.register(Hotkeys.ghost) { [weak self] in self?.model.ghost.toggle() }
         hotkeys.register(Hotkeys.undo) { [weak self] in self?.model.onUndo() }
@@ -60,8 +92,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func capture() {
-        model.set(.offline("Capture is not connected in this build.", retryable: false), collapseAfter: 6)
+    func capture(trigger: String) {
+        captureLog.notice("capture requested by \(trigger, privacy: .public)")
+        previewTask?.cancel()
+        flow.capture()
     }
 
     /// "Preview States": shows one state with sample content, or cycles all eight. Nothing is sent.
@@ -94,6 +128,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         default: break
         }
         if defaults.bool(forKey: "ghost") { model.ghost = true }
+        if defaults.bool(forKey: "demoMode") { model.demoMode = true }
+        if defaults.bool(forKey: "captureOnLaunch") {
+            Task { try? await Task.sleep(for: .seconds(1.5)); capture(trigger: "launch argument") }
+        }
         if let name = defaults.string(forKey: "previewState"), let phase = PreviewSamples.all.first(where: { $0.name == name }) {
             preview(phase)
         } else if defaults.double(forKey: "previewCycle") > 0 {

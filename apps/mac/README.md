@@ -35,3 +35,26 @@ The app signs with an Apple Development identity (team in `project.yml`); change
 - VoiceOver reads the character as one element and announces state changes. With Reduce Motion it does not bounce, breathe or blink. With Reduce Transparency the bubble is opaque.
 - **The companion can appear in screen shares.** Hide it with ⌃⌥H. It also hides itself while Zoom, Teams, FaceTime or Webex is the front app, which is a guess, not detection.
 - The character's name is one constant, `MascotName`, in `CommsCoachMac/Settings.swift`.
+
+## Run it against a local test server (no permission, no key)
+
+```sh
+npm run stub    # prints the token file path; stub models, throwaway database, port 4319
+# create a goal with curl (see docs/screen-context.md), then:
+open apps/mac/build/DerivedData/Build/Products/Debug/CommsCoachMac.app --args \
+  -devBaseURL http://127.0.0.1:4319 -devTokenFile <token file> \
+  -fixtureImage "$PWD/apps/mac/Fixtures/meeting-prep.png" -goalID <goal id> -demoMode YES
+```
+
+`-devBaseURL` is refused for any host other than this machine, and the Keychain is not read in that mode. `-fixtureImage` reads the PNG instead of the screen, so no Screen Recording grant is needed. `-captureOnLaunch YES` runs one capture at start. In Demo mode the companion checks the record every 15 seconds, so an exercise created with curl shows as a nudge within that time.
+
+## Run it against the shared record
+
+1. Store the connector key in the login Keychain. The command prompts for it, so it never appears in shell history:
+   `security add-generic-password -s com.zencronic.commscoach.mac -a connector -w`
+   On first use macOS asks whether Comms Coach may read it; choose **Always Allow**. The signature is stable, so the answer survives rebuilds.
+2. Open the app. In the menu, choose the goal under **Goal** (goals load after the first check) and the purpose under **Purpose**.
+3. Press ⌃⌥Space with the window you want read in front. The first time, the companion explains Screen Recording; **Continue** shows the macOS prompt once, and **Open Settings** goes to Privacy & Security › Screen Recording. Turn on Comms Coach, then quit and reopen it.
+4. The card shows the receipt. **Undo** hides it from the record. **Ask Muse** copies a question about the card and opens Muse; you paste and send it. The companion never types into Muse or any other app.
+
+The companion reads nothing on a timer. It checks the shared record every 2 minutes (every 15 s in Demo mode) to notice exercises Muse added, goal changes and new watch captures.
