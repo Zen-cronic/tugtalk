@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// The on-device half of one capture: gate, capture one window, read it, redact it.
@@ -16,14 +17,20 @@ public struct ScreenContextPipeline: Sendable {
     public struct Result: Sendable {
         public let app: FrontApp
         public let redacted: RedactionResult
+        /// The unredacted lines with their boxes, for pointing at one of them on this Mac. Never sent.
+        public let lines: [TextLine]
+        /// The captured window's frame and number, when known (see `CapturedWindow`).
+        public let frame: CGRect?
+        public let windowID: CGWindowID?
     }
 
     /// Refuses deny-listed apps and secure input before any pixels are captured.
     public func run(app: FrontApp, secureInput: Bool) async throws -> Result {
         if case .blocked(let name) = gate.check(app, secureInput: secureInput) { throw CaptureError.blocked(name) }
         let window = try await capturer.capture(app)
-        let text = try reader.read(window.image)
+        let lines = try reader.readLines(window.image)
+        let text = lines.map(\.text).joined(separator: "\n")
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw CaptureError.nothingRead }
-        return Result(app: app, redacted: redactor.redact(text))
+        return Result(app: app, redacted: redactor.redact(text), lines: lines, frame: window.frame, windowID: window.windowID)
     }
 }

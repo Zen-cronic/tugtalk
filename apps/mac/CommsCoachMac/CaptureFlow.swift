@@ -12,14 +12,26 @@ final class CaptureFlow {
     private var busy = false
     /// The last unsent capture, kept in memory only, so Retry reuses its idempotency key.
     private var pending: (payload: ScreenContextPayload, key: String)?
+    /// The capture's lines and window, kept in memory until the card arrives so Tug can ring one line.
+    /// Never sent. Dropped once the card is shown, or replaced by the next capture.
+    private var lines: (lines: [TextLine], frame: CGRect?, windowID: CGWindowID?, bounds: CGRect?, pid: pid_t?)?
 
     var afterSave: () -> Void = {}
+    /// Ring a line of the captured window for this card.
+    var onPoint: (PointingRequest) -> Void = { _ in }
+    /// DEBUG `-fixtureWindow YES`: the fixture image shown in a window, so the ring has a window to sit on.
+    private(set) var fixtureWindow: FixtureWindow?
 
     init(model: CompanionModel) {
         self.model = model
         // `-fixtureImage <png>` reads that file instead of the screen: no Screen Recording needed.
         if let path = UserDefaults.standard.string(forKey: "fixtureImage"), let image = try? ImageLoading.cgImage(at: URL(fileURLWithPath: path)) {
-            pipeline = ScreenContextPipeline(gate: CaptureGate(denyList: Settings.denyList), capturer: FixtureCapture(image: image))
+            var window: FixtureWindow?
+            #if DEBUG
+            if UserDefaults.standard.bool(forKey: "fixtureWindow") { window = FixtureWindow(image: image) }
+            #endif
+            fixtureWindow = window
+            pipeline = ScreenContextPipeline(gate: CaptureGate(denyList: Settings.denyList), capturer: FixtureCapture(image: image, window: window))
             usesFixture = true
         } else {
             pipeline = ScreenContextPipeline(gate: CaptureGate(denyList: Settings.denyList))
@@ -57,10 +69,13 @@ final class CaptureFlow {
                 model.set(.offline((error as? LocalizedError)?.errorDescription ?? "The window could not be read.", retryable: false), collapseAfter: 8)
                 return
             }
+            let record = result.windowID.flatMap(PointingController.record(of:))
+            lines = (result.lines, result.frame, result.windowID, record?.bounds, record?.pid)
             // Keep "listening" on screen long enough to be seen.
             let shown = Date().timeIntervalSince(started)
             if shown < 0.9 { try? await Task.sleep(for: .seconds(0.9 - shown)) }
             guard let payload = ScreenContextPayload.make(redacted: result.redacted, appName: front.name, goalID: Settings.goalID, purpose: Settings.purpose) else {
+                lines = nil
                 model.set(.offline(CaptureError.nothingRead.localizedDescription, retryable: false), collapseAfter: 6)
                 return
             }
@@ -81,16 +96,68 @@ final class CaptureFlow {
             let receipt = try await api.postScreenContext(payload, idempotencyKey: key)
             pending = nil
             let r = receipt.record
-            model.set(.speaking(ContextCard(recordID: r.id, version: r.version, receiptID: receipt.receipt_id, appName: r.app_name ?? payload.app_name ?? "this window",
-                                            summary: r.analysis.summary, observation: r.analysis.observation, nextStep: r.analysis.next_step,
-                                            replayed: receipt.replayed, modelLabel: ModelLabel.display(r.analysis.model))), collapseAfter: 20)
+            let card = ContextCard(recordID: r.id, version: r.version, receiptID: receipt.receipt_id, appName: r.app_name ?? payload.app_name ?? "this window",
+                                   summary: r.analysis.summary, observation: r.analysis.observation, nextStep: r.analysis.next_step,
+                                   replayed: receipt.replayed, modelLabel: ModelLabel.display(r.analysis.model))
+            model.set(.speaking(card), collapseAfter: 20)
+            point(at: card)
             afterSave()
         } catch let error as CoachError {
-            model.set(.offline(error.localizedDescription, retryable: error.isRetryable))
+            model.set(.offline(error.plainMessage, retryable: error.isRetryable))
         } catch {
             model.set(.offline("The card could not be saved.", retryable: true))
         }
     }
+
+    /// Rings the line the card is about, when code finds one. Then the capture's lines are dropped.
+    func point(at card: ContextCard) {
+        defer { lines = nil }
+        guard let lines, let request = PointingRequest.make(lines: lines.lines, frame: lines.frame, windowID: lines.windowID, windowBounds: lines.bounds, windowPID: lines.pid, card: card) else {
+            captureLog.notice("no line to point at")
+            return
+        }
+        captureLog.notice("pointing at one line")
+        onPoint(request)
+    }
+
+    #if DEBUG
+    /// Preview Pointing: reads the fixture window on this Mac and rings the line the sample card is about.
+    /// Nothing is sent.
+    func previewPointing(card: ContextCard) {
+        guard let window = fixtureWindow else { previewPointingOnFrontWindow(card: card); return }
+        window.bringForward()
+        Task {
+            try? await Task.sleep(for: .seconds(0.4))
+            guard let read = try? VisionTextReader().readLines(window.image) else { return }
+            let record = PointingController.record(of: window.windowID)
+            lines = (read, window.contentFrame, window.windowID, record?.bounds, record?.pid)
+            let shown = ContextCard(recordID: card.recordID, version: card.version, receiptID: card.receiptID, appName: FixtureWindow.title,
+                                    summary: card.summary, observation: card.observation, nextStep: card.nextStep, replayed: false, isPreview: true)
+            model.set(.speaking(shown), collapseAfter: 20)
+            point(at: shown)
+        }
+    }
+
+    /// Without a fixture window: reads the real front window (for filming, TextEdit with meeting-prep.txt)
+    /// with the Screen Recording grant this app already holds, and rings the sample card's line there.
+    /// It never asks for the permission; without it, it says so and stops.
+    private func previewPointingOnFrontWindow(card: ContextCard) {
+        guard PermissionGate.granted else { model.set(.notice("Screen Recording is off for this app"), collapseAfter: 4); return }
+        let front = frontApp()
+        Task {
+            guard let window = try? await ScreenCaptureKitWindowCapture().capture(front),
+                  let read = try? VisionTextReader().readLines(window.image) else {
+                model.set(.notice("No window to read"), collapseAfter: 4); return
+            }
+            let record = window.windowID.flatMap(PointingController.record(of:))
+            lines = (read, window.frame, window.windowID, record?.bounds, record?.pid)
+            let shown = ContextCard(recordID: card.recordID, version: card.version, receiptID: card.receiptID, appName: front.name,
+                                    summary: card.summary, observation: card.observation, nextStep: card.nextStep, replayed: false, isPreview: true)
+            model.set(.speaking(shown), collapseAfter: 20)
+            point(at: shown)
+        }
+    }
+    #endif
 
     func undo() {
         guard let card = model.lastCard, !card.isPreview, let api = Connection.api()?.api else { return }
@@ -108,13 +175,84 @@ final class CaptureFlow {
 
     private func frontApp() -> FrontApp {
         let app = NSWorkspace.shared.frontmostApplication
-        if usesFixture { return FrontApp(name: "TextEdit", bundleID: "com.apple.TextEdit", processID: 0) }
+        // With a fixture window the card names that window, so the card matches what is on screen.
+        if usesFixture { return FrontApp(name: fixtureWindow == nil ? "TextEdit" : FixtureWindow.title, bundleID: "com.apple.TextEdit", processID: 0) }
         return FrontApp(name: app?.localizedName ?? "this app", bundleID: app?.bundleIdentifier ?? "", processID: app?.processIdentifier ?? 0)
     }
 }
 
+extension CoachError {
+    /// For the card: plain words, never a status code.
+    var plainMessage: String {
+        switch self {
+        case .server(429, _, let message): "\(message) Try again later."
+        case .server(let status, _, _) where status >= 500: "The coach couldn't save this just now. Try again."
+        case .server(401, _, _): "The coach refused the connector key."
+        case .server(_, _, let message): message
+        default: localizedDescription
+        }
+    }
+}
+
 /// Stands in for the screen during local testing: returns a fixed image as the "window".
-struct FixtureCapture: WindowCapturing {
+struct FixtureCapture: WindowCapturing, @unchecked Sendable {
     let image: CGImage
-    func capture(_ app: FrontApp) async throws -> CapturedWindow { CapturedWindow(image: image, app: app) }
+    var window: FixtureWindow?
+    func capture(_ app: FrontApp) async throws -> CapturedWindow {
+        guard let window else { return CapturedWindow(image: image, app: app) }
+        let (shown, frame, id) = await MainActor.run { (window.image, window.contentFrame, window.windowID) }
+        return CapturedWindow(image: shown, app: app, frame: frame, windowID: id)
+    }
+}
+
+/// DEBUG: the fixture image in an ordinary titled window, at its natural point size (pixels / 2),
+/// so pointing can be checked and filmed without Screen Recording.
+@MainActor
+final class FixtureWindow {
+    let image: CGImage
+    private let window: NSWindow
+
+    static let title = "meeting-prep.txt"
+    /// The fixture image carries a drawn window frame at the top; the window shows the page without it,
+    /// so there is one title bar on screen, the real one. `-fixtureChrome <px>` changes the crop.
+    static var chromePixels: Int {
+        let set = UserDefaults.standard.integer(forKey: "fixtureChrome")
+        return set > 0 ? set : 54
+    }
+
+    init(image full: CGImage) {
+        let crop = min(Self.chromePixels, full.height / 3)
+        let image = full.cropping(to: CGRect(x: 0, y: crop, width: full.width, height: full.height - crop)) ?? full
+        self.image = image
+        let size = NSSize(width: CGFloat(image.width) / 2, height: CGFloat(image.height) / 2)
+        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        window = NSWindow(contentRect: NSRect(x: screen.minX + 80, y: screen.maxY - size.height - 80, width: size.width, height: size.height),
+                          styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        window.title = Self.title
+        window.isReleasedWhenClosed = false
+        let view = NSImageView(frame: NSRect(origin: .zero, size: size))
+        view.image = NSImage(cgImage: image, size: size)
+        view.imageScaling = .scaleAxesIndependently
+        window.contentView = view
+        window.orderFrontRegardless()
+        // `-fixtureMoveAfter <seconds>` moves the window once, to check that a ring on it goes away.
+        let moveAfter = UserDefaults.standard.double(forKey: "fixtureMoveAfter")
+        if moveAfter > 0 {
+            Task { [window] in
+                try? await Task.sleep(for: .seconds(moveAfter))
+                window.setFrameOrigin(NSPoint(x: window.frame.minX + 60, y: window.frame.minY))
+            }
+        }
+    }
+
+    func bringForward() { window.orderFrontRegardless() }
+
+    var windowID: CGWindowID { CGWindowID(window.windowNumber) }
+
+    /// Where the image is on screen, in global points with the origin at the main display's top left.
+    var contentFrame: CGRect {
+        let rect = window.convertToScreen(window.contentLayoutRect)
+        let mainHeight = NSScreen.screens.first?.frame.height ?? rect.maxY
+        return CGRect(x: rect.minX, y: mainHeight - rect.maxY, width: rect.width, height: rect.height)
+    }
 }

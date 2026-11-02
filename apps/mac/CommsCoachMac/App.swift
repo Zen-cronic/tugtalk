@@ -26,14 +26,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var flow: CaptureFlow!
     private var voice: VoiceFlow!
     private var poller: Poller!
+    private var pointing: PointingController!
+    private var dock: DockController!
+    /// The app that was in front before ours, so "Read This Window" in the docked panel reads that one.
+    private var lastOtherApp: NSRunningApplication?
     private var phaseWatch: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        TypeFace.register()
         panel = PanelController(model: model)
         menu = StatusMenu(model: model)
         flow = CaptureFlow(model: model)
         voice = VoiceFlow(model: model)
         poller = Poller(model: model)
+        pointing = PointingController(model: model)
+        dock = DockController(model: model)
         wireActions()
         registerHotkeys()
         watchFrontmostApp()
@@ -57,6 +64,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.model.set(.notice("Question copied. Paste it into Muse."), collapseAfter: 4)
         }
         flow.afterSave = { [weak self] in self?.poller.pollSoon() }
+        flow.onPoint = { [weak self] request in self?.pointing.show(request) }
+        dock.floatingTugCenter = { [weak self] in self?.panel.tugCenter ?? .zero }
+        pointing.avoid = { [weak self] rect in self?.panel.moveAway(from: rect) }
+        dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown() }
+        dock.onTalkUp = { [weak self] in self?.voice.keyUp() }
+        dock.onReadWindow = { [weak self] in
+            guard let self else { return }
+            // Our panel was in front; give the front back to the window the person was using, then read it.
+            self.lastOtherApp?.activate()
+            Task { try? await Task.sleep(for: .seconds(0.35)); self.capture(trigger: "dock") }
+        }
+        menu.onDockMode = { [weak self] on in self?.dock.setEnabled(on) }
         voice.afterSave = { [weak self] in self?.poller.pollSoon() }
         model.onVoiceRetry = { [weak self] in self?.voice.retry() }
         model.onVoiceDismiss = { [weak self] in self?.voice.dismissed() }
@@ -72,6 +91,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onUndo = { [weak self] in self?.flow.undo() }
         menu.onAskMuse = { [weak self] in self?.model.onAskMuse() }
         menu.onPreview = { [weak self] phase in self?.preview(phase) }
+        #if DEBUG
+        menu.onPreviewPointing = { [weak self] in self?.previewPointing() }
+        menu.onGlyphSheet = { GlyphSheet.show() }
+        #endif
         menu.onDemoMode = { [weak self] _ in self?.poller.pollSoon() }
         menu.onSelectGoal = { Settings.goalID = $0 }
         menu.goals = { [weak self] in self?.poller.goals ?? [] }
@@ -100,13 +123,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// public way to know whether the screen is being shared.
     private func watchFrontmostApp() {
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
-            let bundleID = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier ?? ""
+            let running = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            let bundleID = running?.bundleIdentifier ?? ""
+            let pid = running?.processIdentifier
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if bundleID == Bundle.main.bundleIdentifier { return }
+                self.lastOtherApp = pid.flatMap { NSRunningApplication(processIdentifier: $0) }
                 self.model.inMeetingApp = Settings.autoHideInMeetings && Settings.meetingApps.contains(bundleID)
             }
         }
+    }
+
+    /// Clicking the Dock icon opens or closes the docked panel.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        dock.dockIconClicked()
+        return false
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        if dock.state.panelOpen { dock.closePanel(animated: true) }
     }
 
     func capture(trigger: String) {
@@ -129,6 +165,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.model.dismiss()
         }
     }
+
+    #if DEBUG
+    /// Rings the sample card's line on the fixture window. Reads the fixture on this Mac; sends nothing.
+    func previewPointing() {
+        previewTask?.cancel()
+        model.presenting = false
+        flow.previewPointing(card: PreviewSamples.card)
+    }
+    #endif
 
     private func show(_ phase: MascotPhase) {
         switch phase {
@@ -157,11 +202,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if let script = defaults.string(forKey: "voiceScript") { voice.run(script: script) }
         #endif
-        if let name = defaults.string(forKey: "previewState"), let phase = PreviewSamples.all.first(where: { $0.name == name }) {
+        #if DEBUG
+        if defaults.bool(forKey: "previewPointing") {
+            Task { try? await Task.sleep(for: .seconds(1)); previewPointing() }
+        }
+        if defaults.bool(forKey: "glyphSheet") { GlyphSheet.show() }
+        if defaults.bool(forKey: "dockPanel") { Task { try? await Task.sleep(for: .seconds(1.2)); dock.openPanel() } }
+        if let dir = defaults.string(forKey: "dockTileSnapshots") { DockSnapshots.write(to: URL(fileURLWithPath: dir)) }
+        #endif
+        #if DEBUG
+        if let name = defaults.string(forKey: "previewState"), let phase = PreviewSamples.named.first(where: { $0.name == name })?.phase {
             preview(phase)
         } else if defaults.double(forKey: "previewCycle") > 0 {
             let interval = defaults.double(forKey: "previewCycle")
             Task { try? await Task.sleep(for: .seconds(1)); preview(nil, interval: interval) }
         }
+        #endif
     }
 }

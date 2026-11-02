@@ -2,20 +2,8 @@ import AppKit
 import Foundation
 import ScreenContextCore
 
-/// The companion's display name. The character is unnamed for now; renaming it is this one line.
-let MascotName = "Coach"
-
-/// Fixed palette, shared with the launch film and the site. Each hue keeps one meaning.
-enum Palette {
-    static let measured = NSColor(srgbRed: 0xC8 / 255, green: 0xF5 / 255, blue: 0x60 / 255, alpha: 1)  // lime: measured by code
-    static let model = NSColor(srgbRed: 0xB9 / 255, green: 0xA6 / 255, blue: 0xFF / 255, alpha: 1)     // lavender: Muse Spark Open
-    static let record = NSColor(srgbRed: 0x7C / 255, green: 0xC4 / 255, blue: 0xFF / 255, alpha: 1)    // sky: the shared record
-    static let capture = NSColor(srgbRed: 0xE5 / 255, green: 0x38 / 255, blue: 0x3B / 255, alpha: 1)   // red: reading a window
-    static let warn = NSColor(srgbRed: 0xFF / 255, green: 0xB8 / 255, blue: 0x6B / 255, alpha: 1)
-    static let cream = NSColor(srgbRed: 0xF2 / 255, green: 0xED / 255, blue: 0xE4 / 255, alpha: 1)
-    static let ink = NSColor(srgbRed: 0x16 / 255, green: 0x18 / 255, blue: 0x1C / 255, alpha: 1)
-    static let offline = NSColor(srgbRed: 0xA3 / 255, green: 0xA9 / 255, blue: 0xB3 / 255, alpha: 1)
-}
+/// The companion's name, in one place.
+let MascotName = "Tug"
 
 /// User-adjustable settings, stored in UserDefaults. The connector key is never stored here (see Keychain).
 enum Settings {
@@ -52,6 +40,12 @@ enum Settings {
     static var denyList: Set<String> {
         get { (defaults.stringArray(forKey: "denyList")).map(Set.init) ?? CaptureGate.defaultDenyList }
         set { defaults.set(Array(newValue).sorted(), forKey: "denyList") }
+    }
+
+    /// "Show in Dock": a Dock icon and the docked panel. Off by default (menu bar only). `-dockMode YES` also works.
+    static var dockMode: Bool {
+        get { defaults.bool(forKey: "dockMode") }
+        set { defaults.set(newValue, forKey: "dockMode") }
     }
 
     static var autoHideInMeetings: Bool {

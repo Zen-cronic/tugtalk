@@ -1,320 +1,408 @@
+import ScreenContextCore
 import SwiftUI
 
 /// Layout constants shared with the panel controller.
 enum MascotLayout {
     static let character: CGFloat = 76
+    static let headerTug: CGFloat = 50
     static let pad: CGFloat = 10
-    static let bubbleWidth: CGFloat = 320
-    static let gap: CGFloat = 8
+    static let bubbleWidth: CGFloat = 340
+    static let gap: CGFloat = 0
+    static let radius: CGFloat = 18
 }
 
-/// The whole panel: the character plus a status chip or a speech bubble beside it.
+/// The name System Settings shows for this app.
+let appDisplayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Comms Coach"
+
+/// Keeps the last two words of a line together, so no heading or question ends on a lone word.
+func noWidow(_ text: String) -> String {
+    guard let last = text.lastIndex(of: " "), text.distance(from: last, to: text.endIndex) < 18 else { return text }
+    var out = text
+    out.replaceSubrange(last...last, with: "\u{00A0}")
+    return out
+}
+
+/// The whole panel: Tug with its status pill, or a card with Tug in its header.
 struct MascotRoot: View {
     @ObservedObject var model: CompanionModel
     var onDrag: (DragGesture.Value?) -> Void
     @State private var hovering = false
+    /// A finished voice reply folds away about 1 s after it is spoken, unless the pointer is over Tug.
+    @State private var folded: String?
+    @Environment(\.reduceMotionOn) private var reduceMotion
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: MascotLayout.gap) {
-            if model.bubbleLeading { side; character } else { character; side }
+        ZStack(alignment: model.bubbleLeading ? .bottomTrailing : .bottomLeading) {
+            if showsCard {
+                CardView(model: model, onDrag: onDrag)
+                    .frame(width: MascotLayout.bubbleWidth)
+                    .transition(Motion.cardTransition(reduceMotion: reduceMotion))
+            } else {
+                HStack(alignment: .bottom, spacing: MascotLayout.gap) {
+                    if model.bubbleLeading { pill; character } else { character; pill }
+                }
+                .transition(.opacity.animation(Motion.fade))
+            }
         }
         .padding(MascotLayout.pad)
+        .padding(.bottom, 3) // room for the cards' shell lip
         .fixedSize()
+        .animation(reduceMotion ? Motion.crossfade : Motion.slot, value: showsCard)
+        .onHover { inside in
+            hovering = inside
+            if inside { folded = nil } else { scheduleFold() }
+            model.layoutNeeded()
+        }
+        .onChange(of: foldKey) { _, _ in scheduleFold() }
+    }
+
+    private var showsCard: Bool {
+        guard model.phase.showsBubble else { return false }
+        if case .voiceSpeaking(let card) = model.phase, folded == card.roundID, !hovering { return false }
+        return true
+    }
+
+    /// Changes when a voice reply finishes playing.
+    private var foldKey: String {
+        if case .voiceSpeaking(let card) = model.phase { return "\(card.roundID)-\(card.finished)" }
+        return model.phase.name
+    }
+
+    private func scheduleFold() {
+        guard case .voiceSpeaking(let card) = model.phase, card.finished, !card.endsRound, !card.isPreview else { return }
+        let id = card.roundID
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1))
+            guard !hovering, case .voiceSpeaking(let now) = model.phase, now.roundID == id, now.finished else { return }
+            folded = id
+            model.layoutNeeded()
+        }
     }
 
     private var character: some View {
-        CharacterView(phase: model.phase)
+        TugView(phase: model.phase, talking: model.talking, facesRight: !model.bubbleLeading)
             .frame(width: MascotLayout.character, height: MascotLayout.character)
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 3, coordinateSpace: .global)
                 .onChanged { onDrag($0) }
                 .onEnded { _ in onDrag(nil) })
             .onTapGesture { model.clicked() }
-            .onHover { inside in hovering = inside; model.layoutNeeded() }
-            .accessibilityElement(children: .ignore)
+            .tugAccessibility(model)
+    }
+
+    @ViewBuilder private var pill: some View {
+        if model.phase != .hidden {
+            StatusPill(phase: model.phase, talking: model.talking).padding(.bottom, 2)
+        }
+    }
+}
+
+extension View {
+    func tugAccessibility(_ model: CompanionModel) -> some View {
+        accessibilityElement(children: .ignore)
             .accessibilityLabel("\(MascotName) companion")
-            .accessibilityValue(model.phase.name)
+            .accessibilityValue(model.phase.pill().word)
             .accessibilityHint("Reads the front window when you ask, also on Control-Option-Space. Hold Control-Option-T to talk.")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { model.clicked() }
     }
-
-    @ViewBuilder private var side: some View {
-        if model.phase.showsBubble {
-            BubbleView(model: model).frame(width: MascotLayout.bubbleWidth)
-        } else if model.phase != .idle || hovering {
-            StatusChip(phase: model.phase).padding(.bottom, 6)
-        }
-    }
 }
 
-/// Icon plus text, so a state never depends on colour alone.
-struct StatusChip: View {
+
+/// The plain-word status attached to Tug: an icon and one word, never colour alone. Each turn state has
+/// its own mark: a red record light while listening, soft dots while thinking, a small wave while speaking.
+struct StatusPill: View {
     let phase: MascotPhase
-    @Environment(\.accessibilityReduceTransparency) private var opaque
+    var talking = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            Label {
-                Text(phase.label(now: context.date)).font(.system(size: 13, weight: .medium)).lineLimit(1)
-            } icon: {
-                Image(systemName: phase.symbol).foregroundStyle(Color(nsColor: phase.accent)).font(.system(size: 13, weight: .semibold))
+            let pill = talking ? ("Speaking", nil) : phase.pill(now: context.date)
+            let listening: Bool = { if case .voiceListening = phase { return true } else { return false } }()
+            HStack(spacing: 7) {
+                mark
+                ShortcutLine(text: pill.0, font: TypeFace.body(14, weight: 650))
+                if let detail = pill.1 { Text(detail).font(TypeFace.mono(12)).foregroundStyle(Color(Tok.muted)) }
             }
-            .padding(.horizontal, 10).padding(.vertical, 6)
-            .background(Capsule().fill(opaque ? AnyShapeStyle(Color(nsColor: .windowBackgroundColor)) : AnyShapeStyle(.regularMaterial)))
-            .overlay(Capsule().strokeBorder(Color(nsColor: phase.accent).opacity(0.7), lineWidth: 1))
+            .foregroundStyle(Color(Tok.ink))
+            .padding(.horizontal, 12).frame(height: 32)
+            .thinEdge(radius: 10, fill: Tok.surface, edge: listening ? Tok.record : Tok.edge)
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(Tok.record).opacity(listening ? 0.10 : 0)).allowsHitTesting(false))
             .fixedSize()
         }
         .accessibilityHidden(true)
     }
-}
 
-/// The original character: a rounded speech-bubble body with two capsule eyes and a mouth arc.
-struct CharacterView: View {
-    let phase: MascotPhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            let pose = Pose(phase: phase, t: reduceMotion ? 0 : t)
-            ZStack {
-                if phase.glows {
-                    Circle().fill(Color(nsColor: Palette.model).opacity(0.35 + 0.25 * pose.pulse))
-                        .blur(radius: 10).scaleEffect(0.95 + 0.15 * pose.pulse)
-                }
-                BodyShape()
-                    .fill(Color(nsColor: pose.bodyColor))
-                    .overlay(BodyShape().stroke(Color(nsColor: Palette.ink).opacity(0.85), lineWidth: 2.5))
-                    .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
-                    .frame(width: 62, height: 58)
-                Face(pose: pose).frame(width: 62, height: 58).offset(y: -4)
-                if phase.showsRing {
-                    Circle().trim(from: 0, to: reduceMotion ? 1 : 0.15 + 0.85 * pose.progress)
-                        .stroke(Color(nsColor: Palette.capture), style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                        .rotationEffect(.degrees(-90)).frame(width: 74, height: 74)
-                }
-                if case .voiceListening = phase {
-                    // The microphone is open: a red badge for as long as ⌃⌥T is held.
-                    Circle().fill(Color(nsColor: Palette.capture)).overlay(Image(systemName: "mic.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(.white))
-                        .frame(width: 22, height: 22).overlay(Circle().stroke(Color(nsColor: Palette.ink), lineWidth: 2)).offset(x: 26, y: -26)
-                }
-                if case .nudging = phase {
-                    Circle().fill(Color(nsColor: Palette.record)).overlay(Image(systemName: "bell.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(Color(nsColor: Palette.ink)))
-                        .frame(width: 22, height: 22).overlay(Circle().stroke(Color(nsColor: Palette.ink), lineWidth: 2)).offset(x: 26, y: -26)
-                }
-            }
-            .scaleEffect(pose.scale)
-            .offset(x: pose.shake, y: pose.bounce)
-        }
-        .animation(reduceMotion ? .easeInOut(duration: 0.25) : .spring(duration: 0.35), value: phase.name)
-    }
-}
-
-extension MascotPhase {
-    /// The lavender glow: a model is working.
-    var glows: Bool {
-        switch self {
-        case .thinking, .voiceThinking: true
-        default: false
-        }
-    }
-
-    /// The red progress ring: reading a window, or the microphone is open.
-    var showsRing: Bool {
-        switch self {
-        case .listening, .voiceListening: true
-        default: false
-        }
-    }
-}
-
-/// Animation values derived from the phase and the clock. With Reduce Motion `t` is 0: no movement.
-struct Pose {
-    var scale: CGFloat = 1, bounce: CGFloat = 0, shake: CGFloat = 0, pulse: CGFloat = 0, progress: CGFloat = 0
-    var eyeOpen: CGFloat = 1, eyeLift: CGFloat = 0, mouthOpen: CGFloat = 0, smile: CGFloat = 0.5
-    var bodyColor = Palette.cream
-
-    init(phase: MascotPhase, t: TimeInterval) {
-        let animated = t != 0
-        // Blink about every 4 to 7 seconds, for 0.15 s.
-        let cycle = 5.5 + 1.5 * sin(t / 11)
-        let blink = animated && t.truncatingRemainder(dividingBy: cycle) < 0.15
-        eyeOpen = blink ? 0.1 : 1
+    @ViewBuilder private var mark: some View {
         switch phase {
-        case .idle, .hidden:
-            scale = animated ? 1 + 0.025 * CGFloat(sin(t * 2 * .pi / 4)) : 1
-        case .listening, .voiceListening:
-            eyeOpen = 1.15; smile = 0.2
-            progress = CGFloat(t.truncatingRemainder(dividingBy: 1.6) / 1.6)
-        case .thinking, .voiceThinking:
-            eyeLift = -4; smile = 0.1
-            pulse = animated ? CGFloat(0.5 + 0.5 * sin(t * 2 * .pi / 1.4)) : 0.6
-        case .speaking:
-            smile = 0.7
-            mouthOpen = animated ? CGFloat(abs(sin(t * 9)) * 0.8) : 0.4
-        case .voiceSpeaking(let card):
-            smile = 0.6
-            mouthOpen = card.finished ? 0 : (animated ? CGFloat(abs(sin(t * 11)) * 0.9) : 0.4)
-        case .voiceError:
-            eyeOpen = 0.35; smile = -0.1
-        case .nudging(_, let opened):
-            smile = 0.8
-            if animated && !opened { bounce = -CGFloat(abs(sin(t * 2 * .pi / 1.1))) * 7 }
-        case .blocked:
-            eyeOpen = 0.25; smile = -0.3
-            if animated { shake = CGFloat(sin(t * 28)) * 3 * CGFloat(max(0, 1 - t.truncatingRemainder(dividingBy: 2.0))) }
-        case .offline:
-            eyeOpen = 0.35; smile = -0.1; bodyColor = Palette.offline
-        case .notice:
-            smile = 0.5
-        case .permission, .micPermission:
-            eyeOpen = 0.9; smile = 0
+        case .voiceListening: RecordDot()
+        case .thinking, .voiceThinking: ThinkingDots()
+        case .voiceSpeaking(let card) where !card.finished: SpeakingWave()
+        default:
+            if talking { SpeakingWave() } else { Image(systemName: phase.symbol).font(.system(size: 12, weight: .bold)) }
         }
     }
 }
 
-/// A rounded rectangle with a small tail at the bottom left, like a speech bubble.
-struct BodyShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let body = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height * 0.84)
-        let path = Path(roundedRect: body, cornerRadius: body.height * 0.42, style: .continuous)
-        var tail = Path()
-        tail.move(to: CGPoint(x: body.minX + body.width * 0.2, y: body.maxY - 8))
-        tail.addLine(to: CGPoint(x: body.minX + body.width * 0.14, y: rect.maxY))
-        tail.addQuadCurve(to: CGPoint(x: body.minX + body.width * 0.46, y: body.maxY - 8), control: CGPoint(x: body.minX + body.width * 0.32, y: body.maxY + 2))
-        tail.closeSubpath()
-        // A single outline, so the stroke runs around the tail instead of across it.
-        return path.union(tail)
-    }
-}
-
-struct Face: View {
-    let pose: Pose
-
+/// The record light: red, the one red outside fillers, lit while the microphone is open. A slow pulse of
+/// its ring; still with Reduce Motion.
+struct RecordDot: View {
+    var color: NSColor = Tok.record
+    @Environment(\.reduceMotionOn) private var reduceMotion
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            let ink = Color(nsColor: Palette.ink)
+        TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let pulse = reduceMotion ? 0.5 : 0.5 + 0.5 * sin(t * 2 * .pi / 1.2)
             ZStack {
-                ForEach([-1.0, 1.0], id: \.self) { side in
-                    Capsule().fill(ink)
-                        .frame(width: 7, height: max(2, 15 * pose.eyeOpen))
-                        .position(x: w / 2 + side * w * 0.17, y: h * 0.4 + pose.eyeLift)
-                }
-                Mouth(smile: pose.smile, open: pose.mouthOpen)
-                    .stroke(ink, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                    .frame(width: w * 0.3, height: h * 0.18)
-                    .position(x: w / 2, y: h * 0.64)
+                Circle().stroke(Color(color).opacity(0.25 + 0.45 * pulse), lineWidth: 2).frame(width: 15, height: 15)
+                Circle().fill(Color(color)).frame(width: 9, height: 9)
             }
         }
+        .frame(width: 15, height: 15)
+        .accessibilityLabel("Recording")
     }
 }
 
-/// A mouth arc. `smile` bends it (negative frowns); `open` drops the lower lip while speaking.
-struct Mouth: Shape {
-    var smile: CGFloat
-    var open: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let mid = rect.midY
-        path.move(to: CGPoint(x: rect.minX, y: mid))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: mid), control: CGPoint(x: rect.midX, y: mid + rect.height * smile))
-        if open > 0.05 {
-            path.addQuadCurve(to: CGPoint(x: rect.minX, y: mid), control: CGPoint(x: rect.midX, y: mid + rect.height * (smile + open * 1.6)))
+/// Three soft dots that brighten in turn: Tug is thinking. Still dots with Reduce Motion.
+struct ThinkingDots: View {
+    @Environment(\.reduceMotionOn) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            HStack(spacing: 3) {
+                ForEach(0..<3, id: \.self) { i in
+                    let wave = reduceMotion ? 0.6 : 0.5 + 0.5 * sin(t * 2 * .pi / 1.4 - Double(i) * 0.9)
+                    Circle().fill(Color(Tok.ink)).frame(width: 5, height: 5).opacity(0.25 + 0.6 * wave)
+                }
+            }
         }
-        return path
+        .frame(width: 21, height: 12)
     }
 }
 
-/// The name System Settings shows for this app.
-let appDisplayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Comms Coach"
+/// A small wave of three bars while Tug speaks. Still bars with Reduce Motion.
+struct SpeakingWave: View {
+    var color: NSColor = Tok.ink
+    @Environment(\.reduceMotionOn) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 24, paused: reduceMotion)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            HStack(alignment: .center, spacing: 2.5) {
+                ForEach(0..<3, id: \.self) { i in
+                    let h = reduceMotion ? [7.0, 11.0, 7.0][i] : 5 + 7 * abs(sin(t * 7 + Double(i) * 1.3))
+                    Capsule().fill(Color(color)).frame(width: 3, height: h)
+                }
+            }
+        }
+        .frame(width: 15, height: 13)
+    }
+}
 
-/// The speech bubble: a saved card, a voice reply, a waiting nudge, an error with Retry, or a permission explainer.
-struct BubbleView: View {
+extension View {
+    /// The cartridge shell, for cards only: a thin edge and a darker lip along the bottom.
+    func cartLabel(radius: CGFloat = MascotLayout.radius, lip: CGFloat = 3, fill: NSColor = Tok.surface, edge: NSColor = Tok.cardEdge, lipColor: NSColor = Tok.inkFixed) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return background(shape.fill(Color(fill)))
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(Color(edge), lineWidth: 1))
+            .background(shape.fill(Color(lipColor)).offset(y: lip))
+    }
+}
+
+/// Buttons are at least 32 pt tall. The primary one is ink with white text; the rest have a thin edge.
+struct CartButtonStyle: ButtonStyle {
+    var primary = true
+    /// Stretch to the row's width, for a grid of equal buttons.
+    var fill = false
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+        configuration.label
+            .font(TypeFace.body(14, weight: 650))
+            .foregroundStyle(Color(primary ? Tok.onAction : Tok.ink))
+            .padding(.horizontal, 14).frame(maxWidth: fill ? .infinity : nil, minHeight: 32)
+            .background(shape.fill(Color(primary ? Tok.action : Tok.surface)))
+            .overlay(shape.strokeBorder(Color(Tok.edge), lineWidth: primary ? 0 : 1))
+            .opacity(configuration.isPressed ? 0.8 : (enabled ? 1 : 0.45))
+            .contentShape(shape)
+    }
+}
+
+/// A small text button for a quiet action ("Hide").
+struct TextButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(TypeFace.body(13, weight: 600)).foregroundStyle(Color(Tok.muted))
+            .padding(.horizontal, 6).frame(minHeight: 32).contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+/// Where a card came from, behind a small info button (shown on hover), not printed on the card.
+struct InfoButton: View {
+    let text: String
+    var body: some View {
+        Image(systemName: "info.circle").font(.system(size: 13, weight: .regular)).foregroundStyle(Color(Tok.muted))
+            .frame(width: 32, height: 32).contentShape(Rectangle())
+            .help(text)
+            .accessibilityLabel("About this card")
+            .accessibilityValue(text)
+    }
+}
+
+/// The card's header band: sunflower for news, graphite when something stopped, neutral for setup.
+enum CardTone {
+    case news, problem, setup
+
+    init(_ phase: MascotPhase) {
+        switch phase {
+        case .offline, .voiceError, .blocked: self = .problem
+        case .permission, .micPermission: self = .setup
+        default: self = .news
+        }
+    }
+
+    var band: NSColor { switch self { case .news: Tok.field; case .problem: Tok.problemBand; case .setup: Tok.setupBand } }
+    var text: NSColor { switch self { case .news: Tok.inkFixed; case .problem: Tok.onGraphite; case .setup: Tok.ink } }
+}
+
+/// A card: Tug in a coloured header, then the body.
+struct CardView: View {
     @ObservedObject var model: CompanionModel
-    @Environment(\.accessibilityReduceTransparency) private var opaque
+    var onDrag: (DragGesture.Value?) -> Void
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             header
-            content
+            CardBody(model: model).padding(16)
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(opaque ? AnyShapeStyle(Color(nsColor: .windowBackgroundColor)) : AnyShapeStyle(.regularMaterial)))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color(nsColor: model.phase.accent).opacity(0.8), lineWidth: 1.5))
-        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .cartLabel()
     }
+
+    private var tone: CardTone { CardTone(model.phase) }
 
     private var header: some View {
-        HStack(spacing: 6) {
-            Image(systemName: model.phase.symbol).foregroundStyle(Color(nsColor: model.phase.accent))
-            Text(model.phase.label()).font(.system(size: 13, weight: .semibold))
+        let onBand = tone.text
+        return HStack(alignment: .center, spacing: 10) {
+            TugView(phase: model.phase, talking: model.talking, facesRight: true)
+                .frame(width: MascotLayout.headerTug, height: MascotLayout.headerTug)
+                .contentShape(Rectangle())
+                .onTapGesture { model.clicked() }
+                .tugAccessibility(model)
+                // On sunflower the string is ink; on graphite it is cream, like the dark HUD.
+                .environment(\.colorScheme, tone == .news ? .light : (tone == .problem ? .dark : scheme))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(noWidow(model.phase.heading)).font(TypeFace.display(17, weight: 800)).lineLimit(2)
+                if speaking {
+                    HStack(spacing: 6) { SpeakingWave(color: onBand); Text("Speaking").font(TypeFace.body(13, weight: 600)) }
+                }
+            }
+            .foregroundStyle(Color(onBand))
             Spacer(minLength: 4)
-            Button { model.dismiss() } label: { Image(systemName: "xmark").font(.system(size: 11, weight: .bold)) }
-                .buttonStyle(.borderless).accessibilityLabel("Dismiss").keyboardShortcut(.cancelAction)
+            if let round = roundLabel {
+                Text(round).font(TypeFace.body(12, weight: 650)).foregroundStyle(Color(onBand))
+                    .padding(.horizontal, 8).frame(height: 24)
+                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(onBand).opacity(0.45), lineWidth: 1))
+                    .accessibilityLabel(round)
+            }
+            Button { model.dismiss() } label: {
+                Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).frame(width: 32, height: 32).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).foregroundStyle(Color(onBand))
+            .accessibilityLabel("Close").keyboardShortcut(.cancelAction)
+        }
+        .padding(.leading, 10).padding(.trailing, 8).padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(tone.band))
+        .overlay(alignment: .bottom) { Rectangle().fill(Color(Tok.cardEdge).opacity(0.5)).frame(height: 1) }
+        .gesture(DragGesture(minimumDistance: 3, coordinateSpace: .global).onChanged { onDrag($0) }.onEnded { _ in onDrag(nil) })
+    }
+
+    /// Tug's voice is playing (a spoken question, or the sentence about a circled line).
+    private var speaking: Bool {
+        switch model.phase {
+        case .voiceSpeaking(let card): !card.finished
+        case .speaking: model.talking
+        default: false
         }
     }
 
-    @ViewBuilder private var content: some View {
+    private var roundLabel: String? {
+        if case .voiceSpeaking(let card) = model.phase, let round = card.round { return "Round \(round)" }
+        return nil
+    }
+}
+
+/// What a card says: one main line in Hanken Grotesk 15/22 semibold, an instruction as a ruled quote,
+/// and at most two actions. Where it came from sits behind the info button.
+struct CardBody: View {
+    @ObservedObject var model: CompanionModel
+
+    var body: some View {
         switch model.phase {
         case .speaking(let card):
-            VStack(alignment: .leading, spacing: 8) {
-                Text(card.summary).font(.system(size: 14, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-                Text(card.observation).font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Label { Text(card.nextStep).font(.system(size: 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true) }
-                    icon: { Image(systemName: "arrow.forward.circle.fill").foregroundStyle(Color(nsColor: Palette.model)) }
-                Text(card.isPreview ? "Sample text for previewing the companion" : "\(card.appName) · \(card.modelLabel) · receipt \(card.receiptID.prefix(8))")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-                HStack {
-                    Button("Undo") { model.onUndo() }.disabled(card.isPreview)
-                    Button("Ask Muse") { model.onAskMuse() }.disabled(card.isPreview)
+            VStack(alignment: .leading, spacing: 12) {
+                CoachText(card.observation)
+                Instruction(label: "Next step", text: card.nextStep)
+                if model.pointing {
+                    Label { Text("Circled on your \(card.appName) window").font(TypeFace.body(13, weight: 550)) }
+                        icon: { Image(systemName: "circle.circle") }
+                        .foregroundStyle(Color(Tok.ink))
+                }
+                HStack(spacing: 8) {
+                    // Only actions that can work: a sample card has no record to open or undo.
+                    if !card.isPreview {
+                        Button("Ask Muse") { model.onAskMuse() }.buttonStyle(CartButtonStyle())
+                        Button("Undo") { model.onUndo() }.buttonStyle(CartButtonStyle(primary: false))
+                    }
+                    SampleTag(isPreview: card.isPreview, text: "Sample card")
                     Spacer()
-                }.controlSize(.small)
+                    if !card.isPreview { InfoButton(text: "\(card.appName) · \(card.modelLabel) · receipt \(card.receiptID.prefix(8))") }
+                }
             }
         case .nudging(let nudge, _):
             VStack(alignment: .leading, spacing: 8) {
-                Text(nudge.detail).font(.system(size: 14, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-                Text("Goal: \(nudge.goalTitle) · from the shared record").font(.system(size: 11)).foregroundStyle(.secondary)
+                CoachText(nudge.detail)
+                Text("Goal: \(nudge.goalTitle)").font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted))
             }
-        case .offline(_, let retryable):
-            HStack {
-                Text("Nothing was saved.").font(.system(size: 13)).foregroundStyle(.secondary)
-                Spacer()
-                if retryable { Button("Retry") { model.onRetry() }.controlSize(.small) }
+        case .offline(let reason, let retryable):
+            VStack(alignment: .leading, spacing: 12) {
+                CoachText(reason)
+                if retryable { Button("Retry") { model.onRetry() }.buttonStyle(CartButtonStyle()) }
             }
         case .permission:
-            VStack(alignment: .leading, spacing: 8) {
-                Text("To read a window you choose, macOS needs to allow Screen Recording for \(appDisplayName) in System Settings. \(MascotName) reads only the front window, and only when you press ⌃⌥Space or click. Pixels never leave this Mac.")
-                    .font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
-                HStack {
-                    Button("Continue") { model.onPermissionContinue() }
-                    Button("Open Settings") { model.onOpenSettings() }
+            VStack(alignment: .leading, spacing: 12) {
+                CoachText("\(MascotName) reads only the front window, and only when you ask. The picture never leaves this Mac.")
+                ShortcutLine(text: "Read a window: ⌃⌥Space", font: TypeFace.body(13, weight: 550), ink: Tok.muted)
+                HStack(spacing: 8) {
+                    Button("Continue") { model.onPermissionContinue() }.buttonStyle(CartButtonStyle())
+                    Button("Open System Settings") { model.onOpenSettings() }.buttonStyle(CartButtonStyle(primary: false))
                     Spacer()
-                }.controlSize(.small)
+                }
             }
         case .voiceSpeaking(let card):
-            VoiceCardView(card: card)
-        case .voiceError(_, let retryable):
-            HStack {
-                Text(retryable ? "The recording stays on this Mac until you retry or close this." : "Nothing was saved. The recording was deleted.")
-                    .font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Spacer()
-                if retryable { Button("Retry") { model.onVoiceRetry() }.controlSize(.small) }
+            VoiceCardView(card: card, onLayout: { model.layoutNeeded() })
+        case .voiceError(let message, let retryable):
+            VStack(alignment: .leading, spacing: 12) {
+                CoachText(message)
+                HStack(spacing: 8) {
+                    if retryable { Button("Retry") { model.onVoiceRetry() }.buttonStyle(CartButtonStyle()) }
+                    Text(retryable ? "Your recording waits on this Mac." : "Your recording was deleted.")
+                        .font(TypeFace.body(13, weight: 450)).foregroundStyle(Color(Tok.muted))
+                    Spacer()
+                }
             }
         case .micPermission(let denied):
-            VStack(alignment: .leading, spacing: 8) {
-                Text(denied
-                     ? "Microphone access is off for \(appDisplayName). Turn it on in System Settings › Privacy & Security › Microphone, then hold ⌃⌥T again."
-                     : "To hear your answer, macOS needs to allow the Microphone for \(appDisplayName). It is open only while you hold ⌃⌥T. The recording is sent once for a voice reply, then deleted from this Mac.")
-                    .font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
-                HStack {
-                    if !denied { Button("Continue") { model.onMicContinue() } }
-                    Button("Open Settings") { model.onOpenMicSettings() }
+            VStack(alignment: .leading, spacing: 12) {
+                CoachText(denied ? "Turn it on in Privacy & Security › Microphone, then try again."
+                                 : "\(MascotName) listens only while you hold the talk keys, and deletes each recording once it's sent.")
+                ShortcutLine(text: "Talk: hold ⌃⌥T", font: TypeFace.body(13, weight: 550), ink: Tok.muted)
+                HStack(spacing: 8) {
+                    if !denied { Button("Continue") { model.onMicContinue() }.buttonStyle(CartButtonStyle()) }
+                    Button("Open System Settings") { model.onOpenMicSettings() }.buttonStyle(CartButtonStyle(primary: denied))
                     Spacer()
-                }.controlSize(.small)
+                }
             }
         default:
             EmptyView()
@@ -322,38 +410,217 @@ struct BubbleView: View {
     }
 }
 
-/// A voice reply: the question, what was heard, the quote the coach pressed on, and the timings.
+/// "Sample card" / "Sample numbers": in DEBUG previews only, never in a normal or filming build.
+struct SampleTag: View {
+    let isPreview: Bool
+    let text: String
+    var body: some View {
+        #if DEBUG
+        if isPreview { Text(text).font(TypeFace.body(12, weight: 550)).foregroundStyle(Color(Tok.muted)) }
+        #endif
+    }
+}
+
+/// What Tug says: Hanken Grotesk about 15/22 semibold.
+struct CoachText: View {
+    let text: String
+    var size: CGFloat = 15
+    init(_ text: String, size: CGFloat = 15) { self.text = text; self.size = size }
+    var body: some View {
+        Text(noWidow(text)).font(TypeFace.body(size, weight: 600)).lineSpacing(size * 0.17)
+            .foregroundStyle(Color(Tok.ink)).fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// An instruction: a quote with an ink rule on the left, never a filled block that looks like a button.
+struct Instruction: View {
+    let label: String
+    let text: String
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Rectangle().fill(Color(Tok.ink)).frame(width: 3)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label).font(TypeFace.body(12, weight: 600)).foregroundStyle(Color(Tok.muted))
+                CoachText(text)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A spoken-round card, cut to what matters: the words of yours it pressed on, the question, one measured
+/// number, and what to do next. What you said is one click away; where it came from is behind the info button.
 struct VoiceCardView: View {
     let card: VoiceCard
+    var onLayout: () -> Void = {}
+    @State private var showTranscript = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(card.question).font(.system(size: 14, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
-                .accessibilityLabel("Question: \(card.question)")
-            if !card.transcriptSnippet.isEmpty {
-                Text("You said: “\(card.transcriptSnippet)”").font(.system(size: 12)).foregroundStyle(.secondary)
-                    .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 12) {
+            if let summary = card.summary {
+                BigNumberTile(number: LatestRoundNumber.make(summary: summary, latest: nil)!)
             }
-            if let quote = card.quote {
-                Label {
-                    Text("Pressed on “\(quote)”, checked against what you said").font(.system(size: 12, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-                } icon: { Image(systemName: "quote.opening").foregroundStyle(Color(nsColor: Palette.model)) }
+            if let quote = card.quote { QuoteTag(quote: quote) }
+            CoachText(card.question, size: 16).accessibilityLabel("Question: \(card.question)")
+            if card.summary == nil, let stat = LatestRoundNumber.make(summary: nil, latest: card.metrics) {
+                HabitChip(count: stat.value, habit: stat.habit, caption: "in this answer")
             }
-            if let metrics = card.metricsLine {
-                Label { Text(metrics).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true) }
-                    icon: { Image(systemName: "ruler").foregroundStyle(Color(nsColor: Palette.record)) }
-                    .accessibilityLabel("Measured by code: \(metrics)")
+            if !card.transcript.isEmpty, card.summary == nil {
+                DisclosureGroup(isExpanded: $showTranscript) {
+                    Transcript(text: card.transcriptSnippet, mark: card.quote).padding(.top, 4)
+                } label: {
+                    Text("What you said").font(TypeFace.body(13, weight: 600)).foregroundStyle(Color(Tok.muted))
+                }
+                .onChange(of: showTranscript) { _, _ in onLayout() }
             }
-            if let note = card.voiceNote {
-                Label { Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-                    icon: { Image(systemName: { if case .fallback = card.voice { "speaker.badge.exclamationmark" } else { "waveform" } }()).foregroundStyle(.secondary) }
+            HStack(spacing: 8) {
+                if card.finished && !card.endsRound { YourTurnBar() }
+                else if card.finished { ShortcutLine(text: "Hold ⌃⌥T to start again", font: TypeFace.body(13, weight: 600), ink: Tok.muted) }
+                SampleTag(isPreview: card.isPreview, text: card.summary == nil ? "Sample answer" : "Sample numbers")
+                Spacer(minLength: 0)
+                if !card.isPreview { InfoButton(text: provenance) }
             }
-            if let latency = card.latencyLine {
-                Label { Text(latency).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-                    icon: { Image(systemName: "timer").foregroundStyle(.secondary) }
-            }
-            Text(card.isPreview ? "Sample text for previewing the companion" : "\(card.moveTitle) · \(card.modelLabel) · receipt \(card.receiptID.prefix(8))\(card.replayed ? " · already saved" : "")")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
         }
+    }
+
+    private var provenance: String {
+        [card.voiceNote, card.shortLatency, "\(card.modelLabel) · receipt \(card.receiptID.prefix(8))\(card.replayed ? " · already saved" : "")"]
+            .compactMap { $0 }.joined(separator: "\n")
+    }
+}
+
+/// "Your turn": the cue that the question has been asked, with the keys to hold. Its edge pulses gently;
+/// still with Reduce Motion.
+struct YourTurnBar: View {
+    @Environment(\.reduceMotionOn) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
+            let pulse = reduceMotion ? 1 : 0.55 + 0.45 * sin(context.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.6)
+            HStack(spacing: 8) {
+                Text("Your turn").font(TypeFace.body(14, weight: 700)).foregroundStyle(Color(Tok.inkFixed))
+                ShortcutLine(text: "hold ⌃⌥T", font: TypeFace.body(13, weight: 600), ink: Tok.inkFixed)
+            }
+            .padding(.horizontal, 12).frame(minHeight: 34)
+            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(Tok.field)))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color(Tok.inkFixed).opacity(0.25 + 0.5 * pulse), lineWidth: 1.5))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Your turn. Hold Control Option T to answer.")
+    }
+}
+
+extension String {
+    var nonEmpty: String? { isEmpty ? nil : self }
+}
+
+/// "You said “I think”": your own words, as the server checked them against the transcript.
+struct QuoteTag: View {
+    let quote: String
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("You said").font(TypeFace.body(12, weight: 550)).foregroundStyle(Color(Tok.muted))
+            Text("\u{201C}\(quote)\u{201D}").font(TypeFace.body(15, weight: 700)).foregroundStyle(Color(Tok.ink))
+        }
+        .padding(.horizontal, 10).frame(height: 30)
+        .thinEdge(radius: 9)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// What it heard, in the body face, with the pressed words marked in sunflower.
+struct Transcript: View {
+    let text: String
+    let mark: String?
+    var body: some View {
+        Text(attributed).font(TypeFace.body(13, weight: 450)).lineSpacing(3).foregroundStyle(Color(Tok.muted))
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel("You said: \(text)")
+    }
+    private var attributed: AttributedString {
+        var s = AttributedString(text)
+        if let mark, let range = s.range(of: mark, options: .caseInsensitive) {
+            s[range].backgroundColor = Color(Tok.field)
+            s[range].foregroundColor = Color(Tok.inkFixed)
+        }
+        return s
+    }
+}
+
+/// A measured habit as a chip in its own colour, always with its word ("2 fillers"), so the colour has a
+/// visible reason. Lighter fills on the dark HUD.
+struct HabitChip: View {
+    let count: Int
+    let habit: RoundSummary.Habit
+    var caption: String? = nil
+    @Environment(\.colorScheme) private var scheme
+
+    static func colours(_ habit: RoundSummary.Habit) -> (fill: NSColor, edge: NSColor) {
+        switch habit {
+        case .filler: (Tok.filler, Tok.fillerEdge)
+        case .hedge: (Tok.hedge, Tok.hedgeEdge)
+        case .restart: (Tok.restart, Tok.restartEdge)
+        }
+    }
+
+    var body: some View {
+        let (fill, edge) = Self.colours(habit)
+        let dark = scheme == .dark
+        HStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(count)").font(TypeFace.display(17, weight: 800))
+                Text(count == 1 ? habit.rawValue : habit.rawValue + "s").font(TypeFace.body(13, weight: 650))
+            }
+            .foregroundStyle(Color(dark ? Tok.ink : Tok.inkFixed))
+            .padding(.horizontal, 9).frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(dark ? edge : fill).opacity(dark ? 0.3 : 1)))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(edge).opacity(dark ? 0.8 : 0.6), lineWidth: 1))
+            if let caption { Text(caption).font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted)) }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Measured by code: \(RoundSummary.count(count, habit))\(caption.map { " \($0)" } ?? "")")
+    }
+}
+
+/// The round's one big number. An improvement sits on sunflower, with the change in words; no alarm colour.
+/// Otherwise a neutral tile, with the habit's chip naming what it counts.
+struct BigNumberTile: View {
+    let number: LatestRoundNumber
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Text("\(number.value)").font(TypeFace.display(54, weight: 850)).monospacedDigit()
+            VStack(alignment: .leading, spacing: 4) {
+                // Good news reads as words on sunflower; otherwise the habit's own coloured tag.
+                if number.improved {
+                    Text(number.value == 1 ? number.habit.rawValue : number.habit.rawValue + "s").font(TypeFace.display(18, weight: 800))
+                } else {
+                    HabitChipWord(habit: number.habit, count: number.value)
+                }
+                Text(number.caption).font(TypeFace.body(13, weight: 550)).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(Color(number.improved ? Tok.inkFixed : Tok.ink))
+        .padding(.horizontal, 16).padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .thinEdge(radius: 12, fill: number.improved ? Tok.field : Tok.surface, edge: number.improved ? Tok.inkFixed.withAlphaComponent(0.25) : Tok.edge)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(RoundSummary.count(number.value, number.habit)) \(number.caption)")
+    }
+}
+
+/// The habit's word in its colour, as a small tag.
+struct HabitChipWord: View {
+    let habit: RoundSummary.Habit
+    let count: Int
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let (fill, edge) = HabitChip.colours(habit)
+        let dark = scheme == .dark
+        Text(count == 1 ? habit.rawValue : habit.rawValue + "s").font(TypeFace.display(16, weight: 800))
+            .foregroundStyle(Color(dark ? Tok.ink : Tok.inkFixed))
+            .padding(.horizontal, 8).frame(height: 24)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(dark ? edge : fill).opacity(dark ? 0.3 : 1)))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color(edge).opacity(0.6), lineWidth: 1))
     }
 }
