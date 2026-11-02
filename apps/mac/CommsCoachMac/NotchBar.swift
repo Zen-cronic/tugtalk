@@ -308,7 +308,8 @@ final class NotchBarController {
         let glyph: CGFloat = notch ? 18 : 16
         let word = glyph + 6 + BarType.width(status.word, heavy: status.emphasized)
         let markWidth = BarType.markWidth(mark)
-        var right = markWidth == 0 ? 0 : (notch ? NotchBarPlacement.notchGap : 8) + markWidth + NotchBarUI.inset
+        // The widest mark plus the same inner padding on both sides, the left wing's gap to the notch.
+        var right = markWidth == 0 ? 0 : 2 * NotchBarPlacement.notchGap + markWidth
         if let housing, right > 0, !NotchBarPlacement.rightWingFits(statusItemsMinX: statusItemsMinX(right: housing.midX),
                                                                    housingMaxX: housing.maxX, width: right) {
             right = 0

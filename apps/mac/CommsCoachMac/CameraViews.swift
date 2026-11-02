@@ -34,27 +34,42 @@ extension TugPose {
 
 // The dot in the top bar
 
-/// Beside the record light in the top bar while a hold has the camera open: filled when your head faces the camera,
-/// an open ring when it doesn't. Nothing shows while the camera is off. It never takes clicks.
+/// Beside the record light in the top bar while a hold has the camera open: a small eye, its own shape so it never
+/// reads as a second record dot. Open with a filled pupil when your head faces the camera; dimmed and closed to a line
+/// when it doesn't. Nothing shows while the camera is off. It never takes clicks.
 struct CameraDot: View {
     @ObservedObject var session: CameraSession = .shared
     var ink: NSColor = Tok.inkFixed
     @Environment(\.reduceMotionOn) private var reduceMotion
 
-    static let side: CGFloat = 11
+    static let side: CGFloat = 15
 
     var body: some View {
         if let look = session.look {
             ZStack {
-                Circle().strokeBorder(Color(ink), lineWidth: 1.6).opacity(look.facing ? 0 : 1)
-                Circle().fill(Color(ink)).opacity(look.facing ? 1 : 0)
+                EyeOutline().stroke(Color(ink), style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
+                    .opacity(look.facing ? 1 : 0)
+                Circle().fill(Color(ink)).frame(width: 4.6, height: 4.6).opacity(look.facing ? 1 : 0)
+                Capsule().fill(Color(ink)).frame(width: Self.side - 2, height: 1.4).opacity(look.facing ? 0 : 0.55)
             }
-            .frame(width: Self.side, height: Self.side)
+            .frame(width: Self.side, height: 10)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: look.facing)
             .allowsHitTesting(false)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(look.facing ? "Facing the camera" : "Not facing the camera")
         }
+    }
+}
+
+/// An almond eye outline.
+struct EyeOutline: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.midY))
+        p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.midY), control: CGPoint(x: r.midX, y: r.minY - r.height * 0.45))
+        p.addQuadCurve(to: CGPoint(x: r.minX, y: r.midY), control: CGPoint(x: r.midX, y: r.maxY + r.height * 0.45))
+        p.closeSubpath()
+        return p
     }
 }
 
@@ -65,15 +80,13 @@ struct CameraChip: View {
     let metrics: CameraMetrics
 
     var body: some View {
-        HStack(spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("\(metrics.faced_camera_pct)%").font(TypeFace.display(17, weight: 800))
-                Text("faced the camera").font(TypeFace.body(13, weight: 650))
-            }
-            .foregroundStyle(Color(Tok.ink))
-            .padding(.horizontal, 9).frame(height: 30)
-            .thinEdge(radius: 8)
-            .fixedSize()
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            // The same chip grammar as the habit counts: Hanken Grotesk, the number in bold. Neutral, not a habit colour.
+            EvidenceChipText(number: "\(metrics.faced_camera_pct)%", unit: "faced the camera")
+                .foregroundStyle(Color(Tok.ink))
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .thinEdge(radius: 6)
+                .fixedSize()
             Text(metrics.lookedAwayLine).font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted))
                 .lineLimit(1).minimumScaleFactor(0.85).layoutPriority(-1)
         }
