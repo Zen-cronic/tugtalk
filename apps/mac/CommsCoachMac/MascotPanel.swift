@@ -47,7 +47,8 @@ final class PanelController {
             .sink { [weak self] _ in DispatchQueue.main.async { self?.refresh() } }
             .store(in: &observers)
         model.onLayoutNeeded = { [weak self] in self?.refresh() }
-        model.$dockedPanelOpen.receive(on: RunLoop.main).sink { [weak self] _ in DispatchQueue.main.async { self?.refresh() } }.store(in: &observers)
+        // One hop to the main run loop is enough: the new value is set by the time it runs.
+        model.$dockedPanelOpen.receive(on: RunLoop.main).sink { [weak self] _ in self?.refresh() }.store(in: &observers)
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .sink { [weak self] _ in self?.refresh() }.store(in: &observers)
     }
