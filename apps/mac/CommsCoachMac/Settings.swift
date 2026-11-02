@@ -42,10 +42,23 @@ enum Settings {
         set { defaults.set(Array(newValue).sorted(), forKey: "denyList") }
     }
 
-    /// "Show in Dock": a Dock icon and the docked panel. Off by default (menu bar only). `-dockMode YES` also works.
+    /// "Where Tug lives": the top bar (standard), floating beside the work, or the Dock. `-tugHome topBar|floating|dock`
+    /// also works, and so does the older `-dockMode YES`.
+    static var tugHome: TugHome {
+        get {
+            let arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
+            if arguments["tugHome"] == nil, (arguments["dockMode"] as? String).map({ ["YES", "1", "true"].contains($0) }) ?? false { return .dock }
+            return TugHome.resolve(stored: defaults.string(forKey: "tugHome"), legacyDockMode: defaults.bool(forKey: "dockMode"))
+        }
+        set { defaults.set(newValue.rawValue, forKey: "tugHome") }
+    }
+
+    /// Docked mode: a Dock icon and the docked panel. Kept for the Dock controller; it follows `tugHome`.
     static var dockMode: Bool {
-        get { defaults.bool(forKey: "dockMode") }
-        set { defaults.set(newValue, forKey: "dockMode") }
+        get { tugHome == .dock }
+        set {
+            if newValue { tugHome = .dock } else if tugHome == .dock { tugHome = .floating }
+        }
     }
 
     enum ReplyVoice: String, CaseIterable { case rebecca, thisMac
