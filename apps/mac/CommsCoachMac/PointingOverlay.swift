@@ -52,6 +52,9 @@ final class PointingController {
     /// (a global mouse monitor only watches; the click still reaches its app). Neither needs a permission.
     private var keyMonitor: Any?
     private var clickMonitor: Any?
+    /// Changes whenever a ring goes away (and so before each new one). A fade-out that finishes late only removes
+    /// the ring it was fading, never a newer one, and does nothing once that ring is already gone.
+    private var generation = 0
     private let model: CompanionModel
     private let speaker = AppleSpeaker()
 
@@ -191,13 +194,17 @@ final class PointingController {
     private func fadeOut() {
         guard let panel else { return }
         watch?.invalidate(); watch = nil
-        let reduce = Motion.reduceInAppKit
+        let reduce = Motion.reduceInAppKit, fading = generation
         NSAnimationContext.runAnimationGroup({ $0.duration = reduce ? 0.15 : 0.3; panel.animator().alphaValue = 0 }) { [weak self] in
-            MainActor.assumeIsolated { self?.dismiss() }
+            MainActor.assumeIsolated {
+                guard let self, self.generation == fading else { return }
+                self.dismiss()
+            }
         }
     }
 
     func dismiss() {
+        generation &+= 1
         watch?.invalidate(); watch = nil
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor); self.keyMonitor = nil }
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor); self.clickMonitor = nil }
