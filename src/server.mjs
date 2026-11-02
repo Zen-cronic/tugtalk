@@ -7,6 +7,7 @@ import { Store, ApiError, digest } from './store.mjs';
 import { schemas, specification } from './schema.mjs';
 import { createModelClients, inspectWav, measure, MAX_AUDIO_BYTES, LANGUAGES, DEVICES } from './capture.mjs';
 import { runEval } from './evaluate.mjs';
+import { createAdjudicationModel, adjudicateCapture } from './adjudicate.mjs';
 import { createScreenModel, handleScreenContext, SCREEN_CONTEXT_PATH } from './screen-context.mjs';
 
 export function validate(body,schema) {
@@ -84,13 +85,16 @@ export async function handleRecording(store,models,user,req,key,requestId,phases
   const wav=inspectWav(audio);
   // Model calls take seconds; the hosting adapter may release the shared database meanwhile.
   // Everything below re-validates inside the write transaction (receipt replay, goal ownership).
-  let transcription,metrics,analysis;
+  let transcription,metrics,analysis,adjudication;
   await phases.release();
   try {
     transcription=await models.transcribe(audio,{language:params.language,sessionId:requestId});
     metrics=measure(transcription.transcript,transcription.audio_duration_ms??wav.durationMs,params.language,transcription.turns);
-    analysis=await models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language,...(hooks.system?{system:hooks.system(ctx)}:{})});
-    if (hooks.afterAnalyze) ctx.after=await hooks.afterAnalyze({...ctx,transcription,metrics,analysis});
+    // The observation and the habit adjudication are independent Spark calls; neither changes the measured metrics.
+    [analysis,adjudication]=await Promise.all([
+      models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language,...(hooks.system?{system:hooks.system(ctx)}:{})}),
+      adjudicateCapture({models,transcript:transcription.transcript,language:params.language})]);
+    if (hooks.afterAnalyze) ctx.after=await hooks.afterAnalyze({...ctx,transcription,metrics,analysis,adjudication});
   } finally {
     await phases.acquire();
   }
@@ -99,15 +103,15 @@ export async function handleRecording(store,models,user,req,key,requestId,phases
     const timestamp=new Date().toISOString();
     const record={id:randomUUID(),version:1,source:'capture',capture_device:params.device,goal_id:params.goalId,language:params.language,
       occurred_at:params.occurredAt??timestamp,transcript:transcription.transcript,turns:transcription.turns,
-      measurement_status:'measured',metrics,analysis,
+      measurement_status:'measured',metrics,adjudication,analysis,
       transcription:{model:transcription.model,provider_session_id:transcription.provider_session_id},
       audio_retained:false,audio_sha256:fingerprintBody.audio_sha256,deleted:false,updated_at:timestamp};
-    const saved=hooks.extendRecord?hooks.extendRecord(record,{...ctx,transcription,metrics,analysis,timestamp}):record;
+    const saved=hooks.extendRecord?hooks.extendRecord(record,{...ctx,transcription,metrics,analysis,adjudication,timestamp}):record;
     store.put(user,'sessions',saved); return saved;
   });
 }
 // screenContextHooks: optional system(ctx) prompt and extendRecord(record, ctx), as for recordings (src/screen-context.mjs).
-export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={}}={}) {
+export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={}}={}) {
   return async(req,res)=>{
     const requestId=randomUUID(); let user;
     const path=new URL(req.url,'http://local').pathname;
