@@ -50,7 +50,8 @@ export function liveStart(start) {
   const text = v => (v === undefined || v === null ? undefined : String(v));
   const headers = Object.fromEntries(Object.entries({ 'x-language': text(start.language), 'x-goal-id': text(start.goal_id), 'x-screen-context-id': text(start.screen_context_id),
     'x-prompt-ended-at': text(start.prompt_ended_at), 'x-occurred-at': text(start.occurred_at) }).filter(([, v]) => v !== undefined));
-  return { key, params: voiceParams(headers) };
+  // speech: false when the Mac speaks the reply with its own voice; the server then makes no audio.
+  return { key, params: voiceParams(headers), speak: start.speech !== false };
 }
 
 // Meta realtime transcription for one hold. send() queues PCM (sent once the handshake is acknowledged, never more than
@@ -165,11 +166,11 @@ export function createLiveRound({ store, models, token, start, requestId = rando
   const errorBody = e => ({ error: e.code ?? 'internal_error', message: e instanceof ApiError ? e.message : 'Request failed.', request_id: requestId });
 
   const done = (async () => {
-    let params, key, context;
+    let params, key, context, speak;
     // Checks, with the database held. Nothing has been sent anywhere yet.
     try {
       user = store.authenticate(String(token ?? '').replace(/^Bearer /, ''), 'write');
-      ({ params, key } = liveStart(start));
+      ({ params, key, speak } = liveStart(start));
       context = prepareVoiceRound(store, models, user, params);
       if (typeof models.transcribe !== 'function') throw new ApiError(503, 'transcription_unconfigured', 'Transcription is not configured on this deployment.');
       if (!budget.allows(MIN_START_MS.reply + 2_000)) throw new ApiError(503, 'time_budget', 'Not enough time left for this round.');
@@ -221,9 +222,9 @@ export function createLiveRound({ store, models, token, start, requestId = rando
         model: answer.result.model, provider_request_id: answer.result.provider_request_id ?? null,
         latency_ms: { asr: asrMs, model: answer.modelMs, release_to_reply: replyMs }, transcription: mode });
       // The spoken reply starts now, alongside the write and the commit.
-      const entry = models.prefetchSpeech?.(roundId, user, answer.checked.reply.question, params.language) ?? null;
+      const entry = speak ? models.prefetchSpeech?.(roundId, user, answer.checked.reply.question, params.language) ?? null : null;
       const speechDone = (async () => {
-        if (!entry) { emit({ type: 'speech_unavailable', error: 'speech_unconfigured' }); return; }
+        if (!entry) { emit({ type: 'speech_unavailable', error: speak ? 'speech_unconfigured' : 'not_requested' }); return; }
         const head = await entry.head;
         if (head.error) { emit({ type: 'speech_unavailable', error: head.error.code ?? 'speech_failed' }); return; }
         emit({ type: 'speech_start', content_type: head.type, provider: models.speechProvider?.() ?? 'custom', voice: models.speechVoice?.(params.language) ?? 'unknown',

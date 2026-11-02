@@ -191,6 +191,16 @@ test('live: without realtime the round uses the file endpoint; without a voice i
     failed.audio(pcm(1200)); failed.end();
     const r = await failed.done;
     assert.equal(r.status, 502); assert.equal(r.body.error, 'reply_failed');
+    const quiet = setup();
+    try {
+      const own = quiet.open({ ...START, idempotency_key: 'live-key-0007', speech: false });
+      await tick(); quiet.meta.sockets[0].ack(); own.audio(pcm(1200)); own.end();
+      quiet.meta.sockets[0].drop(1011);
+      const r2 = await own.done; await r2.speechDone;
+      assert.equal(r2.status, 200);
+      assert.equal(quiet.calls.tts, 0, 'the Mac speaks with its own voice: no synthesis');
+      assert.equal(quiet.events.at(-1).error, 'not_requested');
+    } finally { quiet.cleanup(); }
     const short = s.open({ ...START, idempotency_key: 'live-key-0006' });
     short.audio(pcm(100)); short.end();
     assert.equal((await short.done).status, 400, 'too short to be an answer');

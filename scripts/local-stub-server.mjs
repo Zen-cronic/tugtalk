@@ -3,13 +3,14 @@
 // The token file path is printed; the token itself is not. Nothing here touches .data/.
 //   --live-models  use the real Meta and Baseten clients instead (paid; needs MODEL_API_KEY and BASETEN_API_KEY
 //                  in the environment), still with the throwaway database and token. For latency runs only.
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../src/store.mjs';
 import { createApp } from '../src/server.mjs';
 import { habitHits } from '../src/capture.mjs';
+import { createSpeechModel } from '../src/speech.mjs';
 
 const dir = process.env.STUB_DIR ?? mkdtempSync(join(tmpdir(), 'comms-coach-stub-'));
 mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -47,6 +48,14 @@ const models = {
   }
 };
 
+// STUB_SPEECH_MP3=<file>: spoken replies stream that file in 1 KiB chunks (first after 300 ms), through the speech route
+// and the live socket, so playback can be checked without a speech provider. Off by default (the Mac's own voice).
+if (process.env.STUB_SPEECH_MP3) {
+  const mp3 = readFileSync(process.env.STUB_SPEECH_MP3);
+  Object.assign(models, createSpeechModel({ env: { SPEECH_PROVIDER: 'wit', WIT_TTS_TOKEN: 'stub' }, fetchImpl: async () => new Response(new ReadableStream({
+    async start(c) { await new Promise(r => setTimeout(r, 300)); for (let i = 0; i < mp3.length; i += 1024) { c.enqueue(mp3.subarray(i, i + 1024)); await new Promise(r => setTimeout(r, 40)); } c.close(); } }),
+    { headers: { 'content-type': 'audio/mpeg' } }) }));
+}
 const server = createApp(store, { ...(live ? {} : { models }), baseUrl: `http://127.0.0.1:${port}` });
 server.listen(port, '127.0.0.1', () => console.log(JSON.stringify({ listening: `http://127.0.0.1:${port}`, token_file: tokenFile, database: join(dir, 'stub.sqlite'), models: live ? 'live (paid Meta and Baseten calls)' : STUB })));
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close(() => { store.close(); process.exit(0); }));
