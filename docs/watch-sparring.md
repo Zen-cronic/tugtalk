@@ -70,9 +70,22 @@ Debug builds only:
 
 Make the fixtures with `say -o a1.aiff "…"` and `afconvert -f WAVE -d LEI16@16000 -c 1 a1.aiff a1.wav`.
 
+## One live round (Nov 2, 15:56 EST)
+
+One round of three answers in the watchOS simulator against the hosted service, with three `say` fixture clips in place of the microphone: 3 Meta transcriptions and 3 Spark Open replies, all HTTP 200, and 3 spoken questions, each played on the watch from the coach's MP3. Verbatim from the saved rounds:
+
+| Answer | Transcript (Meta) | Fillers, unsure words, restarts (code) | Question (Spark Open, checked by code) | Quote |
+|---|---|---|---|---|
+| 1 | "Um, so I think the main point is, uh, we should maybe ship the smaller version first" | 2, 2, 0 | "You said 'I think' — can you pause and summarize my point before you answer?" | "I think" (verified) |
+| 2 | "The main point is we ship ship the smaller version first because um it lets us test with real users" | 1, 0, 0 | "Good summary, but can you pause, then say it again more slowly without saying um?" | "um" (verified) |
+| 3 | "The main point is we ship the smaller version first. It lets us test with real users this week" | 0, 0, 0 | "You said we ship the smaller version first, but that was very fast. Can you pause, then say it again much more slowly?" | "we ship the smaller version first" (verified) |
+
+Round done showed **0 fillers in your last answer, down from 2 in your first answer**. All three moves were `challenge`, so the round ended at the third answer. Server time per round was 3.6–5.1 s. These are three synthetic clips in one round, not a measure of anyone's improvement.
+
 ## Limits
 
 - Tested in the watchOS simulator only, with the stub server and fixture audio. Playback through the watch speaker, the microphone and the audio session switch between recording and playback still need a check on a real watch.
 - The voice-round route has no device label, so a watch round and a Mac round look the same in the record.
 - The stub's transcript is fixed, so every stub answer measures the same, and the round's number in those runs is "the same as your first answer".
+- The transcription can double a word ("ship ship" above); it is shown as transcribed.
 - The first audio waits for the whole MP3 before it plays (the Mac plays it as it streams).

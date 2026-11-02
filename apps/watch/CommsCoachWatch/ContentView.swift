@@ -125,7 +125,7 @@ struct ContentView: View {
     /// Opens a spoken round: answer out loud and Tug asks the follow-up, up to three answers.
     private var practiseButton: some View {
         Button { practise = true } label: {
-            Text("Practise this answer").lineLimit(1).minimumScaleFactor(0.7)
+            Text("Practise this answer").lineLimit(1).minimumScaleFactor(0.7).padding(.horizontal, 12) // clear of the capsule's curve
         }
         .buttonStyle(CoachButtonStyle(primary: false))
         .accessibilityHint("Answer out loud, and Tug asks a follow-up question")

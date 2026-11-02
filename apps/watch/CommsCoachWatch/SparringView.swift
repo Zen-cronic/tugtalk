@@ -73,7 +73,7 @@ struct SparringView: View {
         Group {
             StatusRow(title: "Your turn", detail: counter(answer)) { TugGlyph(size: 30, reach: 6, endY: 0.66) }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Answer out loud, then hear the next question.")
+                Text("Answer out loud.")
                     .face(.text, 15, relativeTo: .body)
                     .foregroundStyle(Palette.inkDark)
                     .fixedSize(horizontal: false, vertical: true)
@@ -81,7 +81,7 @@ struct SparringView: View {
                     Text("Goal: \(goal)")
                         .face(.text, 13, weight: 600, relativeTo: .caption)
                         .foregroundStyle(Palette.mutedDark)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
