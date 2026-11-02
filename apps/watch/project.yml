@@ -26,7 +26,7 @@ targets:
         CFBundleDisplayName: Comms Coach
         WKApplication: true
         WKWatchOnly: true
-        NSMicrophoneUsageDescription: Records a short practice answer you choose to capture, so your coach can measure fillers, pace and restarts. Audio is uploaded once and not kept.
+        NSMicrophoneUsageDescription: Records a short practice answer you choose to capture, so your coach can measure fillers, pace and restarts. Audio is uploaded once and not kept unless you turn on Keep my recordings.
         CoachAPIBaseURL: $(COACH_API_BASE_URL)
         CoachAPIToken: $(COACH_API_TOKEN)
         UIAppFonts:

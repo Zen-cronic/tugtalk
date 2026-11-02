@@ -3,6 +3,16 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var model = CaptureModel()
     @State private var scrolled = false
+    /// `-openSetup YES` (Debug builds): opens the setup list on launch, for a screenshot of its rows.
+    @State private var showSetup = ContentView.openSetupOnLaunch
+
+    static var openSetupOnLaunch: Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: "openSetup")
+        #else
+        false
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
@@ -28,6 +38,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(showingResult ? "Result" : "Coach")
+            .navigationDestination(isPresented: $showSetup) { SetupList(model: model) }
         }
     }
 
@@ -110,6 +121,10 @@ struct ContentView: View {
                         .foregroundStyle(Palette.ink)
                     Text(model.language == "fr" ? "Français" : "English").face(.text, 14, weight: 600, relativeTo: .footnote)
                         .foregroundStyle(Palette.muted)
+                    if model.settings?.keep_recordings == true {
+                        Text("Keeping recordings").face(.text, 14, weight: 600, relativeTo: .footnote)
+                            .foregroundStyle(Palette.muted)
+                    }
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -124,8 +139,8 @@ struct ContentView: View {
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Goal and language")
-        .accessibilityValue("\(model.selectedGoal?.title ?? "No goal"), \(model.language == "fr" ? "Français" : "English")")
+        .accessibilityLabel("Goal, language and recordings")
+        .accessibilityValue("\(model.selectedGoal?.title ?? "No goal"), \(model.language == "fr" ? "Français" : "English")\(model.settings?.keep_recordings == true ? ", keeping recordings" : "")")
     }
 
     /// The recording card: the light is on, the clock runs, and the cap is stated up front.
@@ -238,6 +253,12 @@ struct ContentView: View {
                         .foregroundStyle(Palette.inkDark)
                 }
                 .padding(.top, 2)
+                if let note = receipt.record.media?.note {
+                    // Keep my recordings is on: the server kept this answer's audio (or says why it could not).
+                    Text(note)
+                        .face(.text, 13, weight: 600, relativeTo: .caption)
+                        .foregroundStyle(Palette.mutedDark)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .id("observation")
@@ -366,19 +387,64 @@ private struct SetupList: View {
     @ObservedObject var model: CaptureModel
 
     var body: some View {
-        List {
-            Section("Goal") {
-                option("No goal", selected: model.selectedGoal == nil) { model.selectedGoal = nil }
-                ForEach(model.goals) { goal in
-                    option(goal.title, selected: model.selectedGoal == goal) { model.selectedGoal = goal }
+        ScrollViewReader { proxy in
+            List {
+                Section("Goal") {
+                    option("No goal", selected: model.selectedGoal == nil) { model.selectedGoal = nil }
+                    ForEach(model.goals) { goal in
+                        option(goal.title, selected: model.selectedGoal == goal) { model.selectedGoal = goal }
+                    }
                 }
+                Section("Language") {
+                    option("English", selected: model.language == "en") { model.language = "en" }
+                    option("Français", selected: model.language == "fr") { model.language = "fr" }
+                }
+                Section {
+                    if let settings = model.settings {
+                        Toggle(isOn: Binding(get: { settings.keep_recordings }, set: { on in
+                            // Turning it off with recordings kept asks whether to delete them too.
+                            if !on, (settings.kept?.recordings ?? 0) > 0 { confirmOff = true } else { Task { await model.setKeepRecordings(on) } }
+                        })) {
+                            Text("Keep my recordings").face(.text, 16, relativeTo: .body)
+                        }
+                        .tint(Palette.field)
+                    } else {
+                        Text(model.settingsNote == nil ? "Keep my recordings: checking" : "Keep my recordings: unavailable").face(.text, 15, relativeTo: .body).foregroundStyle(Palette.muted)
+                    }
+                } header: {
+                    Text("Recordings")
+                } footer: {
+                    Text(recordingsFooter).face(.text, 13, relativeTo: .caption)
+                }
+                .id("recordings")
             }
-            Section("Language") {
-                option("English", selected: model.language == "en") { model.language = "en" }
-                option("Français", selected: model.language == "fr") { model.language = "fr" }
+            .task {
+                #if DEBUG
+                // `-setupScrollToRecordings YES`: shows the Keep my recordings row, for a screenshot.
+                if UserDefaults.standard.bool(forKey: "setupScrollToRecordings") { try? await Task.sleep(for: .milliseconds(600)); proxy.scrollTo("recordings", anchor: .top) }
+                #endif
             }
         }
         .navigationTitle("Setup")
+        .confirmationDialog("Turn off Keep my recordings?", isPresented: $confirmOff, titleVisibility: .visible) {
+            Button("Turn off and delete kept recordings", role: .destructive) { Task { await model.setKeepRecordings(false, deleteKept: true) } }
+            Button("Turn off") { Task { await model.setKeepRecordings(false) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("New recordings will be deleted after transcription.")
+        }
+    }
+
+    @State private var confirmOff = false
+
+    /// What the setting does, how much is kept, and the last error, in plain words.
+    private var recordingsFooter: String {
+        var lines = [model.settings?.keep_recordings == true ? "On: your recordings stay in your account. Delete them any time." : "Off: audio is deleted after transcription."]
+        if let kept = model.settings?.kept, kept.recordings > 0 {
+            lines.append("\(kept.recordings) kept, \(String(format: "%.1f", Double(kept.bytes) / 1_000_000)) MB.")
+        }
+        if let note = model.settingsNote { lines.append(note) }
+        return lines.joined(separator: " ")
     }
 
     private func option(_ title: String, selected: Bool, choose: @escaping () -> Void) -> some View {

@@ -26,6 +26,22 @@ struct CapturedSession: Decodable {
     let transcript: String
     let metrics: Metrics
     let analysis: Analysis
+    /// Present only when Keep my recordings is on.
+    var media: KeptMedia? = nil
+}
+
+/// "Keep my recordings": the account's setting on the coach server, off by default. Off, audio is deleted after
+/// transcription; on, each recording stays in the account until it is deleted.
+struct KeptCounts: Decodable { let recordings: Int; let bytes: Int }
+struct CoachSettings: Decodable { let keep_recordings: Bool; let version: Int; let kept: KeptCounts? }
+private struct SettingsBody: Decodable { let settings: CoachSettings }
+
+/// The `media` block on a saved recording.
+struct KeptMedia: Decodable {
+    let kept: Bool
+    let reason: String?
+    /// The line the result shows, or nil.
+    var note: String? { kept ? "Recording kept" : (reason == "full" ? "Recording not kept: storage full" : nil) }
 }
 
 struct CaptureReceipt: Decodable {
@@ -93,6 +109,32 @@ struct CoachAPI {
         return try JSONDecoder().decode(Overview.self, from: data).goals
     }
 
+    func settings() async throws -> CoachSettings {
+        var request = URLRequest(url: baseURL.appending(path: "v1/settings"))
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        request.timeoutInterval = 45
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try check(data, response)
+        return try JSONDecoder().decode(SettingsBody.self, from: data).settings
+    }
+
+    /// Turns Keep my recordings on or off. `deleteKept` (only when turning it off) also deletes what is kept.
+    func setKeepRecordings(_ keep: Bool, deleteKept: Bool, expectedVersion: Int) async throws -> CoachSettings {
+        var request = URLRequest(url: baseURL.appending(path: "v1/settings"))
+        request.httpMethod = "PATCH"
+        request.timeoutInterval = 45
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("watch-settings-\(UUID().uuidString)", forHTTPHeaderField: "Idempotency-Key")
+        var body: [String: Any] = ["expected_version": expectedVersion, "keep_recordings": keep]
+        if !keep && deleteKept { body["delete_kept_recordings"] = true }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try check(data, response)
+        return try JSONDecoder().decode(SettingsBody.self, from: data).settings
+    }
+
     /// Uploads one WAV. `idempotencyKey` is stored with the file so a retry after a
     /// network drop returns the original receipt instead of creating (and paying for) a duplicate.
     func upload(file: URL, idempotencyKey: String, goalID: String?, language: String, occurredAt: Date) async throws -> CaptureReceipt {
@@ -124,13 +166,15 @@ extension CaptureReceipt {
     /// Shown with the -previewResult launch argument; not a watch capture. The values are copied from one
     /// recorded run of the hosted pipeline: a synthetic voice clip uploaded with curl on Nov 1, 2026
     /// (receipt 5aeff421, session 92a20be9), with its observation and exercise verbatim.
-    static func preview(observation: String? = nil) -> CaptureReceipt {
-        guard let observation else { return preview }
+    /// `kept`: the result as it looks with Keep my recordings on (`-previewRecordingKept`).
+    static func preview(observation: String? = nil, kept: Bool = false) -> CaptureReceipt {
+        guard observation != nil || kept else { return preview }
         let r = preview.record
         return CaptureReceipt(receipt_id: preview.receipt_id, replayed: false,
                               record: CapturedSession(id: r.id, transcript: r.transcript, metrics: r.metrics,
-                                                      analysis: Analysis(status: r.analysis.status, observation: observation,
-                                                                         suggested_exercise: r.analysis.suggested_exercise, reason: nil)))
+                                                      analysis: Analysis(status: r.analysis.status, observation: observation ?? r.analysis.observation,
+                                                                         suggested_exercise: r.analysis.suggested_exercise, reason: nil),
+                                                      media: kept ? KeptMedia(kept: true, reason: nil) : nil))
     }
 
     static let preview = CaptureReceipt(
