@@ -12,7 +12,9 @@
 // Same round, same rules: the audio is never stored, the round's idempotency fingerprint is the one a WAV upload of
 // the same samples has (so the Mac's fallback upload with the same key replays a round that was saved), the hourly
 // limit counts it, and it shares the request's time budget. If Meta's socket fails, the server transcribes the same
-// audio with the file endpoint instead, so a live round still answers.
+// audio with the file endpoint instead, so a live round still answers. A live round whose key already has a receipt is
+// a retry: it opens no Meta session, and at release returns the stored round (or 409 for different audio) with no
+// model call, as a WAV retry does.
 import { randomUUID } from 'node:crypto';
 import { ApiError } from './store.mjs';
 import { TRANSCRIBE_MODEL, LANGUAGES, MAX_AUDIO_BYTES, inspectWav } from './capture.mjs';
@@ -191,14 +193,18 @@ export function createLiveRound({ store, models, token, start, requestId = rando
   const errorBody = e => ({ error: e.code ?? 'internal_error', message: e instanceof ApiError ? e.message : 'Request failed.', request_id: requestId });
 
   const done = (async () => {
-    let params, key, context, speak;
+    let params, key, context, speak, retry = false;
     // Checks, with the database held. Nothing has been sent anywhere yet.
     try {
       user = store.authenticate(String(token ?? '').replace(/^Bearer /, ''), 'write');
       ({ params, key, speak } = liveStart(start));
-      context = prepareVoiceRound(store, models, user, params);
-      if (typeof models.transcribe !== 'function') throw new ApiError(503, 'transcription_unconfigured', 'Transcription is not configured on this deployment.');
-      if (!budget.allows(MIN_START_MS.reply + 2_000)) throw new ApiError(503, 'time_budget', 'Not enough time left for this round.');
+      // A retry is answered from its receipt, before the checks that guard paid calls, as on the WAV route.
+      retry = store.hasReceipt(user, key);
+      if (!retry) {
+        context = prepareVoiceRound(store, models, user, params);
+        if (typeof models.transcribe !== 'function') throw new ApiError(503, 'transcription_unconfigured', 'Transcription is not configured on this deployment.');
+        if (!budget.allows(MIN_START_MS.reply + 2_000)) throw new ApiError(503, 'time_budget', 'Not enough time left for this round.');
+      }
     } catch (error) {
       clearTimeout(capTimer);
       audit(LIVE_PATH, error.status ?? 500, 'live refused');
@@ -207,13 +213,13 @@ export function createLiveRound({ store, models, token, start, requestId = rando
     await phases.release(); released = true;
     const acquire = async () => { if (released) { released = false; await phases.acquire(); } };
     try {
-      if (models.realtimeReady?.()) {
+      if (!retry && models.realtimeReady?.()) {
         transcriber = models.openRealtime({ language: params.language, sessionId: requestId, onPartial: text => {
           if (text !== lastPartial && !cancelled) { lastPartial = text; emit({ type: 'partial', text }); }
         } });
         for (const c of chunks) transcriber.send(c);
       }
-      emit({ type: 'ready', transcription: transcriber ? 'realtime' : 'file' });
+      emit({ type: 'ready', transcription: retry ? 'replay' : transcriber ? 'realtime' : 'file' });
       const why = await holdEnded;
       clearTimeout(capTimer);
       if (why === 'cancelled') {
@@ -233,6 +239,21 @@ export function createLiveRound({ store, models, token, start, requestId = rando
         catch (error) { emit({ type: 'camera_ignored', message: error.message }); }
       }
       const audio = wavFromPcm(Buffer.concat(chunks));
+      if (retry) {
+        // The stored round, with no model call. A different request under this key is a 409 (store.replay).
+        await acquire();
+        const previous = store.replay(user, 'POST', VOICE_ROUNDS_PATH, voiceFingerprint(params, audio), key);
+        if (!previous) throw new ApiError(409, 'idempotency_conflict', 'This idempotency key was used for a different request.');
+        const body = voiceResponse(previous);
+        emit({ type: 'reply', round_id: body.round_id, transcript: body.transcript, metrics: body.metrics, reply: body.reply, model: body.model,
+          provider_request_id: body.provider_request_id, latency_ms: body.latency_ms, transcription: 'replay', replayed: true,
+          ...(body.gate ? { gate: body.gate, reply_mode: body.reply_mode } : {}) });
+        // No new synthesis either: the device speaks the stored question itself, or asks the speech route for it.
+        emit({ type: 'speech_unavailable', error: 'replayed' });
+        audit(VOICE_ROUNDS_PATH, 200, 'live replayed');
+        // Only the audit row was written; it is committed with the next write, as a read's is.
+        return { status: 200, body, dirty: false, speechDone: Promise.resolve() };
+      }
       const wav = inspectWav(audio);
       let transcription = null, mode = 'realtime';
       if (transcriber) {
@@ -270,6 +291,9 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       const receipt = saveVoiceRound(store, user, { params, fingerprintBody: voiceFingerprint(params, audio), key, roundId, transcription, metrics: answer.metrics,
         result: answer.result, checked: answer.checked, gate: answer.gate, live: true, audio, latency: { asr: asrMs, model: answer.modelMs, total: replyMs } });
       audit(VOICE_ROUNDS_PATH, 200, 'live saved');
+      // A replayed receipt (an upload with this key was saved first) keeps its own round: the audio made for this one
+      // is not kept for the speech route.
+      if (receipt.record.id !== roundId) models.dropSpeech?.(roundId);
       return { status: 200, body: voiceResponse(receipt, receipt.record.id === roundId ? answer.counterpart : null), dirty: true, speechDone };
     } catch (error) {
       transcriber?.close();

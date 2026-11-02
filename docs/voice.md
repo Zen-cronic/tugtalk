@@ -92,6 +92,7 @@ Fallbacks and retries:
 
 - **Meta's socket fails** (error, unexpected close, no handshake, no last turn within 2.5 s of `endStream`): the server transcribes the full audio of the hold with the file endpoint, and the round still answers (`transcription: file_fallback`).
 - **Our socket fails** before a reply: the Mac uploads the clip to `POST /v1/voice-rounds` with the **same** Idempotency-Key. The live round's fingerprint is the one a WAV upload of the same samples has, so if the live round was saved, the upload replays it with no model call.
+- **A live round under a key that already has a receipt** is a retry: no Meta session is opened and no model is called. At release the server returns the stored round (`reply` with `replayed: true`, `speech_unavailable`, then `saved`), or a 409 `idempotency_conflict` if the audio differs. If an upload with the same key is saved while a live round runs, the live round returns that saved round and drops the audio it made.
 - **The client leaves before release**: nothing is saved and no reply is asked for. If audio already reached Meta, the hold counts toward the hourly limit (audited as status 499). After release, a client that leaves only stops the audio; the round is still saved.
 - A hold is cut at 120 s on the server (the Mac stops at 60 s).
 

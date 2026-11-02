@@ -154,6 +154,9 @@ export class Store {
     if (previous.fingerprint!==digest(JSON.stringify({method,path,body}))) throw new ApiError(409,'idempotency_conflict','This idempotency key was used for a different request.');
     return {...JSON.parse(previous.result),replayed:true};
   }
+  // Whether this key already has a receipt, for any request: a live round learns it is a retry before the audio
+  // (which its fingerprint needs) has arrived, so it opens no paid session.
+  hasReceipt(user,key) { return Boolean(this.db.prepare('SELECT 1 FROM receipts WHERE user_id=? AND idem=?').get(user,key)); }
   // Counts this user's audited requests on one route since `windowMs` ago, for rate guards before paid calls.
   recentRequests(user,method,path,statuses,windowMs) {
     const since=new Date(Date.now()-windowMs).toISOString();

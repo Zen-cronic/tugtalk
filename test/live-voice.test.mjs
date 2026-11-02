@@ -346,3 +346,68 @@ test('realtime: audio_duration_ms counts every byte received, and the final wait
   assert.equal(result.mode, 'realtime');
   assert.equal(socket.audio.length, 400 * 48);
 });
+
+test('live: a retry with a saved key opens no Meta session and calls no model; it returns the stored round, or 409 for other audio', async () => {
+  const s = setup();
+  try {
+    const frames = [pcm(900, 1), pcm(900, 2)];
+    const first = s.open({ ...START, idempotency_key: 'live-retry-01' });
+    await tick();
+    metaAnswers(s.meta.sockets[0]);
+    frames.forEach(f => first.audio(f));
+    await tick();
+    first.end();
+    const saved = await first.done;
+    assert.equal(saved.status, 200); await saved.speechDone;
+    const paid = [s.meta.sockets.length, s.calls.transcribe.length, s.calls.voiceReply, s.calls.tts];
+    assert.deepEqual(paid, [1, 0, 1, 1]);
+    s.events.length = 0;
+    // The same hold again, under the same key.
+    const again = s.open({ ...START, idempotency_key: 'live-retry-01' });
+    await tick();
+    frames.forEach(f => again.audio(f));
+    again.end();
+    const replayed = await again.done;
+    assert.equal(replayed.status, 200); assert.equal(replayed.dirty, false);
+    assert.equal(replayed.body.replayed, true); assert.equal(replayed.body.round_id, saved.body.round_id);
+    assert.deepEqual([s.meta.sockets.length, s.calls.transcribe.length, s.calls.voiceReply, s.calls.tts], paid, 'no Meta session, no transcription, no reply, no synthesis');
+    assert.deepEqual(s.events.map(e => e.type), ['ready', 'reply', 'speech_unavailable']);
+    assert.equal(s.events[1].round_id, saved.body.round_id); assert.equal(s.events[1].replayed, true);
+    assert.equal(s.store.list('alice', 'voice-rounds').length, 1);
+    // Other audio under the same key is refused, still without a paid call.
+    const other = s.open({ ...START, idempotency_key: 'live-retry-01' });
+    await tick();
+    other.audio(pcm(1200, 9)); other.end();
+    const conflict = await other.done;
+    assert.equal(conflict.status, 409); assert.equal(conflict.body.error, 'idempotency_conflict');
+    assert.deepEqual([s.meta.sockets.length, s.calls.voiceReply], [1, 1]);
+  } finally { s.cleanup(); }
+});
+
+test('live: when an upload with the same key is saved first, the live round returns that round and drops the audio it made', async () => {
+  const s = setup();
+  try {
+    const dropped = [], drop = s.models.dropSpeech;
+    s.models.dropSpeech = id => { dropped.push(id); drop(id); };
+    const frames = [pcm(1000, 3), pcm(800, 4)];
+    const round = s.open({ ...START, idempotency_key: 'live-race-01' });
+    await tick();
+    metaAnswers(s.meta.sockets[0]);
+    frames.forEach(f => round.audio(f));
+    await tick();
+    // The device's fallback upload of the same hold is saved while the live round is still running.
+    const params = voiceParams({ 'x-language': 'en', 'x-occurred-at': START.occurred_at, 'x-prompt-ended-at': START.prompt_ended_at });
+    const upload = await handleVoiceRound(s.store, s.models, 'alice', { params, audio: wavFromPcm(Buffer.concat(frames)) }, 'live-race-01', 'req-upload');
+    assert.equal(upload.replayed, false);
+    round.end();
+    const result = await round.done;
+    await result.speechDone;
+    const liveId = s.events.find(e => e.type === 'reply').round_id;
+    assert.notEqual(liveId, upload.round_id);
+    assert.equal(result.body.round_id, upload.round_id, 'the round saved first is the one returned');
+    assert.equal(result.body.replayed, true);
+    assert.ok(dropped.includes(liveId), 'the audio made for the unsaved round was dropped');
+    assert.equal(s.models.cachedSpeech(liveId, 'alice'), null);
+    assert.equal(s.store.list('alice', 'voice-rounds').length, 1);
+  } finally { s.cleanup(); }
+});
