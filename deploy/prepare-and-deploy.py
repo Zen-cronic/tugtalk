@@ -7,7 +7,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 # CONNECTOR_TOKEN_FILE lets a second checkout of the repo deploy with the same token; only its digest is uploaded.
-token_file = Path(os.environ.get('CONNECTOR_TOKEN_FILE') or root / '.data' / 'operator-token.txt')
+token_file = Path(os.environ.get('CONNECTOR_TOKEN_FILE') or root / '.data' / 'owner-token.txt')
 key = token_file.read_text().strip()
 if len(key) < 32:
     raise SystemExit('Missing valid synthetic token')

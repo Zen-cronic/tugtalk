@@ -32,7 +32,7 @@ npm run eval   # recompute the measurement eval
 npm start
 ```
 
-Setup creates `.data/connector.sqlite` and a private `.data/operator-token.txt`. It refuses to overwrite an existing credential. Never commit either. Supply `PUBLIC_BASE_URL` when using an HTTPS preview URL; the server binds only `127.0.0.1:4318`. A reverse proxy/tunnel is required for remote access. Local serving requires the host to stay awake. The optional Modal adapter runs independently with persistent storage.
+Setup creates `.data/connector.sqlite` and a private `.data/owner-token.txt`. It refuses to overwrite an existing credential. Never commit either. Supply `PUBLIC_BASE_URL` when using an HTTPS preview URL; the server binds only `127.0.0.1:4318`. A reverse proxy/tunnel is required for remote access. Local serving requires the host to stay awake. The optional Modal adapter runs independently with persistent storage.
 
 ## Connect an assistant
 
@@ -73,7 +73,7 @@ The authenticated identity comes only from the token. Clients cannot choose anot
 
 ## What we'll tell you before you find it
 
-- **One synthetic account.** The hosted service has a single account (`synthetic-operator`) and a single Bearer key. There is no sign-up or onboarding. This is a single-user prototype.
+- **One synthetic account.** The hosted service has a single synthetic account and a single Bearer key. There is no sign-up or onboarding. This is a single-user prototype.
 - **The watch carries that key.** The watch app reads the key from a Git-ignored `Secrets.xcconfig` at build time. A product would issue each device its own revocable token.
 - **Some records are simulated.** The two seeded sessions (`session-before`, `session-after`, dated Oct 30 and 31) are fictional, and their pause values are made up. Exercise completions are self-reported. Only sessions with `source: capture` were measured from audio.
 - **Your audio.** Audio is deleted after transcription unless you turn on Keep my recordings (off by default). Kept audio stays in your account and you can delete it any time. Keeping it lets you listen back, compare attempts and re-measure old sessions when the counting improves. Kept audio is capped at 200 MB per account, never logged, and sent to a model only when you ask for a re-transcription.
