@@ -48,4 +48,4 @@ Expect a fresh server GET and correct goal version 2, corrected session-after, o
 
 ## Scope of a pass
 
-`node scripts/verify-live.mjs` checks persisted records and selected request receipts. It does not assess Muse's displayed response; inspect that separately. Record failed attempts, approvals, latency and manual interventions. One pass establishes feasibility only. Audio, scheduled authenticated access, clients-closed execution, phone notifications, and native Goals synchronization need additional tests.
+`node scripts/verify-live.mjs` checks persisted records and selected request receipts. It does not check Muse's displayed response; inspect that separately. Record failed attempts, approvals, latency and manual interventions. One pass establishes feasibility only. Audio, scheduled authenticated access, clients-closed execution, phone notifications, and native Goals synchronization need additional tests.
