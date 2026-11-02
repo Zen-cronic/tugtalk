@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comms Coach: speaking practice on your watch, remembered by Muse</title>
+  <meta name="description" content="Tap Record on your Apple Watch and answer a question. Fillers, hedges, restarts and pace are counted from the transcript and saved to one record that Muse, Meta's assistant, reads on any device.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Funnel+Display:wght@500;600;700&family=Funnel+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="#" aria-label="Comms Coach, home">
+        <svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+          <rect x="1" y="1" width="26" height="26" rx="8" fill="var(--ink)"/>
+          <rect x="6" y="12" width="3" height="4" rx="1.5" fill="var(--filler)"/>
+          <rect x="11" y="8" width="3" height="12" rx="1.5" fill="var(--paper)"/>
+          <rect x="16" y="10" width="3" height="8" rx="1.5" fill="var(--hedge)"/>
+          <rect x="21" y="12.5" width="2.5" height="3" rx="1.25" fill="var(--restart)"/>
+        </svg>
+        <span>Comms Coach</span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <a href="#how">How it works</a>
+        <a href="#measured">What it measures</a>
+        <a href="#devices">Devices</a>
+        <a href="#claims">Privacy and limits</a>
+      </nav>
+      <a class="btn btn-small" href="#how">See a capture</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Speaking practice for Apple Watch and Muse</p>
+          <h1>Practise a spoken answer on your watch. Muse remembers it on every device.</h1>
+          <p class="lead">Tap Record on your Apple Watch and answer a question out loud. Your
+            <mark class="hl hl-filler">fillers</mark>, <mark class="hl hl-hedge">hedges</mark>,
+            <mark class="hl hl-restart">restarts</mark> and pace are counted from the transcript and saved to one record.
+            Muse, Meta's assistant, reads that record on your phone or laptop and suggests what to practise next.</p>
+          <div class="actions">
+            <a class="btn" href="#how">See how a capture works</a>
+            <a class="btn btn-line" href="#measured">What it measures</a>
+          </div>
+        </div>
+
+        <figure class="hero-stage" aria-label="A capture on the watch and its marked-up transcript">
+          <div class="watch watch-hero">
+            <div class="watch-case">
+              <img src="assets/watch-ready.png" width="416" height="496" alt="Watch app ready to record, with the goal Answer clearly and English selected">
+            </div>
+            <span class="watch-crown" aria-hidden="true"></span>
+          </div>
+          <div class="sheet hero-sheet">
+            <div class="sheet-head">
+              <span class="rec-dot" aria-hidden="true"></span>
+              <span>Watch capture, 14.5 s</span>
+              <span class="sheet-goal">Goal: Answer clearly</span>
+            </div>
+            <p class="transcript" data-sweep>
+              <mark class="hl hl-filler">Um</mark>, so <mark class="hl hl-hedge">I think</mark> the main point is, <mark class="hl hl-filler">uh</mark>, <mark class="hl hl-filler">basically</mark> that we should ship the smaller version first. <mark class="hl hl-restart">Sorry</mark>, <mark class="hl hl-restart">let me restart</mark>. The main point is ship the smaller version first because it lets us test with real users this week.
+            </p>
+            <dl class="mini-read">
+              <div><dt>Fillers</dt><dd>3</dd></div>
+              <div><dt>Hedges</dt><dd>1</dd></div>
+              <div><dt>Restarts</dt><dd>2</dd></div>
+              <div><dt>Pace</dt><dd>174<small> wpm</small></dd></div>
+            </dl>
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- How a capture works -->
+    <section class="how" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="how-title">One capture, from your wrist to your record</h2>
+          <p>About 15 seconds from Stop to a saved session. Each stage hands the next one something you can check.</p>
+        </div>
+
+        <ol class="stages">
+          <li class="stage stage-watch">
+            <p class="stage-n">Step 1 of 4</p>
+            <h3>Record on the watch</h3>
+            <p>Pick a goal, tap Record, answer, tap Stop. Up to three minutes.</p>
+            <div class="stage-shot">
+              <div class="watch watch-small"><div class="watch-case"><img src="assets/watch-recording.png" width="416" height="496" alt="Watch app recording, timer at zero, with a Stop button" loading="lazy"></div><span class="watch-crown" aria-hidden="true"></span></div>
+            </div>
+          </li>
+          <li class="stage stage-asr">
+            <p class="stage-n">Step 2 of 4</p>
+            <h3>Transcribed by Meta</h3>
+            <p>Meta's speech-to-text model keeps the "um" and "uh" that most transcripts clean up.</p>
+            <p class="stage-artifact transcript-sm">"Um, so I think the main point is, uh, basically that we should ship the smaller version first…"</p>
+            <p class="model">muse-voice-transcribe-1.0</p>
+          </li>
+          <li class="stage stage-count">
+            <p class="stage-n">Step 3 of 4</p>
+            <h3>Counted by code</h3>
+            <p>A fixed word list, in English or French, counts each habit. No model touches the numbers.</p>
+            <ul class="chips" aria-label="Counts from this capture">
+              <li class="chip chip-filler">3 fillers</li>
+              <li class="chip chip-hedge">1 hedge</li>
+              <li class="chip chip-restart">2 restarts</li>
+              <li class="chip chip-pace">174 wpm</li>
+            </ul>
+          </li>
+          <li class="stage stage-obs">
+            <p class="stage-n">Step 4 of 4</p>
+            <h3>One observation, in words</h3>
+            <p>Muse Spark Open reads the transcript and your goal, then writes one observation and one exercise.</p>
+            <p class="stage-artifact quote-sm">"You met the goal on your second attempt: you stated the main point first."</p>
+            <p class="model">muse-spark-open-1026 on Baseten</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- What it measures -->
+    <section class="measured" id="measured" aria-labelledby="measured-title">
+      <div class="wrap measured-grid">
+        <div class="measured-copy">
+          <h2 id="measured-title">What one 14-second answer shows</h2>
+          <p class="transcript transcript-lg" data-sweep>
+            <mark class="hl hl-filler">Um</mark>, so <mark class="hl hl-hedge">I think</mark> the main point is, <mark class="hl hl-filler">uh</mark>, <mark class="hl hl-filler">basically</mark> that we should ship the smaller version first. <mark class="hl hl-restart">Sorry</mark>, <mark class="hl hl-restart">let me restart</mark>. The main point is ship the smaller version first because it lets us test with real users <span class="rep">users</span> this week.
+          </p>
+          <ul class="legend" aria-label="Highlight colours">
+            <li><span class="sw sw-filler" aria-hidden="true"></span>Filler</li>
+            <li><span class="sw sw-hedge" aria-hidden="true"></span>Hedge</li>
+            <li><span class="sw sw-restart" aria-hidden="true"></span>Restart</li>
+            <li><span class="sw sw-rep" aria-hidden="true"></span>Repeated word</li>
+          </ul>
+        </div>
+
+        <div class="readout" role="group" aria-label="Measured counts">
+          <div class="read read-pace">
+            <span class="read-num">174</span>
+            <span class="read-label">words per minute</span>
+          </div>
+          <div class="read read-filler">
+            <span class="read-num">3</span>
+            <span class="read-label">fillers <em>7.1 per 100 words</em></span>
+          </div>
+          <div class="read read-hedge">
+            <span class="read-num">1</span>
+            <span class="read-label">hedge</span>
+          </div>
+          <div class="read read-restart">
+            <span class="read-num">2</span>
+            <span class="read-label">restarts</span>
+          </div>
+          <p class="readout-note">Counted from the transcript with a fixed English word list (lexicon-en-v1).</p>
+        </div>
+
+        <figure class="observation">
+          <figcaption>Observation from Muse Spark Open</figcaption>
+          <blockquote>
+            <p>"You met the goal on your second attempt: you stated the main point first ('ship the smaller version first') and followed it with one supporting detail. The first attempt was hedged with fillers and led to a restart before you delivered the clean version."</p>
+          </blockquote>
+          <p class="try"><strong>Suggested exercise.</strong> Answer a new prompt in one take: start with "The main point is…", follow with "because…", and skip warm-up phrases like "I think" or "basically".</p>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Devices -->
+    <section class="devices" id="devices" aria-labelledby="devices-title">
+      <div class="wrap">
+        <div class="section-head section-head-dark">
+          <h2 id="devices-title">Your watch records it. Muse reads it on any device.</h2>
+          <p>The watch keeps nothing of its own. It reads your goals from the same record every other device reads, and its capture lands there for Muse to pick up in any chat.</p>
+        </div>
+
+        <div class="lineup">
+          <article class="dev dev-watch">
+            <div class="dev-visual">
+              <div class="watch watch-mid"><div class="watch-case"><img src="assets/watch-done.png" width="416" height="496" alt="Watch app result: Saved, 3 fillers, 1 hedge, 2 restarts, pace 174 words per minute, and the start of the observation" loading="lazy"></div><span class="watch-crown" aria-hidden="true"></span></div>
+            </div>
+            <p class="dev-role">Records</p>
+            <h3>Apple Watch</h3>
+            <p>The result is on your wrist in about 15 seconds.</p>
+          </article>
+
+          <article class="dev dev-chat">
+            <div class="dev-visual">
+              <div class="msg">
+                <p class="msg-label">Example exchange</p>
+                <p class="msg-you">How did my last practice go?</p>
+                <div class="msg-muse">
+                  <p class="msg-from">Muse</p>
+                  <p>Your watch capture for "Answer clearly" had 3 fillers, 1 hedge and 2 restarts at 174 wpm. You got the main point out first on the second try.</p>
+                </div>
+              </div>
+            </div>
+            <p class="dev-role">Reads</p>
+            <h3>Muse on your phone or laptop</h3>
+            <p>Any new chat reads the record fresh through a connector, so its answer reflects your latest capture.</p>
+          </article>
+
+          <article class="dev dev-sched">
+            <div class="dev-visual">
+              <div class="note">
+                <p class="note-time">Scheduled task, 4:40 pm</p>
+                <p class="note-body">Optional, 2 minutes: answer one question in two sentences. Main point first, then one supporting detail.</p>
+                <p class="note-why">Based on your goal "Answer clearly" and an exercise you skipped.</p>
+              </div>
+            </div>
+            <p class="dev-role">Suggests</p>
+            <h3>A practice reminder from Muse</h3>
+            <p>A scheduled Muse task reads your goals and offers one short exercise. It never writes on its own.</p>
+          </article>
+
+          <article class="dev dev-mac">
+            <div class="dev-visual dev-visual-planned">
+              <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false" class="mac-line">
+                <rect x="14" y="6" width="92" height="58" rx="6"/>
+                <path d="M4 70h112l-6 6H10z"/>
+              </svg>
+            </div>
+            <p class="dev-role dev-role-planned">Planned</p>
+            <h3>Mac</h3>
+            <p>On-screen and meeting capture into the same record. Not built yet.</p>
+          </article>
+        </div>
+
+        <blockquote class="pull">
+          <p>Most new tools give you another assistant. Comms Coach gives the assistant you already use a memory of how you speak, on every device.</p>
+        </blockquote>
+      </div>
+    </section>
+
+    <!-- Claims -->
+    <section class="claims" id="claims" aria-labelledby="claims-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="claims-title">What it measures, and what it doesn't claim</h2>
+        </div>
+        <div class="ledger">
+          <div class="row row-code">
+            <h3>Counted by code</h3>
+            <p>Fillers, hedges, restarts, repeated words and pace, from the automatic transcript. A transcript can miss or invent a word, and everyone in the clip is counted.</p>
+          </div>
+          <div class="row row-model">
+            <h3>Written by a model</h3>
+            <p>One observation and one suggested exercise per capture, from Muse Spark Open. The numbers never come from the model.</p>
+          </div>
+          <div class="row row-not">
+            <h3>Not claimed</h3>
+            <p>Improvement over time. One session can't show change, so that field stays empty until there is a method to compare sessions.</p>
+          </div>
+          <div class="row row-audio">
+            <h3>Your audio</h3>
+            <p>Uploaded once, transcribed, then discarded. The record keeps the transcript, the counts and a fingerprint of the file, not the recording.</p>
+          </div>
+          <div class="row row-writes">
+            <h3>Your record</h3>
+            <p>Muse writes only when you ask. Every write returns a receipt, edits are versioned, and a correction shows up on every device.</p>
+          </div>
+          <div class="row row-test">
+            <h3>This page's example</h3>
+            <p>A scripted test clip run through the live pipeline, on a test account with no personal data.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- French practice -->
+    <section class="french" id="french" aria-labelledby="french-title">
+      <div class="wrap french-grid">
+        <div>
+          <p class="eyebrow">Same record, second profile. In development.</p>
+          <h2 id="french-title">French speaking practice</h2>
+          <p>A short spoken debrief in French becomes a few phrases worth fixing. You confirm each one, repair it, and reuse it later on a new prompt. Confirmed phrases export to Anki. The learner sets the target level; nothing here measures or claims one.</p>
+        </div>
+        <ol class="lifecycle" aria-label="Phrase stages">
+          <li><span class="lc-word">Suggested</span><span class="lc-ex" lang="fr">« j'en ai besoin »</span></li>
+          <li><span class="lc-word">Confirmed</span><span class="lc-ex">by you or a tutor</span></li>
+          <li><span class="lc-word">Repaired</span><span class="lc-ex">said correctly in a retry</span></li>
+          <li><span class="lc-word">Reused</span><span class="lc-ex">unaided, days later, on a new prompt</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Founder note -->
+    <section class="founder" aria-labelledby="founder-title">
+      <div class="wrap founder-inner">
+        <h2 id="founder-title">From the builder</h2>
+        <p class="placeholder" data-placeholder="founder-note">[Placeholder: founder's note. One or two sentences in Kaung Zin's own words.]</p>
+        <p class="byline">Kaung Zin Hein</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p class="foot-brand">Comms Coach</p>
+      <p class="foot-note">Built for the Meta AI Developer Hackathon, November 2026. Speech-to-text by Meta <span class="mono">muse-voice-transcribe-1.0</span>; observations by <span class="mono">muse-spark-open-1026</span>; read through Muse.</p>
+      <nav aria-label="Footer">
+        <a href="#how">How it works</a>
+        <a href="#measured">What it measures</a>
+        <a href="#claims">Privacy and limits</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="main.js" defer></script>
+</body>
+</html>
