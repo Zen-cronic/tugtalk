@@ -181,6 +181,73 @@ function out(m) { process.stdout.write(JSON.stringify(m) + '\\n'); }
         self.assertEqual(await request(self.app, '/v1/screen-contexts', b'x' * 20000), 413, 'screen contexts keep the 16 KiB JSON limit')
 
 
+    async def test_voice_round_route_takes_audio_and_forwards_voice_headers_to_node(self):
+        data = bytes(96000)
+        wav = (b'RIFF' + (36 + len(data)).to_bytes(4, 'little') + b'WAVEfmt ' + (16).to_bytes(4, 'little')
+               + (1).to_bytes(2, 'little') + (1).to_bytes(2, 'little') + (24000).to_bytes(4, 'little')
+               + (48000).to_bytes(4, 'little') + (2).to_bytes(2, 'little') + (16).to_bytes(2, 'little')
+               + b'data' + len(data).to_bytes(4, 'little') + data)
+        with patch.dict(os.environ):
+            for name in ('MODEL_API_KEY', 'BASETEN_API_KEY'):
+                os.environ.pop(name, None)
+            audio = [(b'content-type', b'audio/wav')]
+            # Each header reached Node: its own validation message comes back.
+            status, body = await self.raw('/v1/voice-rounds', wav, audio + [(b'idempotency-key', b'voice-bridge-1'), (b'x-prompt-ended-at', b'soon')])
+            self.assertEqual(status, 400); self.assertIn('X-Prompt-Ended-At', body['message'])
+            status, body = await self.raw('/v1/voice-rounds', wav, audio + [(b'idempotency-key', b'voice-bridge-2'), (b'x-screen-context-id', b'no-such-card')])
+            self.assertEqual(status, 404)
+            # A valid round on a deployment without a reply model stops before any paid transcription.
+            status, body = await self.raw('/v1/voice-rounds', wav, audio + [(b'idempotency-key', b'voice-bridge-3'), (b'x-language', b'fr'),
+                                                                              (b'x-occurred-at', b'2026-11-02T15:00:01Z'), (b'x-prompt-ended-at', b'2026-11-02T15:00:00Z')])
+            self.assertEqual(status, 503); self.assertEqual(body['error'], 'reply_unconfigured')
+        for header in ('x-screen-context-id', 'x-prompt-ended-at'):
+            self.assertIn(header, FORWARDED)
+        sent = []
+        async def receive(): return {'type': 'http.request', 'body': wav}
+        async def send(event): sent.append(event)
+        await self.app({'type': 'http', 'method': 'POST', 'path': '/v1/voice-rounds', 'headers': [(b'host', b'example--web.us-east.modal.run'), (b'content-type', b'audio/wav')]}, receive, send)
+        self.assertEqual(sent[0]['status'], 401)  # anonymous audio rejected before buffering or spawning Node
+        status, body = await self.raw('/v1/voice-rounds', bytes(8 * 1024 * 1024 + 1), [(b'content-type', b'audio/wav'), (b'idempotency-key', b'voice-too-large')])
+        self.assertEqual(status, 413); self.assertEqual(body['message'], 'Maximum audio upload is 8 MiB.')
+
+    async def test_voice_round_gets_the_model_deadline_and_releases_the_database_during_model_calls(self):
+        # A fake worker that releases the database for 1 s of "transcription and reply", with the read deadline cut to 0.3 s.
+        fake = Path(self.temp.name) / 'voice-worker.mjs'
+        fake.write_text("""
+import { createInterface } from 'node:readline';
+const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
+const env = JSON.parse((await lines.next()).value);
+const out = m => process.stdout.write(JSON.stringify(m) + '\\n');
+if (env.path === '/v1/voice-rounds') {
+  out({ phase: 'release' });
+  await new Promise(r => setTimeout(r, 1000));
+  out({ phase: 'acquire' });
+  if ((await lines.next()).value !== 'go') process.exit(1);
+}
+const size = Buffer.from(env.body_b64, 'base64').length;
+out({ response: { status: 200, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from(JSON.stringify({ path: env.path, size, prompt: env.headers['x-prompt-ended-at'] ?? null })).toString('base64') } });
+process.exit(0);
+""")
+        app = create_bridge(self.volume, worker_path=str(fake), database_path=self.temp.name + '/voice.sqlite')
+        finished = []
+        async def request(method, path, body=b''):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': body}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x'), (b'content-type', b'audio/wav'),
+                       (b'x-prompt-ended-at', b'2026-11-02T15:00:00Z')]
+            await app({'type': 'http', 'method': method, 'path': path, 'headers': headers}, receive, send)
+            finished.append((path, sent[0]['status']))
+            return json.loads(sent[1]['body'])
+        with patch('bridge.READ_DEADLINE', 0.3):
+            voice = asyncio.create_task(request('POST', '/v1/voice-rounds', bytes(200000)))
+            await asyncio.sleep(0.4)
+            await request('GET', '/v1/overview')
+            self.assertEqual(finished, [('/v1/overview', 200)], 'a read was served while the voice round was in model calls')
+            body = await voice
+        self.assertEqual(finished[-1], ('/v1/voice-rounds', 200), 'the voice round outlived the read deadline')
+        self.assertEqual(body, {'path': '/v1/voice-rounds', 'size': 200000, 'prompt': '2026-11-02T15:00:00Z'})
+
     async def test_hosted_config_runs_several_inputs_in_one_container(self):
         modal_app = (ROOT / 'deploy' / 'modal_app.py').read_text()
         self.assertRegex(modal_app, r'max_containers=1\b')

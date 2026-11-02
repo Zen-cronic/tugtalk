@@ -14,6 +14,7 @@ import { runEval, parseItem, goldSpans, CORPUS_URL } from '../src/evaluate.mjs';
 import { measurePauses } from '../src/pauses.mjs';
 import { adjudicationCandidates, adjudicateCapture, buildAdjudication, verifyLabels, createAdjudicationModel } from '../src/adjudicate.mjs';
 import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
+import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS } from '../src/voice.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -57,8 +58,9 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
   const dbPath = join(dir, 'facts.sqlite');
   const store = new Store(dbPath);
   store.addToken('facts-secret', 'facts-user'); store.seed('facts-user');
-  const calls = { transcribe: 0, analyze: 0 };
+  const calls = { transcribe: 0, analyze: 0, voiceReply: 0 };
   const models = {
+    async voiceReply() { calls.voiceReply++; return { status: 'model_reply', reply: { move: 'challenge', quote: calls.badQuote ? 'we will triple revenue' : 'I think', question: 'Why do you think so?' }, model: ANALYSIS_MODEL, provider_request_id: 'fake', attempts: 1 }; },
     async transcribe() { calls.transcribe++; return { transcript: 'Um, I think we ship it.', turns: [], audio_duration_ms: 2000, model: TRANSCRIBE_MODEL, provider_session_id: 'fake' }; },
     async analyze() { calls.analyze++; return { status: 'model_observation', observation: 'One filler.', suggested_exercise: 'Answer once.', model: ANALYSIS_MODEL, provider_request_id: 'fake' }; },
     async describeScreen() { calls.describe = (calls.describe ?? 0) + 1; return { status: 'model_observation', summary: 'Preparing a 1:1.', observation: 'Lead with the ask.', next_step: 'Say it once.', model: ANALYSIS_MODEL }; }
@@ -126,7 +128,7 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       'contract-version': () => {
         const version = spec.info.version.replace(/\./g, '\\.');
         assert.match(connector, new RegExp(`Contract version ${version}`));
-        assert.match(read('docs/capture.md'), new RegExp(`^# .*\\(contract ${version}\\)$`, 'm'), 'docs/capture.md names the same contract');
+        for (const doc of ['docs/capture.md', 'docs/voice.md']) assert.match(read(doc), new RegExp(`^# .*\\(contract ${version}\\)$`, 'm'), `${doc} names the same contract`);
         return spec.info.version;
       },
       'languages': () => acceptedValues('x-language'),
@@ -210,7 +212,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       'mac-target': () => `macOS ${read('apps/mac/project.yml').match(/macOS: "([\d.]+)"/)[1]}`,
 
       // Measurement by Meta's models
-      ...measurementChecks(evalResult)
+      ...measurementChecks(evalResult),
+      ...voiceChecks(base, store, dbPath, calls)
     };
 
     const facts = parseFacts();
@@ -315,6 +318,65 @@ function liveChecks(evalResult) {
         }
       }
       return `${verified} of ${labels}; ${traps} on traps, ${habits} on real habits`;
+    }
+  };
+}
+
+// POST /v1/voice-rounds on the same running handler, plus its reply client against a fake fetch.
+function voiceChecks(base, store, dbPath, calls) {
+  const post = (audio, key, token = 'facts-secret') => fetch(base + '/v1/voice-rounds', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'audio/wav', 'Idempotency-Key': key }, body: audio });
+  const enc = new TextEncoder();
+  const stream = text => new Response(new ReadableStream({ start(c) { c.enqueue(enc.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text }, finish_reason: 'stop' }] })}\n\ndata: [DONE]\n\n`)); c.close(); } }), { status: 200 });
+  return {
+    'voice-model': async () => {
+      let sent;
+      const fetchImpl = async (url, init) => { sent = JSON.parse(init.body); return stream('{"move":"follow_up","quote":"","question":"And then?"}'); };
+      const r = await createVoiceModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }).voiceReply({ system: 's', user: 'u' });
+      assert.equal(r.status, 'model_reply');
+      return `${sent.model}, ${sent.reasoning_effort}, ${sent.stream ? 'streamed' : 'plain'}, ${sent.max_tokens} max tokens`;
+    },
+    'voice-attempts': async () => {
+      const count = async respond => { let n = 0; await createVoiceModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl: async () => { n++; return respond(); } }).voiceReply({ system: 's', user: 'u' }); return n; };
+      assert.equal(await count(() => new Response('{}', { status: 403 })), 1, 'a 4xx is not retried');
+      assert.equal(await count(() => stream('{"move":"follow_up","quote":"","question":"And then?"}')), 1);
+      assert.equal(await count(() => stream('no json')), 2, 'an unusable reply gets one more call');
+      return `1, a second only after an unusable reply; ${VOICE_TIMEOUT_MS / 1000} s each`;
+    },
+    'voice-quote-check': async () => {
+      calls.badQuote = true;
+      try {
+        const data = await (await post(wav(1.2), 'facts-voice-quote')).json();
+        assert.equal(data.reply.quote, '');
+        return data.reply.quote_verified ? 'yes' : 'no';
+      } finally { calls.badQuote = false; }
+    },
+    'voice-question-words': () => `${safeQuestion(Array(40).fill('word').join(' ') + '?', 'x', 'follow_up', 'en').question.split(' ').length} words`,
+    'voice-stored': async () => {
+      const audio = wav(2.2);
+      const data = await (await post(audio, 'facts-voice-stored')).json();
+      const record = store.get('facts-user', 'voice-rounds', data.round_id);
+      store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+      assert.equal(readFileSync(dbPath).includes(audio.subarray(1000, 1064)), false, 'audio bytes are not stored');
+      assert.equal(record.audio_retained, false);
+      const kept = ['transcript', 'metrics', 'reply'].filter(k => k in record && record[k] !== null);
+      return `${kept.slice(0, -1).join(', ')} and ${kept.at(-1)}; ${record.audio_retained ? 'the audio too' : 'not the audio'}`;
+    },
+    'voice-retry-no-rebill': async () => {
+      const before = { ...calls }, audio = wav(1.7);
+      const first = await (await post(audio, 'facts-voice-retry')).json(), second = await (await post(audio, 'facts-voice-retry')).json();
+      assert.equal(second.replayed, true); assert.equal(second.round_id, first.round_id);
+      return calls.transcribe - before.transcribe === 1 && calls.voiceReply - before.voiceReply === 1 ? 'no' : 'yes';
+    },
+    'voice-rate-limit': async () => {
+      store.addToken('facts-voice-rate', 'facts-voice-user');
+      const audio = wav(0.6);
+      let saved = 0, status;
+      while ((status = (await post(audio, `facts-voice-rate-${saved}`, 'facts-voice-rate')).status) === 200 && saved < 200) saved++;
+      assert.equal(status, 429);
+      const before = calls.voiceReply + calls.transcribe;
+      assert.equal((await post(audio, 'facts-voice-rate-extra', 'facts-voice-rate')).status, 429);
+      assert.equal(calls.voiceReply + calls.transcribe, before, 'refused before any model call');
+      return String(saved);
     }
   };
 }

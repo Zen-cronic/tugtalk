@@ -3,7 +3,7 @@
 No framework dependency. Node executes the same tested API handler as local HTTP.
 The Modal function must have max_containers=1; the lock serializes database access within it.
 It accepts several inputs at once (@modal.concurrent), all on this one event loop.
-A recording or screen-context worker releases the lock during its slow model calls
+A recording, screen-context or voice-round worker releases the lock during its slow model calls
 (see scripts/handle-request.mjs), so reads and ordinary writes are not queued behind inference.
 Model routes take a second lock for their whole run, so only one such request runs at a time:
 a retry that arrives while the first attempt is still running waits and then replays its receipt
@@ -20,11 +20,14 @@ import re
 JSON_LIMIT = 16384
 AUDIO_LIMIT = 8 * 1024 * 1024  # matches src/capture.mjs MAX_AUDIO_BYTES
 FORWARDED = ('authorization', 'content-type', 'idempotency-key',
-             'x-goal-id', 'x-language', 'x-capture-device', 'x-occurred-at')
+             'x-goal-id', 'x-language', 'x-capture-device', 'x-occurred-at',
+             'x-screen-context-id', 'x-prompt-ended-at')
 # Requests that call a model get the long deadline; everything else must finish quickly.
 READ_DEADLINE = 20
 MODEL_DEADLINE = 150
-MODEL_ROUTES = ('/v1/recordings', '/v1/screen-contexts')
+MODEL_ROUTES = ('/v1/recordings', '/v1/screen-contexts', '/v1/voice-rounds')
+# Routes whose body is a WAV upload (the audio limit, and a Bearer credential before buffering it).
+AUDIO_ROUTES = ('/v1/recordings', '/v1/voice-rounds')
 BUSY = {'error': 'storage_or_worker_unavailable',
         'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'}
 
@@ -50,7 +53,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
             return
         if scope['type'] != 'http':
             return
-        recording = scope['method'] == 'POST' and scope['path'] == '/v1/recordings'
+        recording = scope['method'] == 'POST' and scope['path'] in AUDIO_ROUTES
         # A screen context is a small JSON body (JSON limit) but waits on a reasoning model.
         model_call = scope['method'] == 'POST' and scope['path'] in MODEL_ROUTES
         early_headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}

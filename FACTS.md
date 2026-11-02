@@ -13,7 +13,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `transcribe-model` | Speech-to-text model | muse-voice-transcribe-1.0 | `TRANSCRIBE_MODEL` and the request body sent to Meta (fake fetch) |
 | `analysis-model` | Observation model | meta-models/muse-spark-open-1026 | `ANALYSIS_MODEL` and the request body sent to Baseten (fake fetch) |
 | `analysis-budgets` | Observation token budgets | 4000, then 8000 on retry | `max_tokens` sent to Baseten (fake fetch) when the first reply runs out of tokens |
-| `contract-version` | API contract version | 0.4.0 | `/openapi.json` `info.version`, `/connector.md` and the title of docs/capture.md |
+| `contract-version` | API contract version | 0.5.0 | `/openapi.json` `info.version`, `/connector.md` and the titles of docs/capture.md and docs/voice.md |
 | `languages` | Capture languages | en, fr | The `X-Language` check in `captureParams`: each listed value passes, others fail |
 | `devices` | Capture device labels the API accepts | watch, mac, phone, api | The `X-Capture-Device` check in `captureParams`: each listed value passes, others fail |
 | `lexicons` | Habit-count methods | lexicon-en-v2, lexicon-fr-v1 | `measure().method` |
@@ -30,8 +30,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 73 | A `node --test` run of the other test files (all must pass), plus this one |
-| `python-tests` | Python hosting-adapter tests | 8 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
+| `node-tests` | Node test cases, as `npm test` reports them | 84 | A `node --test` run of the other test files (all must pass), plus this one |
+| `python-tests` | Python hosting-adapter tests | 10 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `watch-target` | Watch app minimum OS | watchOS 11.0 | apps/watch/project.yml |
@@ -56,3 +56,15 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-live-vs-lexicon` | Lexicon-only F1 on the same run, and live hedge recall against the lexicon's | F1 0.819; hedge recall 0.333 against 0.889 | `eval/live-results.json` |
 | `eval-live-attempts` | Live run: calls made, and first replies that needed a retry | 42 calls, 0 retries | `attempts` per item in `eval/live-results.json` |
 | `eval-live-labels` | Live labels that passed code's check, and content labels on traps and on real habits | 51 of 51; 12 on traps, 11 on real habits | `eval/live-results.json` labels against the gold spans of `eval/corpus.json` |
+
+## Voice rounds
+
+| ID | Claim | Value | Checked against |
+|---|---|---|---|
+| `voice-model` | Voice reply model, reasoning effort, mode and token budget | meta-models/muse-spark-open-1026, low, streamed, 2000 max tokens | The request body sent to Baseten (fake fetch) |
+| `voice-attempts` | Reply calls per round, and the cut-off for each | 1, a second only after an unusable reply; 8 s each | `createVoiceModel` with a counting fake fetch (an unusable reply, a 403) and `VOICE_TIMEOUT_MS` |
+| `voice-quote-check` | A quote whose words are not in the transcript, word for word, is kept | no | HTTP with a fake model: `quote` is empty and `quote_verified` false |
+| `voice-question-words` | Longest question returned to be spoken | 25 words | `safeQuestion` on a 40-word question |
+| `voice-stored` | What a voice round stores | transcript, metrics and reply; not the audio | HTTP with fake models: the record's fields, `audio_retained` false, and the audio bytes are not in the database file |
+| `voice-retry-no-rebill` | An exact voice-round retry calls a model again | no | HTTP: the same Idempotency-Key and audio twice calls each fake model once |
+| `voice-rate-limit` | Voice rounds per hour, refused before any model call | 60 | HTTP on a fresh account: 60 are saved, the 61st returns 429 without a model call |
