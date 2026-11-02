@@ -31,15 +31,15 @@ public struct RoundSummary: Sendable, Equatable {
     /// "1 filler", "2 unsure words".
     public static func count(_ n: Int, _ habit: Habit) -> String { "\(n) \(habit.label(n))" }
 
-    /// Beside the big number: what it counts. "filler in your last answer".
-    public var unit: String { "\(habit.label(last)) in your \(first == nil ? "answer" : "last answer")" }
+    /// Beside the big number: the habit, singular or plural. "0 unsure words".
+    public var unit: String { habit.label(last) }
 
-    /// Under it: the first answer's count of the same habit, or nil with one answer.
-    public var comparison: String? {
-        guard let first else { return nil }
-        if last < first { return "Down from \(first) in your first answer" }
-        if last > first { return "Up from \(first) in your first answer" }
-        return "The same as your first answer"
+    /// Under it: which answer it counts, and the first answer's count of the same habit.
+    public var comparison: String {
+        guard let first else { return "In your answer" }
+        if last < first { return "In your last answer, down from \(first) in your first" }
+        if last > first { return "In your last answer, up from \(first) in your first" }
+        return "In your last answer, the same as your first"
     }
 
     /// Where the numbers come from.

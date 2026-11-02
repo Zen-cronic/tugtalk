@@ -1,11 +1,13 @@
 import Foundation
 
 /// One spoken practice round on the watch, as a pure state machine. Tap Record, answer, tap Stop; the coach's
-/// question comes back and is spoken; answer again. The round ends at the coach's wrap-up or after
-/// `maxAnswers` answers. It decides; the app performs the effects (microphone, upload, speech), so every
-/// transition is unit-tested without a watch.
+/// question comes back and is spoken; answer again. The round ends when the server's move gate allows only
+/// `wrap_up` (code measured a close, or the fourth answer), as on the Mac. `maxAnswers` is the same cap, kept here
+/// too so a server without the gate still ends the round. It decides; the app performs the effects (microphone,
+/// upload, speech), so every transition is unit-tested without a watch.
 public struct SparringMachine: Sendable {
-    public static let maxAnswers = 3
+    /// The server's `ANSWER_CAP` (src/counterpart.mjs).
+    public static let maxAnswers = 4
     /// The server refuses audio under 0.5 s; a shorter recording is a stray tap and is never sent.
     public static let minimumAnswer: TimeInterval = 0.5
     /// After this long, the last question no longer marks the start of an answer (the Mac uses the same).
@@ -20,6 +22,8 @@ public struct SparringMachine: Sendable {
         public let transcript: String
         public let mediaNote: String?
         public let endsRound: Bool
+        /// The gate's reason when it ended the round: `measured_close` or `answer_cap`.
+        public let closedBy: String?
         /// Nil while the voice is being fetched.
         public var voice: SpeechVoice?
         /// The question has been spoken (or could not be): the screen says "Your turn".
@@ -34,7 +38,7 @@ public struct SparringMachine: Sendable {
         case replying(Shown)
         /// `upload` is kept only when Retry can resend it.
         case failed(answer: Int, failure: RoundFailure, upload: AnswerUpload?)
-        case done(RoundSummary?, lastQuestion: String?, mediaNote: String?)
+        case done(RoundSummary?, lastQuestion: String?, mediaNote: String?, closedBy: String?)
 
         public var name: String {
             switch self {
@@ -68,6 +72,8 @@ public struct SparringMachine: Sendable {
     /// The server's measurements of each answer so far.
     public private(set) var metrics: [VoiceMetrics] = []
     private var promptEndedAt: Date?
+    /// The other person's need for this round, from the first reply that named one. Never stored on the watch beyond the round.
+    public private(set) var need: String?
     private let newKey: @Sendable () -> String
 
     public init(goalID: String?, language: VoiceLanguage, newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() }) {
@@ -92,7 +98,7 @@ public struct SparringMachine: Sendable {
             let drop: [Effect] = upload.map { [.discard(key: $0.idempotencyKey)] } ?? []
             return drop + start(answer, at: now, prompt: currentPrompt(at: now))
         case .done:
-            metrics = []; promptEndedAt = nil
+            metrics = []; promptEndedAt = nil; need = nil
             return start(1, at: now, prompt: nil)
         case .recording, .thinking:
             return []
@@ -120,7 +126,7 @@ public struct SparringMachine: Sendable {
         case .ready(let answer): next = answer; effects = []
         case .replying(let shown) where !shown.endsRound: next = shown.answer + 1; effects = shown.spoken ? [] : [.stopSpeech]
         case .failed(let answer, _, let upload): next = answer; effects = upload.map { [.discard(key: $0.idempotencyKey)] } ?? []
-        case .done: metrics = []; next = 1; effects = []
+        case .done: metrics = []; need = nil; next = 1; effects = []
         default: return []
         }
         promptEndedAt = nil
@@ -144,9 +150,12 @@ public struct SparringMachine: Sendable {
             return [.discard(key: key)]
         }
         if let m = receipt.metrics { metrics.append(m) }
+        if need == nil, let named = receipt.counterpart?.need { need = named }
+        let ends = receipt.reply.wrapsUp || answer >= Self.maxAnswers
+        let reason = receipt.counterpart?.reason.flatMap { $0 == "open" ? nil : $0 } ?? (receipt.reply.wrapsUp ? nil : (ends ? "answer_cap" : nil))
         let shown = Shown(answer: answer, roundID: receipt.round_id, question: question, quote: receipt.reply.verifiedQuote,
                           transcript: receipt.transcript, mediaNote: receipt.media?.note,
-                          endsRound: receipt.reply.wrapsUp || answer >= Self.maxAnswers, voice: nil, spoken: false)
+                          endsRound: ends, closedBy: ends ? reason : nil, voice: nil, spoken: false)
         // French has no coach voice (Wit.ai is English only): the watch voice speaks it without asking.
         if language == .fr {
             var spoken = shown
@@ -219,17 +228,17 @@ public struct SparringMachine: Sendable {
         default: break
         }
         if metrics.isEmpty {
-            phase = .ready(answer: 1); promptEndedAt = nil
+            phase = .ready(answer: 1); promptEndedAt = nil; need = nil
             return effects
         }
         return effects + finish()
     }
 
     private mutating func finish() -> [Effect] {
-        var lastQuestion: String?, note: String?
-        if case .replying(let shown) = phase { lastQuestion = shown.question; note = shown.mediaNote }
-        phase = .done(RoundSummary.make(metrics), lastQuestion: lastQuestion, mediaNote: note)
-        promptEndedAt = nil
+        var lastQuestion: String?, note: String?, closedBy: String?
+        if case .replying(let shown) = phase { lastQuestion = shown.question; note = shown.mediaNote; closedBy = shown.closedBy }
+        phase = .done(RoundSummary.make(metrics), lastQuestion: lastQuestion, mediaNote: note, closedBy: closedBy)
+        promptEndedAt = nil; need = nil
         return []
     }
 
@@ -239,7 +248,7 @@ public struct SparringMachine: Sendable {
     }
 
     private mutating func start(_ answer: Int, at now: Date, prompt: Date?) -> [Effect] {
-        let upload = AnswerUpload(idempotencyKey: newKey(), goalID: goalID, language: language, occurredAt: now, promptEndedAt: prompt)
+        let upload = AnswerUpload(idempotencyKey: newKey(), goalID: goalID, language: language, occurredAt: now, promptEndedAt: prompt, need: need)
         promptEndedAt = nil
         phase = .recording(answer: answer, upload: upload)
         return [.startRecording(key: upload.idempotencyKey)]

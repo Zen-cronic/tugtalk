@@ -14,13 +14,12 @@ It uses the same two routes as the Mac, with no change on the server (`docs/voic
    - its own `Idempotency-Key`;
    - the goal and language picked on the goal screen (`X-Goal-Id`, `X-Language`);
    - `X-Occurred-At` (when the recording started);
-   - `X-Prompt-Ended-At` (when the previous question finished playing, if it played to the end).
+   - `X-Prompt-Ended-At` (when the previous question finished playing, if it played to the end);
+   - `X-Counterpart-Need`, when the round's first reply named what the other person needs (`counterpart.need`). The watch holds it for the round and drops it at the end, as the Mac does.
    Meta transcribes the answer, code measures it, and Muse Spark Open picks the next move. Code checks the quote and the question before they come back.
 3. **Speaking.** The question is the large text on screen. Below it is **You said**, your own words in the transcript face, shown only when code on the server found them word for word in the transcript (`quote_verified`). In English the watch fetches the Wit.ai voice (`wit$Rebecca`, MP3) and plays it with `AVAudioPlayer` on the default audio route, which is the watch speaker. The line under the question says which voice spoke.
 4. **Your turn** again, with **Record**. Tapping **Answer now** while the question is still playing stops it. That answer is then sent without `X-Prompt-Ended-At`, because the question had no end.
-5. **Round done** after the coach's `wrap_up` move or after the third answer, whichever comes first. The screen shows one number, the count of one habit in your last answer, with the same habit's count in your first answer beside it. Both counts come from the server's own measurements (`metrics` on each round). The habit is picked the way the Mac picks it: the one that dropped the most, or, when none dropped, the one used most in the last answer. With one answer there is no comparison, only that answer's count. The screen never says "improved". **Record again** starts a new round.
-
-The Mac ends a round only on `wrap_up`. The watch also stops at three answers, because in the live runs in `docs/voice.md` the model chose `challenge` 12 times out of 12.
+5. **Round done** when the reply's move is `wrap_up`. Code decides that, not the model: the server's move gate (`src/counterpart.mjs`, [Who ends the round](voice.md#who-ends-the-round)) allows only `wrap_up` from the second answer once an answer has no unsure words (and meets the need, if there is one), and at the fourth answer whatever was measured. The watch stops at the fourth answer too, so a server without the gate still ends the round. The screen shows one number, the count of one habit in your last answer (for example "0 unsure words"), with the same habit's count in your first answer under it ("In your last answer, down from 2 in your first"), and says why the round ended. Both counts come from the server's own measurements (`metrics` on each round). The habit is picked the way the Mac picks it: the one that dropped the most, or, when none dropped, the one used most in the last answer. With one answer there is no comparison, only that answer's count. The screen never says "improved". **Record again** starts a new round.
 
 ## Voices
 
@@ -47,7 +46,7 @@ The Mac ends a round only on `wrap_up`. The watch also stops at three answers, b
 - `apps/watch/CommsCoachWatch/Sparring.swift`: performs what the machine decides (the microphone, the upload, the player and the speech synthesizer).
 - `apps/watch/CommsCoachWatch/SparringView.swift`: the screens. Tug listens with its brows up and its string taut, closes its eyes while thinking, and moves its mouth while speaking. With Reduce Motion, Tug holds still and the mouth stays half open while it talks.
 
-Tests: `cd apps/watch/SparringCore && swift test` (30 tests). They cover the turn count, the wrap-up, Retry reusing the same Idempotency-Key and headers, a 429 that offers no Retry, a speech failure that keeps the question and uses the watch voice, French skipping the speech request, the request headers, and the singular and plural labels.
+Tests: `cd apps/watch/SparringCore && swift test` (32 tests). They cover the turn count, the wrap-up from the move gate, the need carried to later answers, Retry reusing the same Idempotency-Key and headers, a 429 that offers no Retry, a speech failure that keeps the question and uses the watch voice, French skipping the speech request, the request headers, and the singular and plural labels.
 
 ## Try it in the simulator, without a microphone
 
@@ -67,12 +66,13 @@ Debug builds only:
 - `-sparringLanguage fr` runs a French round.
 - `-sparringAutoRetrySeconds N` taps Retry once after a failure.
 - `-sparringScrollToEnd YES` shows the end of each screen.
+- `-sparringScrollTo source` centres one part of each screen (here, Round done's source line).
 
 Make the fixtures with `say -o a1.aiff "…"` and `afconvert -f WAVE -d LEI16@16000 -c 1 a1.aiff a1.wav`.
 
 ## One live round (Nov 2, 15:56 EST)
 
-One round of three answers in the watchOS simulator against the hosted service, with three `say` fixture clips in place of the microphone: 3 Meta transcriptions and 3 Spark Open replies, all HTTP 200, and 3 spoken questions, each played on the watch from the coach's MP3. Verbatim from the saved rounds:
+One round of three answers in the watchOS simulator against the hosted service, before the move gate was deployed there and while the watch still stopped at three answers, with three `say` fixture clips in place of the microphone: 3 Meta transcriptions and 3 Spark Open replies, all HTTP 200, and 3 spoken questions, each played on the watch from the coach's MP3. Verbatim from the saved rounds:
 
 | Answer | Transcript (Meta) | Fillers, unsure words, restarts (code) | Question (Spark Open, checked by code) | Quote |
 |---|---|---|---|---|
@@ -80,7 +80,7 @@ One round of three answers in the watchOS simulator against the hosted service, 
 | 2 | "The main point is we ship ship the smaller version first because um it lets us test with real users" | 1, 0, 0 | "Good summary, but can you pause, then say it again more slowly without saying um?" | "um" (verified) |
 | 3 | "The main point is we ship the smaller version first. It lets us test with real users this week" | 0, 0, 0 | "You said we ship the smaller version first, but that was very fast. Can you pause, then say it again much more slowly?" | "we ship the smaller version first" (verified) |
 
-Round done showed **0 fillers in your last answer, down from 2 in your first answer**. All three moves were `challenge`, so the round ended at the third answer. Server time per round was 3.6–5.1 s. These are three synthetic clips in one round, not a measure of anyone's improvement.
+Round done showed **0 fillers in your last answer, down from 2 in your first answer**. All three moves were `challenge`; the round ended at the watch's three-answer stop of that build. Server time per round was 3.6–5.1 s. These are three synthetic clips in one round, not a measure of anyone's improvement.
 
 ## Limits
 

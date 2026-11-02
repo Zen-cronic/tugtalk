@@ -25,6 +25,11 @@ struct SparringView: View {
             .onChange(of: model.phase.name) { _, name in
                 #if DEBUG
                 // `-sparringScrollToEnd YES`: shows the end of each step, for simulator captures.
+                // `-sparringScrollTo source`: centres that part of each step instead (here, Round done's source line).
+                if let anchor = UserDefaults.standard.string(forKey: "sparringScrollTo") {
+                    Task { try? await Task.sleep(for: .milliseconds(300)); proxy.scrollTo(anchor, anchor: .center) }
+                    return
+                }
                 if UserDefaults.standard.bool(forKey: "sparringScrollToEnd") {
                     Task { try? await Task.sleep(for: .milliseconds(300)); withAnimation { proxy.scrollTo("end", anchor: .bottom) } }
                     return
@@ -59,13 +64,13 @@ struct SparringView: View {
             replying(shown)
         case .failed(let answer, let failure, let upload):
             failed(answer, failure, canRetry: upload != nil)
-        case .done(let summary, let lastQuestion, let note):
-            done(summary, lastQuestion: lastQuestion, note: note)
+        case .done(let summary, let lastQuestion, let note, let closedBy):
+            done(summary, lastQuestion: lastQuestion, note: note, closedBy: closedBy)
         }
         Color.clear.frame(height: 0).id("end")
     }
 
-    private func counter(_ answer: Int) -> String { "Answer \(answer) of \(SparringMachine.maxAnswers)" }
+    private func counter(_ answer: Int) -> String { "Answer \(answer)" }
 
     // Your turn, before the first answer
 
@@ -73,7 +78,7 @@ struct SparringView: View {
         Group {
             StatusRow(title: "Your turn", detail: counter(answer)) { TugGlyph(size: 30, reach: 6, endY: 0.66) }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Answer out loud.")
+                Text("Answer out loud, up to \(SparringMachine.maxAnswers) times.")
                     .face(.text, 15, relativeTo: .body)
                     .foregroundStyle(Palette.inkDark)
                     .fixedSize(horizontal: false, vertical: true)
@@ -192,7 +197,16 @@ struct SparringView: View {
 
     // Round done
 
-    private func done(_ summary: RoundSummary?, lastQuestion: String?, note: String?) -> some View {
+    /// Why the round ended, in code's terms (the server's move gate), or nil when the coach wrapped up on its own.
+    private func ending(_ closedBy: String?) -> String? {
+        switch closedBy {
+        case "measured_close": "Code ended the round: no unsure words in your last answer."
+        case "answer_cap": "The round ended at answer \(SparringMachine.maxAnswers), the most in one round."
+        default: nil
+        }
+    }
+
+    private func done(_ summary: RoundSummary?, lastQuestion: String?, note: String?, closedBy: String?) -> some View {
         Group {
             StatusRow(title: "Round done", detail: nil) { TugGlyph(size: 30, reach: 6, endY: 0.66, pull: 1) }
             if let summary {
@@ -214,14 +228,14 @@ struct SparringView: View {
                         .padding(.vertical, -2)
                     }
                     .slotIn()
-                    if let comparison = summary.comparison {
-                        Text(comparison)
-                            .face(.text, 15, weight: 700, relativeTo: .body)
-                            .foregroundStyle(Palette.inkDark)
-                            .padding(.horizontal, 4)
-                    }
-                    Text(summary.source)
+                    Text(summary.comparison)
+                        .face(.text, 15, weight: 700, relativeTo: .body)
+                        .foregroundStyle(Palette.inkDark)
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 4)
+                    Text([summary.source, ending(closedBy)].compactMap { $0 }.joined(separator: ". "))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .id("source")
                         .face(.text, 12, weight: 600, relativeTo: .caption2)
                         .foregroundStyle(Palette.mutedDark)
                         .padding(.horizontal, 4)

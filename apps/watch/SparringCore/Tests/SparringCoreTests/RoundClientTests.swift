@@ -39,7 +39,9 @@ private let okBody = Data("""
  "metrics":{"word_count":8,"words_per_minute":150,"filler_count":1,"hedge_count":1,"restart_count":0,"pauses":{"status":"measured"},"onset_ms_approx":null},
  "reply":{"move":"challenge","question":"Why should it be you?","quote":"maybe lead the launch","quote_verified":true},
  "model":"meta-models/muse-spark-open-1026","provider_request_id":"p1","latency_ms":{"asr":1,"model":2,"total":3},
- "media":{"kept":true,"bytes":10,"sha256":"x"}}
+ "media":{"kept":true,"bytes":10,"sha256":"x"},
+ "gate":{"allowed":["follow_up","challenge"],"reason":"open","hedges":1,"coerced":false},"reply_mode":"model",
+ "counterpart":{"need":null,"need_met":null,"allowed":["follow_up","challenge"],"reason":"open","answer":1,"reply_mode":"model"}}
 """.utf8)
 private let base = URL(string: "http://127.0.0.1:4391")!
 private let upload = AnswerUpload(idempotencyKey: "watch-voice-abc12345", goalID: "goal-1", language: .en,
@@ -59,6 +61,12 @@ private let upload = AnswerUpload(idempotencyKey: "watch-voice-abc12345", goalID
         #expect(r.value(forHTTPHeaderField: "X-Occurred-At") == "2027-01-15T08:00:00.250Z")
         #expect(r.value(forHTTPHeaderField: "X-Prompt-Ended-At") == "2027-01-15T07:59:58.000Z")
         #expect(r.httpBody == Data([1, 2, 3]))
+    }
+
+    @Test func theNeedTravelsAsAHeader() {
+        let withNeed = AnswerUpload(idempotencyKey: "watch-voice-2", goalID: nil, language: .en, occurredAt: .now, promptEndedAt: nil, need: "date")
+        #expect(RoundRequests(baseURL: base, token: "t").answer(withNeed, wav: Data()).value(forHTTPHeaderField: "X-Counterpart-Need") == "date")
+        #expect(RoundRequests(baseURL: base, token: "t").answer(upload, wav: Data()).value(forHTTPHeaderField: "X-Counterpart-Need") == nil)
     }
 
     @Test func noGoalAndNoQuestionMeansNoHeaders() {
@@ -90,6 +98,7 @@ private let upload = AnswerUpload(idempotencyKey: "watch-voice-abc12345", goalID
         let receipt = try await client.send(upload, wav: Data([0]))
         #expect(receipt.reply.verifiedQuote == "maybe lead the launch")
         #expect(receipt.media?.note == "Recording kept")
+        #expect(receipt.counterpart == Counterpart(need: nil, need_met: nil, allowed: ["follow_up", "challenge"], reason: "open", answer: 1))
         let keys = ScriptedProtocol.lock.withLock { ScriptedProtocol.seen.map { $0.value(forHTTPHeaderField: "Idempotency-Key") } }
         #expect(keys == Array(repeating: "watch-voice-abc12345", count: 3))
         let stamps = ScriptedProtocol.lock.withLock { Set(ScriptedProtocol.seen.compactMap { $0.value(forHTTPHeaderField: "X-Occurred-At") }) }

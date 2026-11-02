@@ -9,11 +9,12 @@ private final class Keys: @unchecked Sendable {
 }
 
 private func receipt(_ id: String, move: String = "challenge", question: String = "Why should it be you?", quote: String? = "maybe lead",
-                     verified: Bool = true, fillers: Int = 1, hedges: Int = 0, restarts: Int = 0, kept: Bool? = nil) -> VoiceRoundReceipt {
+                     verified: Bool = true, fillers: Int = 1, hedges: Int = 0, restarts: Int = 0, kept: Bool? = nil,
+                     counterpart: Counterpart? = nil) -> VoiceRoundReceipt {
     VoiceRoundReceipt(round_id: id, receipt_id: "r-\(id)", replayed: false, transcript: "So um I could maybe lead the launch.",
                       metrics: VoiceMetrics(filler_count: fillers, hedge_count: hedges, restart_count: restarts),
                       reply: VoiceReply(move: move, question: question, quote: quote, quote_verified: verified),
-                      media: kept.map { RoundMedia(kept: $0, reason: nil) })
+                      media: kept.map { RoundMedia(kept: $0, reason: nil) }, counterpart: counterpart)
 }
 
 private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
@@ -28,43 +29,44 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
 }
 
 @Suite struct TurnCount {
-    @Test func aRoundEndsAfterThreeAnswers() {
+    @Test func aRoundEndsAtTheFourthAnswerWithoutAWrapUp() {
         let keys = Keys()
         var m = SparringMachine(goalID: "g1", language: .en, newKey: keys.next)
         #expect(m.phase == .ready(answer: 1))
         var at = t0
-        for n in 1...3 {
+        for n in 1...4 {
             if n == 1 { #expect(m.phase == .ready(answer: 1)) }
             let up = answer(&m, at: at)
             guard case .thinking(let a, _) = m.phase else { Issue.record("not thinking: \(m.phase.name)"); return }
             #expect(a == n)
-            #expect(m.replied(key: up.idempotencyKey, receipt("round-\(n)", fillers: 4 - n)) == [.discard(key: up.idempotencyKey), .fetchSpeech(roundID: "round-\(n)")])
+            #expect(m.replied(key: up.idempotencyKey, receipt("round-\(n)", fillers: 5 - n)) == [.discard(key: up.idempotencyKey), .fetchSpeech(roundID: "round-\(n)")])
             guard case .replying(let shown) = m.phase else { Issue.record("not replying"); return }
             #expect(shown.answer == n)
-            #expect(shown.endsRound == (n == 3))
+            #expect(shown.endsRound == (n == 4))
+            #expect(shown.closedBy == (n == 4 ? "answer_cap" : nil))
             at = at.addingTimeInterval(10)
             _ = m.speechStarted(roundID: "round-\(n)", provider: "wit")
             _ = m.speechFinished(roundID: "round-\(n)", at: at)
             at = at.addingTimeInterval(1)
         }
-        guard case .done(let summary?, let last, _) = m.phase else { Issue.record("not done: \(m.phase.name)"); return }
-        #expect(m.answered == 3)
-        #expect(summary.habit == .filler && summary.first == 3 && summary.last == 1 && summary.answers == 3)
-        #expect(summary.comparison == "Down from 3 in your first answer")
-        #expect(summary.source == "Counted by the server in answers 1 and 3")
+        guard case .done(let summary?, let last, _, let closedBy) = m.phase else { Issue.record("not done: \(m.phase.name)"); return }
+        #expect(m.answered == 4 && closedBy == "answer_cap")
+        #expect(summary.habit == .filler && summary.first == 4 && summary.last == 1 && summary.answers == 4)
+        #expect(summary.comparison == "In your last answer, down from 4 in your first" && summary.unit == "filler")
+        #expect(summary.source == "Counted by the server in answers 1 and 4")
         #expect(last == "Why should it be you?")
     }
 
-    @Test func noFourthAnswerAfterTheLastQuestion() {
+    @Test func noFifthAnswerAfterTheLastQuestion() {
         var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next)
         var at = t0
-        for n in 1...3 {
+        for n in 1...4 {
             let up = answer(&m, at: at)
             _ = m.replied(key: up.idempotencyKey, receipt("r\(n)"))
             at = at.addingTimeInterval(10)
-            if n < 3 { _ = m.speechFinished(roundID: "r\(n)", at: at) }
+            if n < 4 { _ = m.speechFinished(roundID: "r\(n)", at: at) }
         }
-        // The third question is still being spoken: Record does nothing, only See result.
+        // The last question is still being spoken: Record does nothing, only See result.
         #expect(m.record(at: at) == [])
         #expect(m.skipToResult() == [.stopSpeech])
         guard case .done = m.phase else { Issue.record("not done"); return }
@@ -76,11 +78,12 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         _ = m.replied(key: up1.idempotencyKey, receipt("r1", fillers: 2))
         _ = m.speechFinished(roundID: "r1", at: t0.addingTimeInterval(8))
         let up2 = answer(&m, at: t0.addingTimeInterval(9))
-        _ = m.replied(key: up2.idempotencyKey, receipt("r2", move: "wrap_up", fillers: 2))
+        _ = m.replied(key: up2.idempotencyKey, receipt("r2", move: "wrap_up", fillers: 2,
+                                                        counterpart: Counterpart(allowed: ["wrap_up"], reason: "measured_close", answer: 2)))
         _ = m.speechFinished(roundID: "r2", at: t0.addingTimeInterval(20))
-        guard case .done(let summary?, _, _) = m.phase else { Issue.record("not done"); return }
-        #expect(summary.answers == 2)
-        #expect(summary.comparison == "The same as your first answer")
+        guard case .done(let summary?, _, _, let closedBy) = m.phase else { Issue.record("not done"); return }
+        #expect(summary.answers == 2 && closedBy == "measured_close")
+        #expect(summary.comparison == "In your last answer, the same as your first")
     }
 
     @Test func recordAgainStartsANewRound() {
@@ -88,8 +91,8 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         let up = answer(&m, at: t0)
         _ = m.replied(key: up.idempotencyKey, receipt("r1", move: "wrap_up"))
         _ = m.speechFinished(roundID: "r1", at: t0.addingTimeInterval(5))
-        guard case .done(let summary?, _, _) = m.phase else { Issue.record("not done"); return }
-        #expect(summary.first == nil && summary.comparison == nil && summary.unit == "filler in your answer")
+        guard case .done(let summary?, _, _, _) = m.phase else { Issue.record("not done"); return }
+        #expect(summary.first == nil && summary.comparison == "In your answer" && summary.unit == "filler")
         _ = m.record(at: t0.addingTimeInterval(9))
         guard case .recording(let a, let next) = m.phase else { Issue.record("not recording"); return }
         #expect(a == 1 && next.promptEndedAt == nil && m.answered == 0)
@@ -104,6 +107,23 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         _ = m.speechFinished(roundID: "r1", at: ended)
         let up2 = answer(&m, at: ended.addingTimeInterval(2))
         #expect(up2.promptEndedAt == ended)
+    }
+
+    @Test func theNeedFromTheFirstReplyGoesWithEveryLaterAnswerAndRetry() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next)
+        let up1 = answer(&m, at: t0)
+        #expect(up1.need == nil)
+        _ = m.replied(key: up1.idempotencyKey, receipt("r1", counterpart: Counterpart(need: "date", reason: "open", answer: 1)))
+        _ = m.speechFinished(roundID: "r1", at: t0.addingTimeInterval(5))
+        let up2 = answer(&m, at: t0.addingTimeInterval(6))
+        #expect(up2.need == "date")
+        _ = m.uploadFailed(key: up2.idempotencyKey, .offline)
+        #expect(m.retry() == [.upload(up2)])
+        // A need offered later does not replace it.
+        _ = m.replied(key: up2.idempotencyKey, receipt("r2", counterpart: Counterpart(need: "owner", reason: "open", answer: 2)))
+        #expect(m.need == "date")
+        _ = m.endRound()
+        #expect(m.need == nil)
     }
 
     @Test func tappingRecordWhileSpeakingStopsTheVoiceAndSendsNoQuestionEnd() {
@@ -230,14 +250,14 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         let a = VoiceMetrics(filler_count: 2, hedge_count: 3, restart_count: 0)
         let b = VoiceMetrics(filler_count: 2, hedge_count: 1, restart_count: 1)
         let s = RoundSummary.make([a, b])!
-        #expect(s.habit == .hedge && s.first == 3 && s.last == 1 && s.unit == "unsure word in your last answer")
+        #expect(s.habit == .hedge && s.first == 3 && s.last == 1 && s.unit == "unsure word" && s.comparison == "In your last answer, down from 3 in your first")
         let up = RoundSummary.make([VoiceMetrics(filler_count: 0, hedge_count: 0, restart_count: 0), VoiceMetrics(filler_count: 2, hedge_count: 1, restart_count: 0)])!
-        #expect(up.habit == .filler && up.comparison == "Up from 0 in your first answer")
+        #expect(up.habit == .filler && up.comparison == "In your last answer, up from 0 in your first" && up.unit == "fillers")
     }
 
     @Test func oneAnswerMakesNoComparisonAndTiesPickFillers() {
         let s = RoundSummary.make([VoiceMetrics(filler_count: 1, hedge_count: 1, restart_count: 1)])!
-        #expect(s.habit == .filler && s.first == nil && s.comparison == nil && s.source == "Counted by the server in 1 answer")
+        #expect(s.habit == .filler && s.first == nil && s.comparison == "In your answer" && s.source == "Counted by the server in 1 answer")
         #expect(RoundSummary.make([]) == nil)
     }
 }
