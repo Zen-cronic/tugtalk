@@ -40,6 +40,10 @@ export const LEXICON = {
         hedges: ['je pense', 'je crois', 'peut-être', 'un peu', 'disons'],
         restarts: ['pardon', 'je recommence', 'je veux dire'] }
 };
+// Other spellings a transcriber writes for a listed one-word phrase; a hit is counted under the listed phrase.
+// Meta's transcription wrote a spoken "uh" as "ah" in 3 of 3 test clips (Nov 2), so "ah" and "er" count as "uh".
+export const FORMS = { en: { uh: ['ah', 'er'] }, fr: {} };
+export const LEXICON_VERSION = { en: 'lexicon-en-v2', fr: 'lexicon-fr-v1' };
 const norm = text => text.toLowerCase().normalize('NFC').replace(/[’]/g, "'").replace(/[^\p{L}\p{N}' -]+/gu, ' ').replace(/(^| )-+(?= |$)/g, ' ').replace(/\s+/g, ' ').trim();
 const total = counts => Object.values(counts).reduce((a, b) => a + b, 0);
 
@@ -62,10 +66,11 @@ export function habitHits(transcript, language) {
   const counts = Object.fromEntries(HIT_ORDER.map(c => [c, {}]));
   for (const category of HIT_ORDER)
     for (const phrase of [...LEXICON[language][category]].sort((a, b) => b.length - a.length)) {
-      const parts = phrase.split(' ');
+      const parts = phrase.split(' '), forms = new Set([phrase, ...(FORMS[language][phrase] ?? [])]);
+      const matches = (p, word) => parts.length === 1 ? forms.has(word) : word === p;
       let n = 0;
       for (let i = 0; i + parts.length <= tokens.length;) {
-        if (parts.every((p, k) => !used[i + k] && tokens[i + k].word === p)) {
+        if (parts.every((p, k) => !used[i + k] && matches(p, tokens[i + k].word))) {
           for (let k = 0; k < parts.length; k++) used[i + k] = true;
           const last = i + parts.length - 1;
           hits.push({ category, phrase, first: i, last, start: tokens[i].start, end: tokens[last].end, quote: text.slice(tokens[i].start, tokens[last].end) });
@@ -92,7 +97,7 @@ export function measure(transcript, durationMs, language, turns) {
     hedge_count: total(hedges), hedges,
     restart_count: total(restarts), restarts, immediate_repeats: repeats,
     fillers_per_100_words: words.length ? Math.round(total(fillers) / words.length * 1000) / 10 : null,
-    method: `lexicon-${language}-v1`,
+    method: LEXICON_VERSION[language],
     caveats: ['Counts come from an automatic transcript and can miss or invent words.', 'Speakers are not separated; all speech in the clip is counted.', 'Immediate repeats are reported separately because some are grammatical ("vous vous").'],
     pauses: measurePauses(turns, durationMs, words.length)
   };

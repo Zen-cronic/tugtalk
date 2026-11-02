@@ -3,7 +3,7 @@
 // and scripted replies always yield byte-identical results. runLiveAdjudication is the separate live arm.
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { measure, LEXICON, parseObject, ANALYSIS_BUDGETS, ANALYSIS_MODEL } from './capture.mjs';
+import { measure, LEXICON, LEXICON_VERSION, FORMS, parseObject, ANALYSIS_BUDGETS, ANALYSIS_MODEL } from './capture.mjs';
 import { adjudicationCandidates, buildAdjudication, adjudicateCapture, acceptLabels, ADJUDICATION_METHOD, REJECTIONS } from './adjudicate.mjs';
 
 export const CATEGORIES = ['fillers', 'hedges', 'restarts'];
@@ -181,7 +181,8 @@ export function runEval(raw = readFileSync(CORPUS_URL), scriptedRaw = readFileSy
   return {
     eval: 'habit-count-measurement', corpus: corpus.name, corpus_sha256: createHash('sha256').update(raw).digest('hex'),
     provenance: corpus.provenance,
-    methods: languages.map(l => `lexicon-${l}-v1`),
+    methods: languages.map(l => LEXICON_VERSION[l]),
+    lexicon_changes: `After the corpus was written: lexicon-en-v2 (2026-11-02) counts ${Object.entries(FORMS.en).map(([p, f]) => f.map(x => `"${x}"`).join(' and ') + ` as "${p}"`).join('; ')}, because Meta's transcription wrote a spoken "uh" as "ah". The corpus contains neither spelling, so no score changed.`,
     counts: { items: items.length, negative_controls: m.negative_control.items, by_language: Object.fromEntries(languages.map(l => [l, items.filter(i => i.language === l).length])), gold_labels: gold },
     scoring: 'Per item and category, tp = min(predicted, gold), fp = excess predicted, fn = missed gold. Micro-averaged. Negative controls carry no gold labels, so every count on them is a false positive.',
     headline: `measure(): precision ${m.overall.precision}, recall ${m.overall.recall} vs flat word list ${b.overall.precision} / ${b.overall.recall} on ${items.length} synthetic labelled en/fr transcripts; ${m.negative_control.false_counts} false counts on ${m.negative_control.items} clean controls.`,

@@ -4,9 +4,10 @@
   "corpus_sha256": "4a75b9d62d61eb484cb7df166de5e7117c9dbbc2f5d6ed5833af061cbd86b293",
   "provenance": "Synthetic transcripts written and labelled by the comms-coach authors on 2026-11-01, after lexicon-en-v1 and lexicon-fr-v1 were written. The lexicons were not changed after the corpus was written. Not real speech, not an independent benchmark.",
   "methods": [
-    "lexicon-en-v1",
+    "lexicon-en-v2",
     "lexicon-fr-v1"
   ],
+  "lexicon_changes": "After the corpus was written: lexicon-en-v2 (2026-11-02) counts \"ah\" and \"er\" as \"uh\", because Meta's transcription wrote a spoken \"uh\" as \"ah\". The corpus contains neither spelling, so no score changed.",
   "counts": {
     "items": 70,
     "negative_controls": 12,

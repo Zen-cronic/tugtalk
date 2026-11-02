@@ -56,3 +56,13 @@ test('every hit quotes its exact span, spans never overlap, and measure() counts
   const { hits } = habitHits('It costs too much. What I mean is the setup, you, know.', 'en');
   assert.deepEqual(hits.map(h => [h.category, h.quote]), [['restarts', 'What I mean is'], ['fillers', 'you, know']]);
 });
+
+test('"ah" and "er" count as the filler "uh" in English only, and are never sent for adjudication', async () => {
+  const { adjudicationCandidates } = await import('../src/adjudicate.mjs');
+  const m = measure('Ah, we hit most targets. Er, I mean, uh, the team is happy.', 4000, 'en');
+  assert.deepEqual(m.fillers, { uh: 3, 'i mean': 1 });
+  assert.equal(m.method, 'lexicon-en-v2');
+  assert.deepEqual(habitHits('Ah, done.', 'en').hits.map(h => [h.phrase, h.quote]), [['uh', 'Ah']]);
+  assert.equal(measure('Ah, er, oui.', 3000, 'fr').filler_count, 0, 'French is unchanged');
+  assert.equal(adjudicationCandidates('Ah, er, the plan.', 'en').candidates.length, 0);
+});

@@ -16,7 +16,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `contract-version` | API contract version | 0.4.0 | `/openapi.json` `info.version`, `/connector.md` and the title of docs/capture.md |
 | `languages` | Capture languages | en, fr | The `X-Language` check in `captureParams`: each listed value passes, others fail |
 | `devices` | Capture device labels the API accepts | watch, mac, phone, api | The `X-Capture-Device` check in `captureParams`: each listed value passes, others fail |
-| `lexicons` | Habit-count methods | lexicon-en-v1, lexicon-fr-v1 | `measure().method` |
+| `lexicons` | Habit-count methods | lexicon-en-v2, lexicon-fr-v1 | `measure().method` |
+| `filler-forms` | Spellings counted as the filler "uh" (English) | ah, er | `measure()` on each spelling, and on "are", "her" and "aha", which do not count |
 | `audio-retained` | Uploaded audio is stored | no | HTTP capture with fake models: `audio_retained` is false and the audio bytes are not in the database file |
 | `retry-no-rebill` | An exact retry calls the models again | no | HTTP: the same Idempotency-Key and audio twice calls each fake model once |
 | `screen-text-max` | Largest redacted screen text accepted | 6000 characters, 12 KiB | HTTP: 6001 characters returns 400 |
@@ -29,7 +30,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 72 | A `node --test` run of the other test files (all must pass), plus this one |
+| `node-tests` | Node test cases, as `npm test` reports them | 73 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 8 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |

@@ -132,6 +132,10 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       'languages': () => acceptedValues('x-language'),
       'devices': () => acceptedValues('x-capture-device'),
       'lexicons': () => Object.keys(LANGUAGES).map(l => measure('x', 1000, l).method).join(', '),
+      'filler-forms': () => {
+        for (const word of ['are', 'her', 'aha']) assert.equal(measure(`${word} done`, 1000, 'en').filler_count, 0, word);
+        return ['ah', 'er', 'eh', 'oh', 'hmm'].filter(word => measure(`${word}, done`, 1000, 'en').fillers.uh === 1).join(', ');
+      },
       'audio-retained': async () => {
         const audio = wav(2);
         const r = await fetch(base + '/v1/recordings', { method: 'POST', headers: { ...auth, 'Content-Type': 'audio/wav', 'Idempotency-Key': 'facts-capture-1' }, body: audio });

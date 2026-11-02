@@ -16,7 +16,7 @@ or `GET /v1/eval` on a running server (public, read-only, no user data). A test 
 
 `corpus.json`: 70 short transcripts (34 English, 36 French), including 12 clean negative controls.
 
-**It is synthetic and labelled by us.** We wrote the sentences and the labels on November 1, 2026, after writing the lexicons, and did not change the lexicons afterwards. Nobody independent has labelled it. It deliberately over-samples hard cases, so its error rates are not the error rates of everyday speech.
+**It is synthetic and labelled by us.** We wrote the sentences and the labels on November 1, 2026, after writing the lexicons. One later change: on November 2, `lexicon-en-v2` started counting "ah" and "er" as the filler "uh", because Meta's transcription wrote a spoken "uh" as "ah" in our test clips. The corpus has neither spelling, so no number here changed (`results.json`, `lexicon_changes`). Nobody independent has labelled it. It deliberately over-samples hard cases, so its error rates are not the error rates of everyday speech.
 
 Labels are inline: `[F:um]` filler, `[H:I think]` hedge, `[R:sorry, let me restart]` restart. A restart is one explicit self-correction event, however many words it spans. Unmarked text is gold-negative. Immediate repeats ("the the", "vous vous") are reported separately by `measure()` and are not scored here.
 
