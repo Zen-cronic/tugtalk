@@ -10,8 +10,8 @@ import { createApp, connectorDocument } from '../src/server.mjs';
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const PINNED = {
-  'https://example--web.us-east.modal.run': { bytes: 5488, sha256: '5d5672de7dc5bb921ca2963e2cf6728be5a75bdb44cacb4c041a4c4980098b2a' },
-  'http://127.0.0.1:4318': { bytes: 5455, sha256: '8f54ee6824dc2ae2d759440771ae346991886b6cbc2217f017ad952da158f426' }
+  'https://example--web.us-east.modal.run': { bytes: 6136, sha256: 'b3c03d3f41336541d431d3cfb027dcee1624c1c83816641958537d3ed1988b89' },
+  'http://127.0.0.1:4318': { bytes: 6103, sha256: '466e9830a89067cbe17b1285f2d759e362454083bbdbd12959e963d95bd6bd02' }
 };
 
 test('connector document: exact bytes pinned, served unchanged at /connector.md and /', async () => {

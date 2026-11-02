@@ -28,6 +28,10 @@ struct ContentView: View {
                 .mask(alignment: .top) { HeaderFade(active: scrolled) }
                 .task {
                     await model.load()
+                    #if DEBUG
+                    // `-scrollToDrill YES`: shows the drill line below Record, or the drill result, for a screenshot.
+                    if UserDefaults.standard.bool(forKey: "scrollToDrill") { try? await Task.sleep(for: .milliseconds(600)); proxy.scrollTo("drill", anchor: .bottom) }
+                    #endif
                     if model.scrollToTry {
                         try? await Task.sleep(for: .milliseconds(400)) // let the result lay out first
                         proxy.scrollTo("try", anchor: .center)
@@ -65,6 +69,7 @@ struct ContentView: View {
             }
             .buttonStyle(CoachButtonStyle(height: 52))
             .padding(.bottom, 8)
+            if let drill = model.drill { DrillLine(drill: drill).id("drill") } // Drill.swift; below Record, so Record stays on the first screen
         case .recording:
             recording
             Button { Task { await model.stopAndUpload() } } label: {
@@ -205,6 +210,8 @@ struct ContentView: View {
                 PaceMetric(wpm: m.words_per_minute)
             }
             .slotIn()
+
+            if let drill = receipt.record.drill, drill.line != nil { DrillResultLine(outcome: drill).id("drill") } // Drill.swift
 
             VStack(alignment: .leading, spacing: 10) {
                 if let verdict {

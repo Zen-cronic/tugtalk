@@ -1,4 +1,4 @@
-# Capture pipeline (contract 0.6.0)
+# Capture pipeline (contract 0.7.0)
 
 `POST /v1/recordings` turns one short recording from any device into measured session evidence that every other surface (Muse chats, scheduled Muse tasks, the app reader) reads through the same fresh overview. Context is never stored only on the capturing device.
 
@@ -6,7 +6,7 @@
 
 - `Authorization: Bearer <key>` with write scope; `Idempotency-Key` (8–128 chars).
 - `Content-Type: audio/wav`; body is mono 16-bit PCM WAV at 16 or 24 kHz, 0.5–180 s, ≤8 MiB.
-- Optional headers: `X-Goal-Id` (owned goal), `X-Language` (`en` default, `fr`), `X-Capture-Device` (`watch`, `mac`, `phone`, `api`), `X-Occurred-At` (ISO 8601).
+- Optional headers: `X-Goal-Id` (owned goal), `X-Language` (`en` default, `fr`), `X-Capture-Device` (`watch`, `mac`, `phone`, `api`), `X-Occurred-At` (ISO 8601), `X-Exercise-Id` (an open drill: the capture then records one measured check-in against its basis; `docs/drills.md`).
 
 ## Pipeline
 

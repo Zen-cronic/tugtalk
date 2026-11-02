@@ -186,6 +186,10 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         os.environ.pop('MODEL_API_KEY', None)  # restored by the setUp patch.dict on teardown
         status, body = await self.raw('/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'bridge-audio-1'), (b'x-language', b'de')])
         self.assertEqual(status, 400); self.assertIn('X-Language', body['message'])  # capture header reached Node
+        # A capture naming a drill: X-Exercise-Id reaches Node, which checks it before any model call.
+        status, body = await self.raw('/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'bridge-audio-3'), (b'x-exercise-id', b'not an id')])
+        self.assertEqual(status, 400); self.assertIn('X-Exercise-Id', body['message'])
+        self.assertIn('x-exercise-id', FORWARDED)
         # The watch adds consent, attribution and context headers for French; the adapter drops them (allow-list) and the request proceeds.
         status, body = await self.raw('/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'bridge-audio-2'), (b'x-language', b'fr'),
                                                               (b'x-consent-basis', b'self_only'), (b'x-attribution', b'self_declared'), (b'x-context', b'everyday')])

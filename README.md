@@ -50,8 +50,8 @@ Setup creates `.data/connector.sqlite` and a private `.data/operator-token.txt`.
 | GET | `/v1/receipts` | Confirmed writes for that user |
 | GET | `/v1/files/evidence.txt` | Current evidence as plain text |
 | POST | `/v1/goals` | Create a goal |
-| POST | `/v1/exercises` | Assign an exercise linked to a goal |
-| POST | `/v1/check-ins` | Record one self-reported completion/skipped result for an assigned exercise |
+| POST | `/v1/exercises` | Assign an exercise linked to a goal. With a `basis` (a habit count over the person's own measured sessions) it is a drill: the server recounts the basis and refuses a wrong one with 422 and the true count. One open drill per goal. See `docs/drills.md`. |
+| POST | `/v1/check-ins` | Record one self-reported completion/skipped result for an assigned exercise. A watch capture that names a drill (`X-Exercise-Id`) writes the drill's check-in itself, with `evidence_type: measured`. |
 | PATCH | `/v1/goals/{id}` | Revise a goal with optimistic version checking |
 | PATCH | `/v1/sessions/{id}` | Correct or hide synthetic evidence with a reason and version check |
 | GET | `/v1/eval` | Public, read-only. Recomputes the measurement eval over the bundled synthetic corpus (no user data). See `eval/README.md`. |
