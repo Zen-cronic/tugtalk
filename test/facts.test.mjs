@@ -17,6 +17,8 @@ import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-cont
 import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS } from '../src/voice.mjs';
 import { runVoiceEval } from '../src/voice-eval.mjs';
 import { createSpeechModel, SPEECH_PROVIDERS } from '../src/speech.mjs';
+import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
+import { MODEL_BUDGET_MS, ADAPTER_DEADLINE_MS, MIN_START_MS } from '../src/budget.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -181,6 +183,25 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         const before = calls.describe;
         assert.equal((await post(saved + 1)).status, 429); assert.equal(calls.describe, before, 'refused before any model call');
         return String(saved);
+      },
+      'recording-rate-limit': async () => {
+        // A separate account, so the count starts at zero: post until the route refuses, then check the refusal cost nothing.
+        store.addToken('facts-rec-rate', 'facts-rec-user');
+        const post = i => fetch(base + '/v1/recordings', { method: 'POST', headers: { Authorization: 'Bearer facts-rec-rate', 'Content-Type': 'audio/wav', 'Idempotency-Key': `facts-rec-${i}` }, body: wav(0.6) });
+        let saved = 0, status;
+        while ((status = (await post(saved)).status) === 200 && saved < 100) saved++;
+        assert.equal(status, 429);
+        const before = calls.transcribe + calls.analyze;
+        assert.equal((await post(saved + 1)).status, 429); assert.equal(calls.transcribe + calls.analyze, before, 'refused before any model call');
+        assert.equal(saved, RECORDING_RATE_LIMIT.requests);
+        return String(saved);
+      },
+      'model-budget': () => {
+        const bridge = read('deploy/bridge.py');
+        assert.equal(Number(bridge.match(/^MODEL_DEADLINE = (\d+)$/m)[1]) * 1000, ADAPTER_DEADLINE_MS, 'the budget is set against the adapter deadline');
+        assert.match(bridge, /start\['budget_ms'\] = /, 'the adapter passes what is left of the deadline');
+        const starts = Object.values(MIN_START_MS);
+        return `${MODEL_BUDGET_MS / 1000} s, ${(ADAPTER_DEADLINE_MS - MODEL_BUDGET_MS) / 1000} s under the ${ADAPTER_DEADLINE_MS / 1000} s deadline; a step needs ${Math.min(...starts) / 1000}–${Math.max(...starts) / 1000} s left to start`;
       },
       'seed-sessions': () => {
         const seeded = store.list('facts-user', 'sessions').filter(x => x.source === 'synthetic_fixture');

@@ -23,6 +23,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `screen-text-max` | Largest redacted screen text accepted | 6000 characters, 12 KiB | HTTP: 6001 characters returns 400 |
 | `screen-text-retained` | Screen text is stored | no | HTTP screen context with a fake model: `text_retained` is false and the text is not in the database file |
 | `screen-rate-limit` | Screen contexts per hour, refused before any model call | 30 | HTTP on a fresh account: 30 are saved, the 31st returns 429 without a model call |
+| `recording-rate-limit` | Recordings per hour, refused before any model call | 30 | HTTP on a fresh account: 30 are saved, the 31st returns 429 without a model call |
+| `model-budget` | Time budget for one paid request (recording, voice round, screen context) | 120 s, 30 s under the 150 s deadline; a step needs 4–15 s left to start | `MODEL_BUDGET_MS`, `MIN_START_MS` (src/budget.mjs) against `MODEL_DEADLINE` and the `budget_ms` the adapter sends (deploy/bridge.py); worst case in test/budget.test.mjs |
 | `seed-sessions` | Seeded sessions: fictional fixtures and their dates | 2, simulated, 2026-10-30 and 2026-10-31 | `Store.seed` on a new account: `source` synthetic_fixture, `measurement_status` simulated |
 | `measured-improvement` | Improvement score we compute | none (null) | `measured_improvement` in the fresh overview |
 | `unauthenticated` | `/v1/overview` without a token | 401 | HTTP |
@@ -30,7 +32,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 94 | A `node --test` run of the other test files (all must pass), plus this one |
+| `node-tests` | Node test cases, as `npm test` reports them | 100 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 16 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |

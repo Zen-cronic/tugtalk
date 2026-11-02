@@ -33,6 +33,8 @@ An exact retry (same key, same audio and the same headers) returns the stored ro
    - **The question.** It is returned either way, but first code removes every quoted span in it that is not word for word in the transcript, and a "You said" left with nothing to introduce. It cuts the question to 25 words and re-scrubs emails, phone numbers and long numbers. If too little is left, a fixed question for the move replaces it. What code changed is stored in `reply_checks`.
 6. One receipt and one `voice-rounds` record.
 
+The round has one time budget (`src/budget.mjs`), as recordings do: 120 s, cut to what is left of the hosting adapter's deadline. Transcription starts only with 10 s left, and a reply attempt only with 4 s left; each attempt is cut off at 8 s or when the budget runs out. A reply with no time left is a 502 `reply_failed` like any failed reply. So the round always answers before the adapter gives up.
+
 ## Response 200
 
 ```json
@@ -81,7 +83,7 @@ The usual JSON error shape, `{error, message, request_id}`:
 | 415 | `content_type` | Not `audio/wav` |
 | 429 | `rate_limited` | Over 60 rounds in the last hour |
 | 502 | `transcription_failed`, `transcription_empty`, `reply_failed` | A provider failed; nothing is saved, and a retry with the same key runs the round again |
-| 503 | `transcription_unconfigured`, `reply_unconfigured`, `speech_unconfigured`, `storage_or_worker_unavailable` | Not configured, or the hosting adapter could not run the request in time; retry with the same key |
+| 503 | `transcription_unconfigured`, `reply_unconfigured`, `speech_unconfigured`, `time_budget`, `storage_or_worker_unavailable` | Not configured, not enough time left to start (nothing sent), or the hosting adapter could not run the request in time; retry with the same key |
 
 ## What is stored, and what is not
 
