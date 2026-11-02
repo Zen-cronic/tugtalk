@@ -22,6 +22,8 @@ One exception, off by default and asked each round: **Check what's in my hands**
 4. Code reads only the boxes from each streamed answer (`<12f>0<|box;x1=…;y1=…;x2=…;y2=…|>`), frame by frame. A phone or paper is **in hand** on a frame where its box shares area with a hand box (touching edges do not count). Counting is per frame, never by object id: SAM reuses an id when one object leaves and another enters.
 5. Frames become seconds (one frame is 0.1 s). The round gets a new version with `replay`; the clip is dropped. The wrap-up card shows one cell per second of answers, filled by the share of that second with something in hand, and the label.
 
+**The next round.** The first answer of the next practice round (within 15 minutes) sends the counted seconds, in whole seconds, to the model playing the other person, so its first question can mention them. Code checks every number in that question against the counts: a number code did not count is never spoken; code's own line from the counts takes its place. Later answers of that round get no seconds.
+
 The labels name counted objects and seconds only. Nothing here describes posture, confidence, attention or feelings, and the wrap-up card shows the strip instead of "faced the camera", never both.
 
 Apple Vision could find hands on the Mac; phones and paper need SAM 3.1, so one SAM pass counts all three.

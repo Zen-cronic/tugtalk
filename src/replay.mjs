@@ -276,7 +276,8 @@ export async function handleReplay(store, models, user, roundId, req, key, reque
   }));
 }
 
-// The newest hands check on a round created since `since` (ISO), for the next round's first reply.
+// The newest hands check on a round created since `since` (ISO), for the next round's first reply (prepareVoiceRound,
+// src/voice.mjs, passes the wrap-up that ended the last round, so only that round's check is found).
 export function latestReplay(store, user, since) {
   const rounds = store.list(user, 'voice-rounds').filter(r => !r.deleted && r.replay && (!since || r.created_at >= since))
     .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
