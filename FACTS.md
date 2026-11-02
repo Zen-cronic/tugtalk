@@ -13,7 +13,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `transcribe-model` | Speech-to-text model | muse-voice-transcribe-1.0 | `TRANSCRIBE_MODEL` and the request body sent to Meta (fake fetch) |
 | `analysis-model` | Observation model | meta-models/muse-spark-open-1026 | `ANALYSIS_MODEL` and the request body sent to Baseten (fake fetch) |
 | `analysis-budgets` | Observation token budgets | 4000, then 8000 on retry | `max_tokens` sent to Baseten (fake fetch) when the first reply runs out of tokens |
-| `contract-version` | API contract version | 0.6.0 | `/openapi.json` `info.version`, `/connector.md` and the titles of docs/capture.md and docs/voice.md |
+| `contract-version` | API contract version | 0.7.0 | `/openapi.json` `info.version`, `/connector.md` and the titles of docs/capture.md and docs/voice.md |
 | `languages` | Capture languages | en, fr | The `X-Language` check in `captureParams`: each listed value passes, others fail |
 | `devices` | Capture device labels the API accepts | watch, mac, phone, api | The `X-Capture-Device` check in `captureParams`: each listed value passes, others fail |
 | `lexicons` | Habit-count methods | lexicon-en-v2, lexicon-fr-v1 | `measure().method` |
@@ -36,7 +36,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 127 | A `node --test` run of the other test files (all must pass), plus this one |
+| `node-tests` | Node test cases, as `npm test` reports them | 134 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 22 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
@@ -106,3 +106,14 @@ Every number or name we state about this project, and where it comes from. `test
 | `camera-header` | What the Mac sends about the camera for one answer (`X-Camera-Metrics`, stored as `metrics.camera`) | 4 integers (faced_camera_pct, looked_away_count, longest_look_away_ms, frames); any other field is refused | `CAMERA_FIELDS` (src/camera-metrics.mjs); HTTP: the Mac's header is stored, and one with an extra field returns 400 |
 | `camera-cone` | When a camera frame counts as "faced the camera", and the shortest counted look-away | head turn ≤ 20° and tilt ≤ 15°; look-aways counted from 1.0 s | `FacingRule` and `minLookAway` in apps/mac/Sources/ScreenContextCore/CameraMeter.swift, and the rule in `eval/camera-synthetic.json` |
 | `camera-synthetic` | Offline meter check on synthetic head angles with noise and missed frames, not a real face | 8 scenarios × 20 seeds: look-away count right in 160 of 160; worst share error 9 points | `eval/camera-synthetic.json` (`swift run camera-eval synthetic`) |
+
+## Drills set by Muse
+
+| ID | Claim | Value | Checked against |
+|---|---|---|---|
+| `drill-basis-check` | A drill is saved when its basis claims the wrong count | no: 422 basis_mismatch, with the count code measured | HTTP: `POST /v1/exercises` with claimed_count one above the stored metrics; the body carries `recomputed.count` (src/drills.mjs `checkBasis`) |
+| `drill-basis-sources` | What a basis may cite | 1–10 measured captures or voice rounds from the last 14 days; fixtures and hidden sessions refused; habits filler, hedge, restart | `BASIS_MAX_SOURCES`, `BASIS_WINDOW_DAYS` and `DRILL_HABITS` (src/drills.mjs); test/drills.test.mjs refuses each other kind of id |
+| `drill-one-open` | Open drills (a basis, no check-in) per goal | 1 | HTTP: a second drill on the same goal returns 409 drill_open |
+| `drill-measured-checkin` | What a capture that names a drill (`X-Exercise-Id`) records | one check-in per drill, evidence_type measured: the capture's hedge count beside the basis count | HTTP with fake models: two captures name the drill, one check-in is written, and its feedback says one measured result, not a trend |
+| `drill-due` | When a drill may be due | optional; at most 7 days ahead, no minimum lead time | `DUE_MAX_DAYS` and `checkDueAt` (src/drills.mjs) |
+| `drill-set-by` | Who writes exercises, so "set by Muse" can be checked | the assistant, through the connector; 0 app source files call POST /v1/exercises | A read of every source file under apps/ for `v1/exercises` |

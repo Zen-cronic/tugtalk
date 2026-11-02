@@ -21,6 +21,7 @@ import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
 import { CAMERA_FIELDS, CAMERA_METHOD } from '../src/camera-metrics.mjs';
 import { MODEL_BUDGET_MS, ADAPTER_DEADLINE_MS, MIN_START_MS } from '../src/budget.mjs';
 import { MEDIA_CAP_BYTES, MEDIA_DOWNLOAD_LIMIT } from '../src/media.mjs';
+import { BASIS_MAX_SOURCES, BASIS_WINDOW_DAYS, DUE_MAX_DAYS, DRILL_HABITS, checkDueAt } from '../src/drills.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
@@ -281,7 +282,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       ...await speechChecks(),
       ...liveVoiceChecks(),
       ...hostedChecks(),
-      ...cameraChecks(base)
+      ...cameraChecks(base),
+      ...drillChecks(base, store)
     };
 
     const facts = parseFacts();
@@ -596,6 +598,70 @@ function cameraChecks(base) {
       assert.equal(right / runs, r.count_match_rate);
       assert.match(r.note, /not Vision's accuracy on a real face/);
       return `${r.scenarios.length} scenarios × ${r.seeds} seeds: look-away count right in ${right} of ${runs}; worst share error ${r.worst_pct_error} points`;
+    }
+  };
+}
+
+// Drills set by the assistant: the basis recount, the measured check-in and the one-open rule over HTTP, and the
+// apps' source read for who writes exercises. Uses its own account, so the rate-limit checks above are unaffected.
+function walk(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? (['build', 'DerivedData', '.build'].some(x => e.name.startsWith(x)) ? [] : walk(join(dir, e.name))) : [join(dir, e.name)]);
+}
+function drillChecks(base, store) {
+  store.addToken('facts-drill', 'facts-drill-user');
+  const headers = (key, extra = {}) => ({ Authorization: 'Bearer facts-drill', 'Idempotency-Key': key, ...extra });
+  const json = async (path, body, key) => { const r = await fetch(base + path, { method: 'POST', headers: headers(key, { 'Content-Type': 'application/json' }), body: JSON.stringify(body) }); return { status: r.status, data: await r.json() }; };
+  const capture = async (key, extra) => (await (await fetch(base + '/v1/recordings', { method: 'POST', body: wav(1.4), headers: headers(key, { 'Content-Type': 'audio/wav', 'X-Capture-Device': 'watch', ...extra }) })).json()).record;
+  let setup, n = 0;
+  const ready = async () => setup ??= (async () => {
+    const goal = (await json('/v1/goals', { title: 'Drill facts', target: 'Fewer hedges' }, 'facts-drill-goal')).data.record.id;
+    const sources = [await capture('facts-drill-s1'), await capture('facts-drill-s2')];
+    const truth = sources.reduce((n, s) => n + s.metrics.hedge_count, 0);
+    const exercise = body => json('/v1/exercises', { goal_id: goal, title: 'Answer without hedges', instructions: 'One sentence.', ...body }, `facts-drill-ex-${++n}`);
+    return { goal, sources, truth, exercise };
+  })();
+  return {
+    'drill-basis-check': async () => {
+      const { sources, truth, exercise } = await ready();
+      const wrong = await exercise({ basis: { habit: 'hedge', source_ids: sources.map(s => s.id), claimed_count: truth + 1 } });
+      assert.equal(wrong.status, 422); assert.equal(wrong.data.error, 'basis_mismatch'); assert.equal(wrong.data.recomputed.count, truth);
+      return `no: ${wrong.status} ${wrong.data.error}, with the count code measured`;
+    },
+    'drill-basis-sources': () => `1–${BASIS_MAX_SOURCES} measured captures or voice rounds from the last ${BASIS_WINDOW_DAYS} days; fixtures and hidden sessions refused; habits ${DRILL_HABITS.join(', ')}`,
+    'drill-one-open': async () => {
+      const { sources, truth, exercise } = await ready();
+      const basis = { habit: 'hedge', source_ids: sources.map(s => s.id), claimed_count: truth };
+      const first = await exercise({ basis });
+      assert.equal(first.status, 200); assert.equal(first.data.record.set_via, 'connector');
+      const second = await exercise({ basis });
+      assert.equal(second.status, 409); assert.equal(second.data.error, 'drill_open');
+      return '1';
+    },
+    'drill-measured-checkin': async () => {
+      const { goal, sources, truth, exercise } = await ready();
+      // The open drill drill-one-open saved, or a new one when this row is checked first.
+      const open = store.list('facts-drill-user', 'exercises').find(e => e.basis && e.goal_id === goal)
+        ?? (await exercise({ basis: { habit: 'hedge', source_ids: sources.map(s => s.id), claimed_count: truth } })).data.record;
+      const session = await capture('facts-drill-c1', { 'X-Goal-Id': goal, 'X-Exercise-Id': open.id });
+      const again = await capture('facts-drill-c2', { 'X-Goal-Id': goal, 'X-Exercise-Id': open.id });
+      const checkIns = store.list('facts-drill-user', 'check-ins');
+      assert.equal(checkIns.length, 1); assert.equal(again.drill.reason, 'already_recorded');
+      const c = checkIns[0];
+      assert.equal(c.id, session.drill.check_in_id); assert.match(c.feedback, /One measured result, not a trend\.$/); assert.doesNotMatch(c.feedback, /improv/i);
+      return `one check-in per drill, evidence_type ${c.evidence_type}: the capture's ${c.measured.habit} count beside the basis count`;
+    },
+    'drill-due': () => {
+      const now = Date.now();
+      assert.doesNotThrow(() => checkDueAt(new Date(now + 60_000).toISOString(), now));
+      assert.throws(() => checkDueAt(new Date(now + DUE_MAX_DAYS * 86_400_000 + 60_000).toISOString(), now));
+      return `optional; at most ${DUE_MAX_DAYS} days ahead, no minimum lead time`;
+    },
+    'drill-set-by': () => {
+      const files = walk(fileURLToPath(new URL('../apps/', import.meta.url))).filter(f => /\.(swift|m|mjs|js|py)$/.test(f));
+      assert.ok(files.length > 10, 'app sources found');
+      const callers = files.filter(f => readFileSync(f, 'utf8').includes('v1/exercises'));
+      assert.deepEqual(callers, []);
+      return 'the assistant, through the connector; 0 app source files call POST /v1/exercises';
     }
   };
 }

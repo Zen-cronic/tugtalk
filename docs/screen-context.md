@@ -1,4 +1,4 @@
-# Screen contexts (contract 0.6.0)
+# Screen contexts (contract 0.7.0)
 
 `POST /v1/screen-contexts` turns the text of one window, read and redacted on the user's Mac, into a short context card in the shared record. Muse reads it through the same fresh overview as everything else, and the Mac companion notices Muse's replies by polling that overview.
 

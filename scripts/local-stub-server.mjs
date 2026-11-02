@@ -26,8 +26,14 @@ if (live && (!process.env.MODEL_API_KEY || !process.env.BASETEN_API_KEY)) { cons
 const STUB = 'stub (local, no model call)';
 const delay = Number(process.env.STUB_DELAY_MS ?? 1500);
 const wait = () => new Promise(r => setTimeout(r, delay));
+// STUB_TRANSCRIPTS="first|second|…": each transcription returns the next one, then the last one again (for drill checks).
+const transcripts = (process.env.STUB_TRANSCRIPTS ?? 'Um, the main point is we ship first.').split('|');
 const models = {
-  async transcribe() { await wait(); return { transcript: 'Um, the main point is we ship first.', turns: [{ turn_id: 0, start_ms: 400, end_ms: 2600, transcript: 'Um, the main point is we ship first.' }], audio_duration_ms: 3000, model: STUB, provider_session_id: 'stub' }; },
+  async transcribe() {
+    await wait();
+    const transcript = transcripts.length > 1 ? transcripts.shift() : transcripts[0];
+    return { transcript, turns: [{ turn_id: 0, start_ms: 400, end_ms: 2600, transcript }], audio_duration_ms: 3000, model: STUB, provider_session_id: 'stub' };
+  },
   // Presses on the first habit it finds (STUB_MOVE=wrap_up ends the round instead). STUB_BAD_QUOTE=1 returns a quote the speaker never said, to show the check dropping it.
   async voiceReply({ user }) {
     await wait();
