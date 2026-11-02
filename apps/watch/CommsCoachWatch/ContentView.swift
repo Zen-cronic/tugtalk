@@ -25,7 +25,7 @@ struct ContentView: View {
             }
             .tint(.red)
         case .recording:
-            Text(timeString(model.recorder.elapsed)).font(.title2.monospacedDigit())
+            ElapsedLabel(recorder: model.recorder)
             Text(model.selectedGoal?.title ?? "No goal").font(.footnote).foregroundStyle(.secondary)
             Button { Task { await model.stopAndUpload() } } label: {
                 Label("Stop", systemImage: "stop.fill").frame(maxWidth: .infinity)
@@ -80,7 +80,17 @@ struct ContentView: View {
         }
     }
 
-    private func timeString(_ t: TimeInterval) -> String {
-        String(format: "%d:%02d", Int(t) / 60, Int(t) % 60)
+}
+
+/// Observes the recorder itself: a nested ObservableObject's changes do not
+/// propagate through CaptureModel, so reading it from ContentView never redraws.
+private struct ElapsedLabel: View {
+    @ObservedObject var recorder: Recorder
+
+    var body: some View {
+        let t = Int(recorder.elapsed)
+        Text(String(format: "%d:%02d", t / 60, t % 60))
+            .font(.title2.monospacedDigit())
+            .contentTransition(.numericText())
     }
 }
