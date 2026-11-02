@@ -1,0 +1,566 @@
+{
+  "name": "heldout-v1",
+  "description": "Synthetic held-out set: about 60 transcripts written and labelled by a separate agent that never saw the labeller's prompt or tuning data. Not real speech.",
+  "labelling_rules": [
+    "Spans are exact, case-sensitive substrings of the transcript. `occurrence` is the 1-based reading-order index among identical case-sensitive spans. No transcript mixes a capitalised and a lowercase form of the same span, and the set avoids words that contain a family word (likely, unlike, pourquoi), so case-insensitive, substring and word-boundary counts all agree.",
+    "like / genre filler: a discourse marker or hesitation ('it's, like, mostly done', 'c'était, genre, trop long'), a quotative ('we were like, okay'), or an approximator before a quantity ('like forty', 'genre dix tickets', 'like half done'). Approximators and quotatives are counted as filler because they carry no lexical meaning.",
+    "like / genre content: a verb ('I like', 'would like', 'you'd like'), a preposition of comparison or example ('looks like', 'a tool like X', 'like front end, back end and testing'), or a noun ('ce genre de', 'le genre musical', 'dans son genre', 'genre' meaning gender). A comma before the word does not make it filler.",
+    "quoi filler: a clause-final discourse tag with no syntactic role ('c'est fini, quoi'). quoi content: an interrogative or relative pronoun with a syntactic role, including a real question that ends on quoi ('on livre quoi ?') and fixed expressions ('quoi de neuf', 'de quoi', 'en quoi', 'à quoi bon', 'quoi qu'il arrive').",
+    "hedge: the speaker softens the certainty or strength of their own claim ('I think we can close it', 'kind of okay', 'un peu serré', 'plutôt simple').",
+    "not_hedge: 'kind of' / 'sort of' + noun meaning a type ('kind of tool', 'sort of budget'); 'un peu de' + noun as a quantity ('un peu de marge'); 'plutôt' meaning rather / instead ('je le mettrais plutôt dans le prochain sprint'); 'think about' / 'penser à' / 'croire en' as cognition or belief-in, not epistemic doubt; 'maybe' used as a noun for someone else's answer.",
+    "Reported speech: a hedge inside a quotation of someone else's words is not_hedge, because the speaker is not hedging their own claim.",
+    "Hedge phrases outside the listed set (for example 'I mean', 'je ne sais pas', 'I'd say') are not labelled."
+  ],
+  "transcripts": [
+    {
+      "id": "en-01",
+      "language": "en",
+      "text": "So the onboarding flow is, like, mostly done. We still have the email step, and that one's like, it's sort of stuck on the copy review. I think we can close it by Thursday if legal gets back to us.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Discourse marker set off by commas before a vague 'mostly done'." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Hesitation before a restart ('that one's like, it's')." },
+        { "family": "hedge", "text": "sort of", "occurrence": 1, "label": "hedge", "why": "Softens 'stuck'." },
+        { "family": "hedge", "text": "I think", "occurrence": 1, "label": "hedge", "why": "Speaker's own uncertainty about the Thursday date." }
+      ]
+    },
+    {
+      "id": "en-02",
+      "language": "en",
+      "text": "I like the plan, honestly. I'd go with option B, a tool like Pagewell for the docs, and we keep the tracker where it is. We tried moving everything once and it was a mess, so, yeah, option B.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "Verb: to like the plan." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "content", "why": "Preposition giving an example: a tool such as Pagewell." }
+      ]
+    },
+    {
+      "id": "en-03",
+      "language": "en",
+      "text": "The deadline is the fourteenth. We were like waiting on the vendor for two weeks, and then they sent the wrong files, so, like, we lost time. Maybe we ask for a three-day extension.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Inserted marker in 'we were like waiting', removable without changing meaning." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Comma-bounded discourse marker." },
+        { "family": "hedge", "text": "Maybe", "occurrence": 1, "label": "hedge", "why": "Tentative proposal." }
+      ]
+    },
+    {
+      "id": "en-04",
+      "language": "en",
+      "text": "My estimate is six weeks. It looks like the backend work is bigger than we thought, because the, the payments module needs a rewrite. I'm not sure about the mobile side, I haven't looked at it yet.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'Looks like' = appears that." },
+        { "family": "hedge", "text": "I'm not sure", "occurrence": 1, "label": "hedge", "why": "Speaker admits uncertainty about the mobile estimate." }
+      ]
+    },
+    {
+      "id": "en-05",
+      "language": "en",
+      "text": "We decided to keep the old pricing page. People said the new one felt cluttered, like a dashboard, and conversions dropped in the test. So we're rolling back today and we'll revisit it in Q2.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "Hard case: after a comma but a real comparison (cluttered like a dashboard)." }
+      ]
+    },
+    {
+      "id": "en-06",
+      "language": "en",
+      "text": "Support tickets are down. We had like forty last week, now it's, it's like twelve. Probably because the login fix went out on Monday. I'd still keep an eye on it though.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Approximator before a number." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Approximator after a repeated word." },
+        { "family": "hedge", "text": "Probably", "occurrence": 1, "label": "hedge", "why": "Tentative causal claim." }
+      ]
+    },
+    {
+      "id": "en-07",
+      "language": "en",
+      "text": "Would you like me to draft the proposal? I can have something by Friday. My recommendation is we keep it short, the kind of summary their board actually reads, and let the client ask for more if they want.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'Would you like' = polite offer, verb." },
+        { "family": "hedge", "text": "kind of", "occurrence": 1, "label": "not_hedge", "why": "'The kind of summary' means type of summary." }
+      ]
+    },
+    {
+      "id": "en-08",
+      "language": "en",
+      "text": "Honestly it was like, we shipped it, and then like nobody used the export button. I think the button is just hidden. I'd move it to the top bar, like the share button.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Hesitation before a restart." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Emphasis marker before 'nobody', removable." },
+        { "family": "like", "text": "like", "occurrence": 3, "label": "content", "why": "Hard case: after a comma but a comparison (placed as the share button is)." },
+        { "family": "hedge", "text": "I think", "occurrence": 1, "label": "hedge", "why": "Speaker's own tentative diagnosis." }
+      ]
+    },
+    {
+      "id": "en-09",
+      "language": "en",
+      "text": "The client called this morning. She said, quote, I think the timeline works, unquote, so we're good to start. I like that they're flexible. We'll kick off on the third.",
+      "occurrences": [
+        { "family": "hedge", "text": "I think", "occurrence": 1, "label": "not_hedge", "why": "Inside a quotation of the client; per the reported-speech rule the speaker is not hedging." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "Verb: to like that they are flexible." }
+      ]
+    },
+    {
+      "id": "en-10",
+      "language": "en",
+      "text": "So for the migration, um, we're kind of halfway. The data's moved but the reports are, like, broken in a few places. I guess we fix those first, then flip the switch next week.",
+      "occurrences": [
+        { "family": "hedge", "text": "kind of", "occurrence": 1, "label": "hedge", "why": "Softens 'halfway'." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Comma-bounded discourse marker." },
+        { "family": "hedge", "text": "I guess", "occurrence": 1, "label": "hedge", "why": "Tentative plan." }
+      ]
+    },
+    {
+      "id": "en-11",
+      "language": "en",
+      "text": "What sort of budget are we talking about? Because if it's under ten thousand, I'd go with the smaller agency. They did something like this for us last year, and it went well.",
+      "occurrences": [
+        { "family": "hedge", "text": "sort of", "occurrence": 1, "label": "not_hedge", "why": "'What sort of budget' asks which type or size of budget." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'Something like this' = a similar project, comparison." }
+      ]
+    },
+    {
+      "id": "en-12",
+      "language": "en",
+      "text": "It's done. Like, actually done. The tests pass, QA signed off, and the release notes are written. We can ship tomorrow morning, or even tonight if ops is around.",
+      "occurrences": [
+        { "family": "like", "text": "Like", "occurrence": 1, "label": "filler", "why": "Sentence-initial emphasis marker." }
+      ]
+    },
+    {
+      "id": "en-13",
+      "language": "en",
+      "text": "Quick update on the offsite. It looks like rain on Saturday, so we moved the team lunch indoors. The venue is booked, the bus is booked, and, uh, I like the new room better anyway.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'Looks like rain' = appears that it will rain." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "content", "why": "Verb: prefers the new room." }
+      ]
+    },
+    {
+      "id": "en-14",
+      "language": "en",
+      "text": "We were like, okay, do we cut scope or push the date? And we went back and forth, and, like, in the end we cut the reporting feature. Perhaps it comes back in the next release.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Quotative introducing the team's thought." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Comma-bounded discourse marker." },
+        { "family": "hedge", "text": "Perhaps", "occurrence": 1, "label": "hedge", "why": "Tentative about the next release." }
+      ]
+    },
+    {
+      "id": "en-15",
+      "language": "en",
+      "text": "I'd say three sprints. Could be two if the design is locked, but it's never locked, so like realistically three. Three and a half with testing, to be safe.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Marker before 'realistically', removable." }
+      ]
+    },
+    {
+      "id": "en-16",
+      "language": "en",
+      "text": "We need a different kind of tool for this. Something like a shared inbox, not a ticket queue. The sales team would like one place to see every reply, and right now they have four.",
+      "occurrences": [
+        { "family": "hedge", "text": "kind of", "occurrence": 1, "label": "not_hedge", "why": "'Kind of tool' means type of tool." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'Something like a shared inbox' = comparison / example." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "content", "why": "'Would like' = want, verb." }
+      ]
+    },
+    {
+      "id": "en-17",
+      "language": "en",
+      "text": "Okay so the vendor contract. I read it twice and it's, like, it's fine? Mostly. There's a clause about data retention that's sort of vague, and I'd want legal to look at it before we sign.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Hesitation before a restart." },
+        { "family": "hedge", "text": "sort of", "occurrence": 1, "label": "hedge", "why": "Softens 'vague'." }
+      ]
+    },
+    {
+      "id": "en-18",
+      "language": "en",
+      "text": "I think about this every time we onboard someone: the setup doc is out of date. I'd like us to assign an owner. Not a big project, maybe an afternoon of work.",
+      "occurrences": [
+        { "family": "hedge", "text": "I think", "occurrence": 1, "label": "not_hedge", "why": "'Think about' = considers, cognition not epistemic doubt." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'I'd like' = want, verb." },
+        { "family": "hedge", "text": "maybe", "occurrence": 1, "label": "hedge", "why": "Tentative effort estimate." }
+      ]
+    },
+    {
+      "id": "en-19",
+      "language": "en",
+      "text": "The numbers are good. Revenue is up like eight percent, churn is flat, and the new plan is, is selling better than we expected. I'd like to double the ad spend for November.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Approximator before a figure." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "content", "why": "'I'd like' = want, verb." }
+      ]
+    },
+    {
+      "id": "en-20",
+      "language": "en",
+      "text": "We should copy the finance team's process, like the two-step approval they set up in spring. It was like way faster for them, and nobody complained. I'd start with our team and see.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "Hard case: after a comma but introduces an example (such as the two-step approval)." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Intensifier marker before 'way faster', removable." }
+      ]
+    },
+    {
+      "id": "en-21",
+      "language": "en",
+      "text": "Decision is we go with the in-house option. I'm not sure it's cheaper long term, but it's faster to start, and it feels like the safer bet. The team already knows the stack. We, we revisit in six months.",
+      "occurrences": [
+        { "family": "hedge", "text": "I'm not sure", "occurrence": 1, "label": "hedge", "why": "Speaker's own doubt about long-term cost." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'Feels like' = seems to be." }
+      ]
+    },
+    {
+      "id": "en-22",
+      "language": "en",
+      "text": "So, like, the thing is, the API keeps timing out, and we were like, is it the network? It wasn't. It's the database. And like the queries are huge. I guess we add an index.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Comma-bounded opener." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Quotative introducing the team's question." },
+        { "family": "like", "text": "like", "occurrence": 3, "label": "filler", "why": "Marker after 'And', removable." },
+        { "family": "hedge", "text": "I guess", "occurrence": 1, "label": "hedge", "why": "Tentative fix." }
+      ]
+    },
+    {
+      "id": "en-23",
+      "language": "en",
+      "text": "For the hiring plan, I'd like two engineers and one designer. If we only get budget for two, then probably one engineer and the designer, because design is the bottleneck right now, not code.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'I'd like' = request, verb." },
+        { "family": "hedge", "text": "probably", "occurrence": 1, "label": "hedge", "why": "Tentative fallback choice." }
+      ]
+    },
+    {
+      "id": "en-24",
+      "language": "en",
+      "text": "The launch went kind of okay. Traffic was fine, signups were lower, just like the last launch. I think the landing page is the problem, it doesn't say what the product does.",
+      "occurrences": [
+        { "family": "hedge", "text": "kind of", "occurrence": 1, "label": "hedge", "why": "Softens 'okay'." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'Just like the last launch' = comparison." },
+        { "family": "hedge", "text": "I think", "occurrence": 1, "label": "hedge", "why": "Speaker's own tentative diagnosis." }
+      ]
+    },
+    {
+      "id": "en-25",
+      "language": "en",
+      "text": "Marco from ops was like, can we push it a week? And I said no, because the client already announced the date. So we're keeping the twentieth, and ops will get extra help.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Quotative introducing Marco's question." }
+      ]
+    },
+    {
+      "id": "en-26",
+      "language": "en",
+      "text": "Rough estimate, two hundred hours. That's, uh, that's for the full build, like front end, back end and testing. If you'd like a smaller first phase, we could do the booking flow alone in about eighty.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "Hard case: after a comma but introduces the list of what the build covers." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "content", "why": "'You'd like' = want, verb." }
+      ]
+    },
+    {
+      "id": "en-27",
+      "language": "en",
+      "text": "So I sort of disagree with the recommendation. I mean, the data supports it, but the sample is tiny, like thirty users, and it was like mostly our own staff. Perhaps we run the survey again with a bigger group before we commit.",
+      "occurrences": [
+        { "family": "hedge", "text": "sort of", "occurrence": 1, "label": "hedge", "why": "Softens 'disagree'." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Approximator before a number, even though it follows a comma." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Marker before 'mostly', removable." },
+        { "family": "hedge", "text": "Perhaps", "occurrence": 1, "label": "hedge", "why": "Tentative proposal." }
+      ]
+    },
+    {
+      "id": "en-28",
+      "language": "en",
+      "text": "Status on the partner deal: legal gave us a maybe, which honestly is better than a no. They'd like a few changes to the payment terms, and I'm drafting those today.",
+      "occurrences": [
+        { "family": "hedge", "text": "maybe", "occurrence": 1, "label": "not_hedge", "why": "Noun naming legal's answer; the speaker is not hedging." },
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'They'd like' = want, verb." }
+      ]
+    },
+    {
+      "id": "en-29",
+      "language": "en",
+      "text": "Um, it's like, it's going. The design is done, the copy is like half done, and the dev work hasn't started. So we need another week, the twelfth instead of the fifth.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "filler", "why": "Hesitation before a restart." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "filler", "why": "Approximator before 'half done'." }
+      ]
+    },
+    {
+      "id": "en-30",
+      "language": "en",
+      "text": "Looks like we're aligned, so let's lock it: we go with the annual plan for the team licenses. I'd like finance to approve it by Wednesday. And thanks, everyone, that was quick.",
+      "occurrences": [
+        { "family": "like", "text": "like", "occurrence": 1, "label": "content", "why": "'Looks like' = it appears that." },
+        { "family": "like", "text": "like", "occurrence": 2, "label": "content", "why": "'I'd like' = request, verb." }
+      ]
+    },
+    {
+      "id": "fr-01",
+      "language": "fr",
+      "text": "Alors, le point sur la refonte du site. C'était, genre, trop long à charger, donc on a tout compressé. Maintenant ça va beaucoup mieux, et je pense qu'on peut le mettre en ligne lundi.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "filler", "why": "Discourse marker set off by commas." },
+        { "family": "hedge", "text": "je pense", "occurrence": 1, "label": "hedge", "why": "Speaker's own tentative claim about Monday." }
+      ]
+    },
+    {
+      "id": "fr-02",
+      "language": "fr",
+      "text": "Franchement, ce genre de projet, on l'a déjà fait trois fois. Je ne vois pas où est le risque. On a l'équipe, on a le budget, il faut juste valider la date, quoi.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "content", "why": "'Ce genre de projet' = this type of project." },
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag with no syntactic role." }
+      ]
+    },
+    {
+      "id": "fr-03",
+      "language": "fr",
+      "text": "Quoi de neuf depuis mardi ? Pas grand-chose, honnêtement. Le fournisseur n'a pas répondu, on a relancé deux fois. Si rien ne bouge d'ici jeudi, on passe au plan B.",
+      "occurrences": [
+        { "family": "quoi", "text": "Quoi", "occurrence": 1, "label": "content", "why": "'Quoi de neuf' = real question, what's new." }
+      ]
+    },
+    {
+      "id": "fr-04",
+      "language": "fr",
+      "text": "Je ne sais pas quoi faire avec le module de facturation. Il marche, mais il est, il est vraiment lent. On pourrait peut-être le réécrire, mais ça prend un mois, quoi.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "content", "why": "Object pronoun of 'faire': don't know what to do." },
+        { "family": "hedge", "text": "peut-être", "occurrence": 1, "label": "hedge", "why": "Tentative proposal." },
+        { "family": "quoi", "text": "quoi", "occurrence": 2, "label": "filler", "why": "Clause-final tag." }
+      ]
+    },
+    {
+      "id": "fr-05",
+      "language": "fr",
+      "text": "Pour le ciblage de la campagne, on filtre par âge, genre et région. Le reste, on le retire. C'est plutôt simple à configurer, ça prend une heure, deux maximum.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "content", "why": "Hard case: after a comma but a noun meaning gender, a targeting filter." },
+        { "family": "hedge", "text": "plutôt", "occurrence": 1, "label": "hedge", "why": "Degree softener: fairly simple." }
+      ]
+    },
+    {
+      "id": "fr-06",
+      "language": "fr",
+      "text": "On a genre dix tickets ouverts sur l'appli. La plupart sont des petits bugs d'affichage. Je crois qu'on peut tout fermer avant la démo, si personne ne tombe malade, quoi.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "filler", "why": "Approximator before a number." },
+        { "family": "hedge", "text": "Je crois", "occurrence": 1, "label": "hedge", "why": "Speaker's own tentative claim." },
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." }
+      ]
+    },
+    {
+      "id": "fr-07",
+      "language": "fr",
+      "text": "À quoi ça sert de faire une deuxième réunion si la décision est déjà prise ? Je propose qu'on envoie juste un mail récapitulatif et qu'on avance. Ça nous fait gagner une heure.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "content", "why": "'À quoi ça sert' = what is the point, interrogative." }
+      ]
+    },
+    {
+      "id": "fr-08",
+      "language": "fr",
+      "text": "Bon, le client veut qu'on livre plus tôt. D'accord, mais on livre quoi ? La version complète ou juste le tableau de bord ? Parce que ça change tout pour l'estimation.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "content", "why": "Hard case: clause-final, but a real question (deliver what?)." }
+      ]
+    },
+    {
+      "id": "fr-09",
+      "language": "fr",
+      "text": "Pour la pub, l'agence propose une musique électro. Moi, ce n'est pas trop le genre musical de la marque. Je partirais plutôt sur quelque chose d'acoustique, plus chaleureux. On peut leur demander deux autres options.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "content", "why": "'Le genre musical' = musical genre, noun." },
+        { "family": "hedge", "text": "plutôt", "occurrence": 1, "label": "not_hedge", "why": "Means 'instead' (acoustic rather than electro)." }
+      ]
+    },
+    {
+      "id": "fr-10",
+      "language": "fr",
+      "text": "La migration, euh, c'est genre à moitié fait. Les données sont copiées, mais les rapports, les rapports sont cassés. Il nous faut encore une semaine, quoi. Deux si les tests échouent.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "filler", "why": "Approximator / marker before 'à moitié fait', no commas." },
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." }
+      ]
+    },
+    {
+      "id": "fr-11",
+      "language": "fr",
+      "text": "Le budget est validé, avec un peu de marge pour les imprévus. On commence le quinze. Ce genre de chantier dépasse toujours, donc la marge, on va en avoir besoin.",
+      "occurrences": [
+        { "family": "hedge", "text": "un peu", "occurrence": 1, "label": "not_hedge", "why": "'Un peu de marge' is a quantity, not a softener." },
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "content", "why": "'Ce genre de chantier' = this type of job." }
+      ]
+    },
+    {
+      "id": "fr-12",
+      "language": "fr",
+      "text": "Le planning est un peu serré, je ne vais pas mentir. On a genre trois jours de retard sur la maquette. Mais l'équipe est motivée, on avance, quoi.",
+      "occurrences": [
+        { "family": "hedge", "text": "un peu", "occurrence": 1, "label": "hedge", "why": "Softens 'serré'." },
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "filler", "why": "Approximator before a number." },
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." }
+      ]
+    },
+    {
+      "id": "fr-13",
+      "language": "fr",
+      "text": "On a décidé de ne pas recruter ce trimestre. Je sais, ce n'est pas ce que vous vouliez entendre. Mais on n'a pas de quoi payer deux salaires de plus tant que le contrat n'est pas signé.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "content", "why": "'De quoi payer' = the means to pay, pronoun." }
+      ]
+    },
+    {
+      "id": "fr-14",
+      "language": "fr",
+      "text": "Ce qu'il nous faut, c'est un genre de tableau partagé, où chaque équipe met ses dates. Rien de compliqué. Je pense qu'un tableur suffit pour commencer, on verra après.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "content", "why": "'Un genre de tableau' = a kind of board, noun." },
+        { "family": "hedge", "text": "Je pense", "occurrence": 1, "label": "hedge", "why": "Speaker's own tentative claim." }
+      ]
+    },
+    {
+      "id": "fr-15",
+      "language": "fr",
+      "text": "Je pense à la présentation de vendredi depuis ce matin. Il manque les chiffres de septembre. Si quelqu'un peut me les envoyer avant midi, ce serait, genre, parfait.",
+      "occurrences": [
+        { "family": "hedge", "text": "Je pense", "occurrence": 1, "label": "not_hedge", "why": "'Penser à' = thinking about, cognition not doubt." },
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "filler", "why": "Comma-bounded discourse marker." }
+      ]
+    },
+    {
+      "id": "fr-16",
+      "language": "fr",
+      "text": "Bref, le fournisseur a encore changé ses prix. Dix pour cent de plus. On peut négocier, mais franchement on devrait regarder ailleurs, quoi. J'ai déjà deux noms.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." }
+      ]
+    },
+    {
+      "id": "fr-17",
+      "language": "fr",
+      "text": "Je ne vois pas en quoi c'est urgent. Le bug touche trois utilisateurs, et il y a un contournement. Je le mettrais plutôt dans le prochain sprint, pas celui-ci.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "content", "why": "'En quoi' = in what way, pronoun." },
+        { "family": "hedge", "text": "plutôt", "occurrence": 1, "label": "not_hedge", "why": "Means 'instead' (next sprint rather than this one)." }
+      ]
+    },
+    {
+      "id": "fr-18",
+      "language": "fr",
+      "text": "Écoutez, je crois en cette équipe. On a raté la première date, d'accord, mais la deuxième version est solide. On présente au comité le vingt, et je défendrai le projet, quoi qu'il arrive.",
+      "occurrences": [
+        { "family": "hedge", "text": "je crois", "occurrence": 1, "label": "not_hedge", "why": "'Croire en' = believe in, a statement of confidence." },
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "content", "why": "Hard case: near the end, but part of the fixed concessive 'quoi qu'il arrive'." }
+      ]
+    },
+    {
+      "id": "fr-19",
+      "language": "fr",
+      "text": "Genre, on refait tout le parcours d'inscription ? Ça me paraît beaucoup. On pourrait peut-être juste changer le premier écran et mesurer. Si ça ne suffit pas, on va plus loin.",
+      "occurrences": [
+        { "family": "genre", "text": "Genre", "occurrence": 1, "label": "filler", "why": "Sentence-initial incredulity marker." },
+        { "family": "hedge", "text": "peut-être", "occurrence": 1, "label": "hedge", "why": "Tentative proposal." }
+      ]
+    },
+    {
+      "id": "fr-20",
+      "language": "fr",
+      "text": "La date limite, c'est le trente. Je ne suis pas sûr qu'on tienne, honnêtement. Il reste la traduction et les tests, et la traduction, on l'attend toujours, quoi.",
+      "occurrences": [
+        { "family": "hedge", "text": "Je ne suis pas sûr", "occurrence": 1, "label": "hedge", "why": "Speaker's own doubt about the deadline." },
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." }
+      ]
+    },
+    {
+      "id": "fr-21",
+      "language": "fr",
+      "text": "La directrice m'a dit, je cite, je pense que c'est trop cher, fin de citation. C'est le genre de remarque qu'on attendait. Donc on revoit le devis, on retire l'option de maintenance et on repasse jeudi.",
+      "occurrences": [
+        { "family": "hedge", "text": "je pense", "occurrence": 1, "label": "not_hedge", "why": "Inside a quotation of the director; per the reported-speech rule the speaker is not hedging." },
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "content", "why": "'Le genre de remarque' = the kind of remark." }
+      ]
+    },
+    {
+      "id": "fr-22",
+      "language": "fr",
+      "text": "Avant de chiffrer, il faut savoir de quoi on parle. Une appli mobile ? Un site ? Les deux ? Parce que pour moi, c'est genre trois mois de différence entre les options.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "content", "why": "'De quoi on parle' = what we are talking about, pronoun." },
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "filler", "why": "Approximator before a duration." }
+      ]
+    },
+    {
+      "id": "fr-23",
+      "language": "fr",
+      "text": "Mon estimation, c'est six semaines. C'est plutôt prudent, on a de la marge. Les intégrations, c'est le, c'est le gros morceau. Le reste, c'est du déjà-vu, quoi.",
+      "occurrences": [
+        { "family": "hedge", "text": "plutôt", "occurrence": 1, "label": "hedge", "why": "Degree softener: fairly conservative." },
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." }
+      ]
+    },
+    {
+      "id": "fr-24",
+      "language": "fr",
+      "text": "On reçoit des demandes de tout genre en ce moment, et l'équipe support est un peu débordée. Je recommande d'ajouter un formulaire avec des catégories, ça trierait déjà la moitié.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "content", "why": "'De tout genre' = of every type, noun." },
+        { "family": "hedge", "text": "un peu", "occurrence": 1, "label": "hedge", "why": "Softens 'débordée'." }
+      ]
+    },
+    {
+      "id": "fr-25",
+      "language": "fr",
+      "text": "Le prototype marche. Bon, il plante de temps en temps, mais il marche, quoi. La question, c'est on montre quoi au client ? Moi je montrerais juste la recherche.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." },
+        { "family": "quoi", "text": "quoi", "occurrence": 2, "label": "content", "why": "Real question: show the client what?" }
+      ]
+    },
+    {
+      "id": "fr-26",
+      "language": "fr",
+      "text": "Il me faudrait un peu de temps pour relire le contrat. Genre deux jours. Il y a des clauses sur la propriété intellectuelle que je ne comprends pas bien, et je préfère poser des questions avant de signer.",
+      "occurrences": [
+        { "family": "hedge", "text": "un peu", "occurrence": 1, "label": "not_hedge", "why": "'Un peu de temps' is a quantity." },
+        { "family": "genre", "text": "Genre", "occurrence": 1, "label": "filler", "why": "Approximator before a duration." }
+      ]
+    },
+    {
+      "id": "fr-27",
+      "language": "fr",
+      "text": "On garde l'ancien logo. Le nouveau est joli, mais les clients ne le reconnaissaient pas dans le test. Peut-être qu'on le retravaille l'an prochain. Pour l'instant, on ne touche à rien, quoi.",
+      "occurrences": [
+        { "family": "hedge", "text": "Peut-être", "occurrence": 1, "label": "hedge", "why": "Tentative future plan." },
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." }
+      ]
+    },
+    {
+      "id": "fr-28",
+      "language": "fr",
+      "text": "Le nouvel outil de suivi est très bien dans son genre, mais il est genre super lent sur les gros projets. On l'a testé avec l'équipe finance et ils ont abandonné au bout d'une heure.",
+      "occurrences": [
+        { "family": "genre", "text": "genre", "occurrence": 1, "label": "content", "why": "'Dans son genre' = for its category, noun." },
+        { "family": "genre", "text": "genre", "occurrence": 2, "label": "filler", "why": "Marker before 'super lent', no commas." }
+      ]
+    },
+    {
+      "id": "fr-29",
+      "language": "fr",
+      "text": "Pour la conférence, on a le stand et les badges. Il reste les goodies, et là je ne sais pas quoi commander. Probablement des carnets, c'est ce qui part le mieux d'habitude.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "content", "why": "Object pronoun of 'commander'." },
+        { "family": "hedge", "text": "Probablement", "occurrence": 1, "label": "hedge", "why": "Tentative choice." }
+      ]
+    },
+    {
+      "id": "fr-30",
+      "language": "fr",
+      "text": "Peu importe ce qu'on décide aujourd'hui, il faut prévenir l'équipe ce soir. Moi je vote pour le report. On n'est pas prêts, quoi. À quoi bon se précipiter ? Et je crois que le client préfère attendre.",
+      "occurrences": [
+        { "family": "quoi", "text": "quoi", "occurrence": 1, "label": "filler", "why": "Clause-final tag." },
+        { "family": "quoi", "text": "quoi", "occurrence": 2, "label": "content", "why": "Fixed interrogative 'à quoi bon' = what's the use." },
+        { "family": "hedge", "text": "je crois", "occurrence": 1, "label": "hedge", "why": "Speaker's own tentative claim about the client." }
+      ]
+    }
+  ]
+}
