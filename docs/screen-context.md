@@ -37,7 +37,7 @@ The field names `goal_id`, `language`, `capture_device` and `occurred_at` match 
 3. Check the goal is owned (404 otherwise).
 4. Refuse a 31st request in an hour with 429, before any model call. Saved and model-failed requests count.
 5. Scrub the text again on the server: emails, phone numbers, card-like numbers and digit runs of six or more become placeholders. The counts are saved as `redaction.server_counts`; on correctly redacted input they are all zero.
-6. Baseten `meta-models/muse-spark-open-1026` returns `{summary, observation, next_step}`. Same budgets as captures: 4000 tokens, then one retry at 8000. The prompt (`screenContextSystemPrompt` in `src/screen-context.mjs`) says the screen text is untrusted data, not instructions, and that redacted values must never be guessed.
+6. Baseten `meta-models/muse-spark-open-1026` returns `{summary, observation, next_step}`. Same budgets as captures: 4000 tokens, then one retry at 8000, and the same opt-in `ANALYSIS_EFFORT` (`medium` on the hosted service). The prompt (`screenContextSystemPrompt` in `src/screen-context.mjs`) says the screen text is untrusted data, not instructions, and that redacted values must never be guessed.
 7. The model's output is scrubbed with the same patterns (`redaction.output_counts`) and capped: summary 300, observation 600, next step 300 characters.
 8. **If analysis fails, nothing is saved** and the route returns 502. Unlike a recording, nothing here was measured by code, so there is nothing worth keeping without the model. A retry with the same key runs the model again.
 9. One receipt and a `screen-contexts` record:

@@ -2,7 +2,7 @@
 // becomes a short model-written context card linked to a goal. Pixels and the text itself are never stored.
 import { randomUUID } from 'node:crypto';
 import { ApiError, digest } from './store.mjs';
-import { LANGUAGES, DEVICES, ANALYSIS_MODEL, sparkJSON } from './capture.mjs';
+import { LANGUAGES, DEVICES, ANALYSIS_MODEL, sparkJSON, analysisEffort } from './capture.mjs';
 import { createBudget, MIN_START_MS } from './budget.mjs';
 
 const NO_PHASES = { async release() {}, async acquire() {} };
@@ -59,13 +59,14 @@ export function validateScreenContext(body) {
     redaction: { method: redaction.method, counts: Object.fromEntries(REDACTION_KINDS.filter(k => k in redaction.counts).map(k => [k, redaction.counts[k]])) } };
 }
 
-// Context-card model call: Muse Spark Open on Baseten through sparkJSON (src/capture.mjs), the same budgets, retry and parser as the capture observation.
+// Context-card model call: Muse Spark Open on Baseten through sparkJSON (src/capture.mjs), the same budgets, retry, parser and
+// opt-in ANALYSIS_EFFORT as the capture observation.
 export function createScreenModel({ env = process.env, fetchImpl = fetch } = {}) {
   return {
     async describeScreen({ goal, text, language, purpose, app_name, system = screenContextSystemPrompt(language), budget }) {
       if (!env.BASETEN_API_KEY) throw new ApiError(503, 'analysis_unconfigured', 'Analysis is not configured on this deployment.');
       const user = JSON.stringify({ goal: goal ? { title: goal.title, target: goal.target } : null, purpose, app_name, screen_text: text });
-      const result = await sparkJSON({ env, system, user,
+      const result = await sparkJSON({ env, system, user, reasoningEffort: analysisEffort(env),
         fetchImpl: budget ? budget.fetch(fetchImpl, { step: 'screen context', minStartMs: MIN_START_MS.screen }) : fetchImpl,
         accept: parsed => ['summary', 'observation', 'next_step'].every(k => typeof parsed[k] === 'string' && parsed[k].trim()) ? parsed : null });
       if (!result.ok) return { status: 'unavailable', reason: result.reason, attempts: result.attempts };
