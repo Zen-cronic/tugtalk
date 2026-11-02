@@ -37,7 +37,7 @@ function pcm(ms, seed = 1) {
   return b;
 }
 
-function setup({ realtime = true, speech = true, ttsChunks = [Buffer.from('mp3-a'), Buffer.from('mp3-b')] } = {}) {
+function setup({ realtime = true, speech = true, ttsChunks = [Buffer.from('mp3-a'), Buffer.from('mp3-b')], realtimeOptions = {} } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'live-test-'));
   const store = new Store(join(dir, 'live.sqlite'));
   store.addToken('alice-secret', 'alice'); store.addToken('reader-secret', 'alice', ['read']); store.seed('alice');
@@ -46,7 +46,7 @@ function setup({ realtime = true, speech = true, ttsChunks = [Buffer.from('mp3-a
   const tts = createSpeechModel({ env: speech ? { SPEECH_PROVIDER: 'wit', WIT_TTS_TOKEN: 't' } : {}, cache: createSpeechCache(),
     fetchImpl: async () => { calls.tts++; return new Response(new ReadableStream({ start(c) { ttsChunks.forEach(x => c.enqueue(x)); c.close(); } }), { headers: { 'content-type': 'audio/mpeg' } }); } });
   const models = {
-    ...(realtime ? createRealtimeModel({ env: { MODEL_API_KEY: 'meta-key' }, WebSocketImpl: meta.FakeSocket }) : {}),
+    ...(realtime ? createRealtimeModel({ env: { MODEL_API_KEY: 'meta-key' }, WebSocketImpl: meta.FakeSocket, ...realtimeOptions }) : {}),
     ...tts,
     async transcribe(audio) { calls.transcribe.push(audio); return { transcript: ANSWER, turns: [{ turn_id: 0, start_ms: 300, end_ms: 1800, transcript: ANSWER }], audio_duration_ms: 2000, model: 'muse-voice-transcribe-1.0', provider_session_id: 'file-1' }; },
     voiceReady: () => true,
@@ -270,4 +270,71 @@ test('live: the camera numbers on "end" go with the reply over the realtime path
     const replay = await handleVoiceRound(s.store, s.models, 'alice', { params, audio: wavFromPcm(Buffer.concat(frames)) }, 'live-camera-01', 'req');
     assert.equal(replay.replayed, true); assert.equal(replay.round_id, result.body.round_id);
   } finally { s.cleanup(); }
+});
+
+// Pacing in milliseconds so the tests run fast: 100 ms ahead of real time, 150 ms for the last turn.
+const FAST = { maxAheadMs: 100, finalTimeoutMs: 150 };
+
+test('live: after a slow handshake, the queued audio drains before endStream, and the final timeout starts only then', async () => {
+  const s = setup({ realtimeOptions: FAST });
+  try {
+    const round = s.open({ ...START, idempotency_key: 'live-drain-01' });
+    await tick();
+    const socket = s.meta.sockets[0];
+    // 600 ms of audio arrives before Meta acknowledges: at 100 ms ahead it takes about 400 ms to send, longer than
+    // the 150 ms final timeout, so a timeout started at release would cut the transcript.
+    const frames = Array.from({ length: 6 }, (_, i) => pcm(100, i + 1));
+    frames.forEach(f => round.audio(f));
+    await tick(50);
+    assert.equal(socket.audio.length, 0, 'nothing is sent before the handshake is acknowledged');
+    metaAnswers(socket);
+    round.end();
+    const result = await round.done;
+    assert.equal(result.status, 200);
+    assert.deepEqual(socket.audio, Buffer.concat(frames), 'every queued byte reached Meta');
+    assert.deepEqual(socket.sent.at(-1), { type: 'endStream' }, 'endStream only after the audio');
+    assert.equal(s.events.find(e => e.type === 'transcript').transcription, 'realtime');
+    assert.equal(result.body.transcript, ANSWER, 'the final transcript, not the partial');
+    assert.equal(s.calls.transcribe.length, 0, 'no file transcription was needed');
+  } finally { s.cleanup(); }
+});
+
+test('live: no last turn within the final timeout is a failure: the full audio goes to the file endpoint, never the partial', async () => {
+  const s = setup({ realtimeOptions: FAST });
+  try {
+    const round = s.open({ ...START, idempotency_key: 'live-final-01' });
+    await tick();
+    const socket = s.meta.sockets[0];
+    socket.ack();
+    socket.say({ type: 'transcript', transcript: 'So, um', final: false });
+    const frames = [pcm(300, 1), pcm(300, 2)];
+    frames.forEach(f => round.audio(f));
+    round.end(); // Meta never answers endStream
+    const result = await round.done;
+    assert.equal(result.status, 200);
+    assert.equal(s.calls.transcribe.length, 1);
+    assert.deepEqual(s.calls.transcribe[0], wavFromPcm(Buffer.concat(frames)), 'the file endpoint got the whole hold');
+    assert.equal(s.events.find(e => e.type === 'transcript').transcription, 'file_fallback');
+    assert.equal(result.body.transcript, ANSWER);
+    assert.notEqual(socket.closed, null, "Meta's socket was closed");
+  } finally { s.cleanup(); }
+});
+
+test('realtime: audio_duration_ms counts every byte received, and the final wait starts after endStream', async () => {
+  const meta = fakeMeta();
+  const model = createRealtimeModel({ env: { MODEL_API_KEY: 'k' }, WebSocketImpl: meta.FakeSocket, ...FAST });
+  const session = model.openRealtime({ sessionId: 's1' });
+  await tick();
+  const socket = meta.sockets[0];
+  [pcm(100, 1), pcm(100, 2), pcm(100, 3), pcm(100, 4)].forEach(f => session.send(f));
+  await tick(30);
+  let endAt = null;
+  socket.ack();
+  socket.onEnd = () => { endAt = performance.now(); setTimeout(() => socket.say({ type: 'transcript', transcript: '', final: true }), 120); };
+  const released = performance.now();
+  const result = await session.finish();
+  assert.ok(endAt - released >= 150, `endStream waited for the queue (${Math.round(endAt - released)} ms)`);
+  assert.equal(result.audio_duration_ms, 400);
+  assert.equal(result.mode, 'realtime');
+  assert.equal(socket.audio.length, 400 * 48);
 });

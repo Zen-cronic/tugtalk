@@ -79,7 +79,7 @@ One WebSocket per hold, on the same host. The same round as a WAV upload, with t
 2. **First frame**, text, within 10 s: `{"type": "start", "idempotency_key", "language", "goal_id"?, "screen_context_id"?, "prompt_ended_at"?, "occurred_at"?, "need"?, "reply_mode"?, "speech"?}`. These are the WAV route's headers, with the same rules (`need` is `X-Counterpart-Need`, `reply_mode` is `X-Reply-Mode`). `speech: false` means the Mac speaks the reply with its own voice, so the server makes no audio.
 3. The server checks the key, the start frame, the goal, the screen card, the hourly limit and the reply model, all **before** Meta's realtime socket is opened. A refusal is an `error` event with the HTTP status and code, then close `1008`.
 4. **Binary frames**: 24 kHz mono 16-bit little-endian PCM, as recorded. They are relayed to `wss://api.meta.ai/v1/asr/realtime` (`muse-voice-transcribe-1.0`, `ENDPOINTING`, `CUMULATIVE` partials), never more than 3 s ahead of real time (Meta closes a stream 5 s ahead). Meta's key stays on the server.
-5. **`{"type": "end"}`** on release. The server sends `endStream` and waits at most 2.5 s for the last turn.
+5. **`{"type": "end"}`** on release. Audio still queued behind the 3 s pacing goes to Meta first; then the server sends `endStream` and waits at most 2.5 s for the last turn. No last turn in that time counts as a failure of Meta's socket (below): the round never uses a cut-off transcript.
 6. **Events back**, as JSON text frames:
    - `ready` (with `transcription`: `realtime`, or `file` if realtime is not configured), and `partial` captions while held.
    - `transcript` on release, with `asr_ms` and the mode used.
@@ -90,7 +90,7 @@ One WebSocket per hold, on the same host. The same round as a WAV upload, with t
 
 Fallbacks and retries:
 
-- **Meta's socket fails** (error, unexpected close, no handshake): the server transcribes the same audio with the file endpoint, and the round still answers (`transcription: file_fallback`).
+- **Meta's socket fails** (error, unexpected close, no handshake, no last turn within 2.5 s of `endStream`): the server transcribes the full audio of the hold with the file endpoint, and the round still answers (`transcription: file_fallback`).
 - **Our socket fails** before a reply: the Mac uploads the clip to `POST /v1/voice-rounds` with the **same** Idempotency-Key. The live round's fingerprint is the one a WAV upload of the same samples has, so if the live round was saved, the upload replays it with no model call.
 - **The client leaves before release**: nothing is saved and no reply is asked for. If audio already reached Meta, the hold counts toward the hourly limit (audited as status 499). After release, a client that leaves only stops the audio; the round is still saved.
 - A hold is cut at 120 s on the server (the Mac stops at 60 s).

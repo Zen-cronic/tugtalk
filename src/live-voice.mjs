@@ -27,7 +27,7 @@ const BYTES_PER_MS = PCM_RATE * 2 / 1000;
 // Meta closes a stream more than 5 s ahead of real time; this stays well inside it.
 export const MAX_AHEAD_MS = 3_000;
 export const HANDSHAKE_TIMEOUT_MS = 5_000;
-// After endStream: how long to wait for the last turn before using what arrived (or the file endpoint).
+// After endStream: how long to wait for the last turn. Without it the round uses the file endpoint on the full audio.
 export const FINAL_TIMEOUT_MS = 2_500;
 // A hold the client never ends is ended here (the Mac caps a hold at 60 s).
 export const MAX_HOLD_MS = 120_000;
@@ -58,9 +58,12 @@ export function liveStart(start) {
 }
 
 // Meta realtime transcription for one hold. send() queues PCM (sent once the handshake is acknowledged, never more than
-// MAX_AHEAD_MS ahead of real time); finish() sends endStream and resolves with the same shape as the file endpoint's
-// result. Fails closed: any error or unexpected close makes finish() reject, and the caller falls back to the file path.
-export function createRealtimeModel({ env = process.env, WebSocketImpl = globalThis.WebSocket, url = REALTIME_URL, clock = () => performance.now() } = {}) {
+// MAX_AHEAD_MS ahead of real time); finish() waits for the queue to drain, sends endStream, and resolves with the same
+// shape as the file endpoint's result. Fails closed: any error, an unexpected close, or no final turn within
+// FINAL_TIMEOUT_MS of endStream makes finish() reject, and the caller falls back to the file path.
+// maxAheadMs, finalTimeoutMs and handshakeTimeoutMs are options so tests can run the pacing in milliseconds.
+export function createRealtimeModel({ env = process.env, WebSocketImpl = globalThis.WebSocket, url = REALTIME_URL, clock = () => performance.now(),
+  maxAheadMs = MAX_AHEAD_MS, finalTimeoutMs = FINAL_TIMEOUT_MS, handshakeTimeoutMs = HANDSHAKE_TIMEOUT_MS } = {}) {
   return {
     realtimeReady: () => Boolean(env.MODEL_API_KEY && WebSocketImpl),
     openRealtime({ language = 'en', sessionId, onPartial = () => {} } = {}) {
@@ -69,16 +72,21 @@ export function createRealtimeModel({ env = process.env, WebSocketImpl = globalT
       const turns = new Map();
       const queue = [];
       let acked = false, failed = null, finished = false, ended = false, endSent = false, sentBytes = 0, firstSend = null, pumpTimer = null, providerSession = null;
-      let settleFinal, partial = '';
+      // receivedBytes: every byte given to send(), queued or sent. finalReceived: the last turn really arrived (not a failure).
+      let receivedBytes = 0, finalReceived = false;
+      let settleFinal, settleDrained, partial = '';
       const finalSeen = new Promise(r => { settleFinal = r; });
+      const final = () => { finalReceived = true; settleFinal(); };
+      // Settles once endStream is sent (every queued byte went first), or on failure.
+      const drained = new Promise(r => { settleDrained = r; });
       let readyResolve, readyReject;
       const ready = new Promise((resolve, reject) => { readyResolve = resolve; readyReject = reject; });
       ready.catch(() => {});
-      const handshakeTimer = setTimeout(() => fail('handshake timed out'), HANDSHAKE_TIMEOUT_MS);
+      const handshakeTimer = setTimeout(() => fail('handshake timed out'), handshakeTimeoutMs);
       function fail(reason) {
         if (failed || finished) return;
         failed = reason; clearTimeout(handshakeTimer); clearTimeout(pumpTimer);
-        readyReject(new Error(reason)); settleFinal();
+        readyReject(new Error(reason)); settleFinal(); settleDrained();
         try { ws.close(); } catch {}
       }
       const turn = id => { if (!turns.has(id)) turns.set(id, { turn_id: id, start_ms: null, end_ms: null, transcript: null }); return turns.get(id); };
@@ -89,13 +97,13 @@ export function createRealtimeModel({ env = process.env, WebSocketImpl = globalT
         while (queue.length) {
           const now = clock();
           const ahead = sentBytes / BYTES_PER_MS - (firstSend === null ? 0 : now - firstSend);
-          if (ahead > MAX_AHEAD_MS) { pumpTimer = setTimeout(pump, Math.ceil(ahead - MAX_AHEAD_MS)); return; }
+          if (ahead > maxAheadMs) { pumpTimer = setTimeout(pump, Math.ceil(ahead - maxAheadMs)); return; }
           const chunk = queue.shift();
           firstSend ??= now;
           try { ws.send(chunk); } catch { fail('send failed'); return; }
           sentBytes += chunk.length;
         }
-        if (ended && !endSent) { endSent = true; try { ws.send(JSON.stringify({ type: 'endStream' })); } catch { fail('send failed'); } }
+        if (ended && !endSent) { endSent = true; try { ws.send(JSON.stringify({ type: 'endStream' })); settleDrained(); } catch { fail('send failed'); } }
       }
       ws.onopen = () => {
         try {
@@ -115,9 +123,9 @@ export function createRealtimeModel({ env = process.env, WebSocketImpl = globalT
           case 'speechEnd': turn(m.turnId).end_ms = m.audioProcessedMs ?? null; break;
           case 'speechComplete': { const t = turn(m.turnId); t.transcript = String(m.transcript ?? ''); t.end_ms ??= m.audioProcessedMs ?? null; partial = ''; onPartial(text()); break; }
           case 'transcript':
-            if (m.final === true && (!m.transcript || !String(m.transcript).trim())) { settleFinal(); break; }
+            if (m.final === true && (!m.transcript || !String(m.transcript).trim())) { final(); break; }
             partial = String(m.transcript ?? ''); onPartial(text());
-            if (m.final === true) settleFinal();
+            if (m.final === true) final();
             break;
           case 'error': fail('transcriber error'); break;
           default: break;
@@ -127,32 +135,46 @@ export function createRealtimeModel({ env = process.env, WebSocketImpl = globalT
       // A normal close after endStream ends the session; any other close before finish() is a failure.
       ws.onclose = event => {
         if (finished || failed) return;
-        if (endSent && event.code === 1000) settleFinal(); else fail(`closed ${event.code}`);
+        if (endSent && event.code === 1000) final(); else fail(`closed ${event.code}`);
       };
       return {
         ready,
         get sentBytes() { return sentBytes; },
         get failed() { return failed; },
-        send(pcm) { if (failed || finished) return; queue.push(Buffer.from(pcm)); pump(); },
-        // Ends input and waits for the last turn (the final empty transcript or the close), at most FINAL_TIMEOUT_MS.
+        send(pcm) { if (failed || finished) return; receivedBytes += pcm.length; queue.push(Buffer.from(pcm)); pump(); },
+        // Ends input: the audio still queued behind the pacing goes out first, then endStream, and only then does the
+        // wait for the last turn (the final empty transcript or the close) start, at most finalTimeoutMs. A missing
+        // last turn is a failure, never a cut-off transcript: the caller transcribes the full audio with the file endpoint.
         async finish() {
-          if (failed) throw new Error(failed);
-          await Promise.race([ready, new Promise((_, reject) => setTimeout(() => reject(new Error('not acknowledged')), HANDSHAKE_TIMEOUT_MS))]);
-          ended = true; pump();
-          let timer;
-          await Promise.race([finalSeen, new Promise(r => { timer = setTimeout(r, FINAL_TIMEOUT_MS); })]);
-          clearTimeout(timer);
-          if (failed) throw new Error(failed);
+          try {
+            if (failed) throw new Error(failed);
+            await within(ready, handshakeTimeoutMs, 'not acknowledged');
+            ended = true; pump();
+            // Draining takes at most the queued audio's length (less the pacing lead); the cap only guards a stuck pump.
+            await within(drained, Math.ceil((receivedBytes - sentBytes) / BYTES_PER_MS) + finalTimeoutMs, 'audio not drained');
+            if (failed) throw new Error(failed);
+            await within(finalSeen, finalTimeoutMs, 'no final turn');
+            if (failed || !finalReceived) throw new Error(failed ?? 'no final turn');
+          } catch (error) {
+            fail(error.message);
+            throw error;
+          }
           finished = true;
           try { ws.close(1000); } catch {}
           const list = [...turns.values()].sort((a, b) => a.turn_id - b.turn_id).filter(t => t.start_ms !== null && t.end_ms !== null);
-          return { transcript: text(), turns: list.map(t => ({ ...t, transcript: t.transcript ?? '' })), audio_duration_ms: Math.round(sentBytes / BYTES_PER_MS) || null,
+          return { transcript: text(), turns: list.map(t => ({ ...t, transcript: t.transcript ?? '' })), audio_duration_ms: Math.round(receivedBytes / BYTES_PER_MS) || null,
             model: TRANSCRIBE_MODEL, provider_session_id: providerSession ?? sessionId, mode: 'realtime' };
         },
         close() { finished = true; clearTimeout(handshakeTimer); clearTimeout(pumpTimer); try { ws.close(); } catch {} }
       };
     }
   };
+}
+
+// Resolves with the promise, or rejects with Error(reason) after ms.
+function within(promise, ms, reason) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(reason)), ms); })]).finally(() => clearTimeout(timer));
 }
 
 // One live round. emit(event) sends a JSON event to the client and emitAudio(buffer) a binary frame. The caller feeds
