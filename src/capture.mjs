@@ -113,13 +113,14 @@ export function parseObject(content) {
 // budget thinking (finish_reason "length") and return nothing or truncated JSON, so a missing or unusable
 // reply is retried once with a larger budget. accept(parsed) returns the value to keep, or null to retry.
 // A 4xx other than 429 is not retried. Never throws; failures come back as { ok: false, reason }.
-export async function sparkJSON({ env, fetchImpl, system, user, accept, temperature = 0.2, label = 'Analysis' }) {
+// reasoningEffort is optional; when omitted the request body is byte-identical to before (the default analyze body is hash-pinned).
+export async function sparkJSON({ env, fetchImpl, system, user, accept, temperature = 0.2, label = 'Analysis', reasoningEffort }) {
   let reason = `${label} failed.`;
   for (const [attempt, maxTokens] of ANALYSIS_BUDGETS.entries()) {
     try {
       const response = await fetchImpl('https://inference.baseten.co/v1/chat/completions', {
         method: 'POST', headers: { Authorization: `Api-Key ${env.BASETEN_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: ANALYSIS_MODEL, max_tokens: maxTokens, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
+        body: JSON.stringify({ model: ANALYSIS_MODEL, max_tokens: maxTokens, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}) }),
         signal: AbortSignal.timeout(50_000) });
       if (!response.ok) { reason = `${label} returned HTTP ${response.status}.`; if (response.status < 500 && response.status !== 429) break; continue; }
       const data = await response.json();

@@ -43,7 +43,9 @@ export function createAdjudicationModel({ env = process.env, fetchImpl = fetch }
     async adjudicateHabits({ transcript, language, candidates }) {
       if (!env.BASETEN_API_KEY) return { status: 'unavailable', reason: 'Adjudication is not configured on this deployment.', attempts: 0 };
       const result = await sparkJSON({ env, fetchImpl, system: adjudicationSystemPrompt(language), user: adjudicationUserMessage(transcript, candidates),
-        accept: acceptLabels, temperature: 0, label: 'Adjudication' });
+        accept: acceptLabels, temperature: 0, label: 'Adjudication',
+        // Measured Nov 2: the default (highest) effort stalled or returned empty on 2 of 3 calls; low answered in about 1.7 s.
+        reasoningEffort: 'low' });
       if (!result.ok) return { status: 'unavailable', reason: result.reason, attempts: result.attempts };
       return { status: 'model_labels', labels: result.value, model: ANALYSIS_MODEL, provider_request_id: result.provider_request_id, attempts: result.attempts };
     }
