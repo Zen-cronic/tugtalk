@@ -14,7 +14,7 @@ final class CaptureFlow {
     private var pending: (payload: ScreenContextPayload, key: String)?
     /// The capture's lines and window, kept in memory until the card arrives so Tug can ring one line.
     /// Never sent. Dropped once the card is shown, or replaced by the next capture.
-    private var lines: (lines: [TextLine], frame: CGRect?, windowID: CGWindowID?, bounds: CGRect?)?
+    private var lines: (lines: [TextLine], frame: CGRect?, windowID: CGWindowID?, bounds: CGRect?, pid: pid_t?)?
 
     var afterSave: () -> Void = {}
     /// Ring a line of the captured window for this card.
@@ -69,7 +69,8 @@ final class CaptureFlow {
                 model.set(.offline((error as? LocalizedError)?.errorDescription ?? "The window could not be read.", retryable: false), collapseAfter: 8)
                 return
             }
-            lines = (result.lines, result.frame, result.windowID, result.windowID.flatMap(PointingController.bounds(of:)))
+            let record = result.windowID.flatMap(PointingController.record(of:))
+            lines = (result.lines, result.frame, result.windowID, record?.bounds, record?.pid)
             // Keep "listening" on screen long enough to be seen.
             let shown = Date().timeIntervalSince(started)
             if shown < 0.9 { try? await Task.sleep(for: .seconds(0.9 - shown)) }
@@ -111,7 +112,7 @@ final class CaptureFlow {
     /// Rings the line the card is about, when code finds one. Then the capture's lines are dropped.
     func point(at card: ContextCard) {
         defer { lines = nil }
-        guard let lines, let request = PointingRequest.make(lines: lines.lines, frame: lines.frame, windowID: lines.windowID, windowBounds: lines.bounds, card: card) else {
+        guard let lines, let request = PointingRequest.make(lines: lines.lines, frame: lines.frame, windowID: lines.windowID, windowBounds: lines.bounds, windowPID: lines.pid, card: card) else {
             captureLog.notice("no line to point at")
             return
         }
@@ -128,7 +129,8 @@ final class CaptureFlow {
         Task {
             try? await Task.sleep(for: .seconds(0.4))
             guard let read = try? VisionTextReader().readLines(window.image) else { return }
-            lines = (read, window.contentFrame, window.windowID, PointingController.bounds(of: window.windowID))
+            let record = PointingController.record(of: window.windowID)
+            lines = (read, window.contentFrame, window.windowID, record?.bounds, record?.pid)
             model.set(.speaking(card), collapseAfter: 20)
             point(at: card)
         }

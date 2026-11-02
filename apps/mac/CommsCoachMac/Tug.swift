@@ -15,6 +15,7 @@ enum TugStringMode: Equatable {
     case tug        // nudge: tugged from the other end
     case cut        // offline: cut, the far end left behind
     case knot       // error: a knot in it
+    case none       // drawn separately (Tug on a title bar, lowering the label)
 }
 
 /// Everything that varies between states. Interpolated when the state changes.
@@ -295,6 +296,8 @@ enum TugDrawing {
             return [near, farEnd]
         case .knot:
             return stringPieces(.slack, from: s, amount: amount, t: 0)
+        case .none:
+            return []
         }
     }
 

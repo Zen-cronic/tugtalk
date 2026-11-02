@@ -94,6 +94,9 @@ final class LineMatcherTests: XCTestCase {
         XCTAssertNil(LineMatcher.bestLine(in: lines, summary: "Stub card: a meeting prep note of 70 words.",
                                           observation: "Stub: this is linked to \"Answer clearly\".", nextStep: "Stub: say your main ask in one sentence."))
         XCTAssertNil(LineMatcher.bestLine(in: [], summary: "x", observation: "lead the ask", nextStep: "the end"))
+        // Without a goal the server's test card says so; the word "goal" is about the card, not the window.
+        XCTAssertNil(LineMatcher.bestLine(in: lines, summary: "Stub card: a meeting prep note of 70 words.",
+                                          observation: "Stub: no goal was selected.", nextStep: "Stub: say your main ask in one sentence."))
     }
 
     func testLinesWithoutBoxesAreNeverPicked() {
@@ -148,5 +151,38 @@ final class RoundSummaryTests: XCTestCase {
         XCTAssertEqual(RoundSummary.count(1, .hedge), "1 hedge")
         XCTAssertEqual(RoundSummary.count(0, .filler), "0 fillers")
         XCTAssertEqual(RoundSummary.count(2, .restart), "2 restarts")
+    }
+}
+
+final class PointingGateTests: XCTestCase {
+    typealias W = PointingGate.WindowRecord
+    let bounds = CGRect(x: 100, y: 100, width: 800, height: 600)
+    let ring = CGRect(x: 120, y: 500, width: 400, height: 30)
+    var target: W { W(id: 10, pid: 42, bounds: bounds, layer: 0, alpha: 1) }
+
+    func testSameWindowNothingAboveIsClear() {
+        XCTAssertEqual(PointingGate.evaluate(target: target, expectedPID: 42, expectedBounds: bounds, above: [], ring: ring), .clear)
+    }
+
+    func testFailsClosedWhenTheWindowIsGoneOrReused() {
+        XCTAssertEqual(PointingGate.evaluate(target: nil, expectedPID: 42, expectedBounds: bounds, above: [], ring: ring), .gone)
+        let reused = W(id: 10, pid: 77, bounds: bounds, layer: 0, alpha: 1)
+        XCTAssertEqual(PointingGate.evaluate(target: reused, expectedPID: 42, expectedBounds: bounds, above: [], ring: ring), .gone)
+    }
+
+    func testAMovedWindowGetsNoRing() {
+        let moved = W(id: 10, pid: 42, bounds: bounds.offsetBy(dx: 30, dy: 0), layer: 0, alpha: 1)
+        XCTAssertEqual(PointingGate.evaluate(target: moved, expectedPID: 42, expectedBounds: bounds, above: [], ring: ring), .moved)
+    }
+
+    func testAWindowOverTheLineCoversIt() {
+        let card = W(id: 55, pid: 1, bounds: CGRect(x: 400, y: 480, width: 360, height: 300), layer: 3, alpha: 1)
+        XCTAssertEqual(PointingGate.evaluate(target: target, expectedPID: 42, expectedBounds: bounds, above: [card], ring: ring), .covered(by: 55))
+        // Our own ring window is ignored, and so are system chrome, invisible windows and windows elsewhere.
+        XCTAssertEqual(PointingGate.evaluate(target: target, expectedPID: 42, expectedBounds: bounds, above: [card], ring: ring, ignoring: [55]), .clear)
+        let dock = W(id: 2, pid: 9, bounds: CGRect(x: 0, y: 0, width: 2000, height: 2000), layer: 20, alpha: 1)
+        let invisible = W(id: 3, pid: 9, bounds: ring, layer: 0, alpha: 0)
+        let elsewhere = W(id: 4, pid: 9, bounds: CGRect(x: 1000, y: 100, width: 200, height: 200), layer: 0, alpha: 1)
+        XCTAssertEqual(PointingGate.evaluate(target: target, expectedPID: 42, expectedBounds: bounds, above: [dock, invisible, elsewhere], ring: ring), .clear)
     }
 }

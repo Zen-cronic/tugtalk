@@ -94,6 +94,15 @@ final class PanelController {
         layout()
     }
 
+    /// Moves the floating panel off `rect` (AppKit coordinates) for now, above it or else below it, so our own
+    /// card never covers the line Tug circles. Not remembered; the next drag or display change resets it.
+    func moveAway(from rect: CGRect) {
+        guard panel.isVisible, panel.frame.intersects(rect), let visible = panel.screen?.visibleFrame else { return }
+        let up = rect.maxY - panel.frame.minY, down = panel.frame.maxY - rect.minY
+        if panel.frame.maxY + up <= visible.maxY { anchor.y += up } else { anchor.y -= down }
+        layout()
+    }
+
     /// The floating Tug's centre on screen, where its trip to the docked panel starts and ends.
     var tugCenter: CGPoint { anchor }
 

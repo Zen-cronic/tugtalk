@@ -50,7 +50,7 @@ public enum LineMatcher {
     }
 
     /// Nouns that make a better label than "This line" when the card and the line share them.
-    static let labelNouns = ["ask", "deadline", "goal", "question", "request", "point", "date", "price", "plan", "decision"]
+    static let labelNouns = ["ask", "deadline", "question", "request", "point", "date", "price", "plan", "decision"]
 
     static func label(for words: [String]) -> String {
         for noun in labelNouns where words.contains(noun) { return "The \(noun) is here" }
@@ -77,6 +77,8 @@ public enum LineMatcher {
         "then", "than", "there", "here", "what", "when", "where", "which", "who", "how", "why", "all", "any", "one", "two",
         "say", "said", "says", "once", "twice", "now", "right", "just", "more", "most", "very", "too", "also", "only",
         "loud", "sentence", "line", "window", "note", "text", "card", "stub", "maybe", "own", "like", "make", "get",
+        // Words the coach uses about the card itself, not about the window's content.
+        "goal", "selected", "linked", "practice", "practise", "habit", "next", "step",
     ]
 
     /// Content words: three letters or more, not a stopword, not a redaction placeholder, with a plural "s" dropped.
@@ -124,5 +126,48 @@ public enum ScreenMapping {
     /// True when a window has moved or resized since it was captured (more than half a point).
     public static func hasMoved(from old: CGRect, to new: CGRect) -> Bool {
         abs(old.minX - new.minX) > 0.5 || abs(old.minY - new.minY) > 0.5 || abs(old.width - new.width) > 0.5 || abs(old.height - new.height) > 0.5
+    }
+}
+
+/// Decides, right before each draw and on every check after, whether a ring may be shown: the captured
+/// window must still be the same window (same owner, same bounds), and no other window may cover the ring.
+/// It fails closed: a window it cannot read means no ring. It reads only window numbers, owners, layers
+/// and bounds, which need no permission; titles are never read.
+public enum PointingGate {
+    public struct WindowRecord: Sendable, Equatable {
+        public let id: UInt32
+        public let pid: Int32
+        public let bounds: CGRect
+        public let layer: Int
+        public let alpha: Double
+        public init(id: UInt32, pid: Int32, bounds: CGRect, layer: Int, alpha: Double) {
+            self.id = id; self.pid = pid; self.bounds = bounds; self.layer = layer; self.alpha = alpha
+        }
+    }
+
+    public enum Verdict: Equatable, Sendable {
+        case clear
+        /// The window is gone, or its number now belongs to another app.
+        case gone
+        case moved
+        /// Another window covers the ring.
+        case covered(by: UInt32)
+    }
+
+    /// Windows at these layers and above are system chrome (the Dock, the menu bar, status items); they
+    /// sit at the screen's edges and do not count as covering a line of the window.
+    public static let chromeLayer = 20
+
+    /// `target` is the window record read now by its number; `above` are the on-screen windows above it,
+    /// front to back. `ignoring` holds our own ring window. All rectangles are global, top-left points.
+    public static func evaluate(target: WindowRecord?, expectedPID: Int32, expectedBounds: CGRect,
+                                above: [WindowRecord], ring: CGRect, ignoring: Set<UInt32> = []) -> Verdict {
+        guard let target, target.pid == expectedPID else { return .gone }
+        if ScreenMapping.hasMoved(from: expectedBounds, to: target.bounds) { return .moved }
+        for window in above where !ignoring.contains(window.id) && window.id != target.id {
+            guard window.layer >= 0, window.layer < chromeLayer, window.alpha > 0.01 else { continue }
+            if window.bounds.intersects(ring) { return .covered(by: window.id) }
+        }
+        return .clear
     }
 }

@@ -66,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         flow.afterSave = { [weak self] in self?.poller.pollSoon() }
         flow.onPoint = { [weak self] request in self?.pointing.show(request) }
         dock.floatingTugCenter = { [weak self] in self?.panel.tugCenter ?? .zero }
+        pointing.avoid = { [weak self] rect in self?.panel.moveAway(from: rect) }
         dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown() }
         dock.onTalkUp = { [weak self] in self?.voice.keyUp() }
         dock.onReadWindow = { [weak self] in
