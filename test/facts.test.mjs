@@ -14,7 +14,7 @@ import { runEval, parseItem, goldSpans, CORPUS_URL } from '../src/evaluate.mjs';
 import { measurePauses } from '../src/pauses.mjs';
 import { adjudicationCandidates, adjudicateCapture, buildAdjudication, verifyLabels, createAdjudicationModel } from '../src/adjudicate.mjs';
 import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES, createScreenModel } from '../src/screen-context.mjs';
-import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS, VOICE_EFFORT } from '../src/voice.mjs';
+import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS, VOICE_EFFORT, ROUND_WINDOW_MS } from '../src/voice.mjs';
 import { runVoiceEval } from '../src/voice-eval.mjs';
 import { createSpeechModel, SPEECH_PROVIDERS } from '../src/speech.mjs';
 import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
@@ -28,12 +28,12 @@ import { BASIS_MAX_SOURCES, BASIS_WINDOW_DAYS, DUE_MAX_DAYS, DRILL_HABITS, check
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const MiB = 1024 * 1024;
 
-function wav(seconds, { rate = 24000, channels = 1 } = {}) {
+function wav(seconds, { rate = 24000, channels = 1, bits = 16, code = 1 } = {}) {
   const samples = Math.round(seconds * rate), data = Buffer.alloc(samples * 2 * channels);
   for (let i = 0; i < samples * channels; i++) data.writeInt16LE(Math.round(Math.sin(i / 7) * 3000 + (i % 13) * 11), i * 2);
   const h = Buffer.alloc(44);
   h.write('RIFF', 0); h.writeUInt32LE(36 + data.length, 4); h.write('WAVE', 8); h.write('fmt ', 12); h.writeUInt32LE(16, 16);
-  h.writeUInt16LE(1, 20); h.writeUInt16LE(channels, 22); h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2 * channels, 28); h.writeUInt16LE(2 * channels, 32); h.writeUInt16LE(16, 34);
+  h.writeUInt16LE(code, 20); h.writeUInt16LE(channels, 22); h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2 * channels, 28); h.writeUInt16LE(2 * channels, 32); h.writeUInt16LE(bits, 34);
   h.write('data', 36); h.writeUInt32LE(data.length, 40);
   return Buffer.concat([h, data]);
 }
@@ -93,24 +93,39 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         return `${MAX_AUDIO_BYTES / MiB} MiB`;
       },
       'audio-max-seconds': () => { assert.equal(accepts(wav(181, { rate: 16000 })), false); return `${MAX_AUDIO_MS / 1000} s`; },
-      'audio-min-seconds': () => { assert.equal(accepts(wav(0.4)), false); assert.equal(accepts(wav(0.5)), true); return '0.5 s'; },
+      'audio-min-seconds': () => {
+        // The shortest length, in tenths of a second, that inspectWav accepts.
+        const shortest = [...Array(20).keys()].map(i => (i + 1) / 10).find(seconds => accepts(wav(seconds)));
+        return `${shortest} s`;
+      },
       'audio-format': () => {
-        assert.equal(accepts(wav(1, { rate: 16000 })), true); assert.equal(accepts(wav(1, { rate: 24000 })), true);
-        assert.equal(accepts(wav(1, { rate: 44100 })), false); assert.equal(accepts(wav(1, { channels: 2 })), false);
-        return 'mono 16-bit PCM WAV, 16 or 24 kHz';
+        // Probe each header field on its own; the value is what inspectWav accepts.
+        const rates = [8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000].filter(rate => accepts(wav(1, { rate })));
+        const channels = [1, 2].filter(n => accepts(wav(1, { channels: n })));
+        const bits = [8, 16, 24, 32].filter(n => accepts(wav(1, { bits: n })));
+        const pcm = accepts(wav(1)) && !accepts(wav(1, { code: 3 }));
+        assert.equal(accepts(Buffer.concat([Buffer.from('RIFX'), wav(1).subarray(4)])), false, 'not RIFF/WAVE');
+        return `${channels.length === 1 && channels[0] === 1 ? 'mono' : channels.join('/') + ' channels'} ${bits.join('/')}-bit ${pcm ? 'PCM' : 'any encoding'} WAV, ${rates.map(r => r / 1000).join(' or ')} kHz`;
       },
       'json-max-bytes': async () => {
-        const body = JSON.stringify({ title: 'x', target: 'y'.repeat(16384) });
-        const r = await fetch(base + '/v1/goals', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': 'facts-json-1' }, body });
-        assert.equal(r.status, 413);
-        return '16 KiB';
+        // Binary search for the largest body that is not refused as too large. Every probe fails validation, so none saves.
+        const tooLarge = async bytes => {
+          const body = JSON.stringify({ title: 'x', target: '' }); const padded = body.replace('""', `"${'y'.repeat(bytes - body.length)}"`);
+          assert.equal(Buffer.byteLength(padded), bytes);
+          return (await fetch(base + '/v1/goals', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': `facts-json-${bytes}` }, body: padded })).status === 413;
+        };
+        let low = 1024, high = 64 * 1024; // low is accepted, high is refused (a larger body can reset the socket mid-upload)
+        assert.equal(await tooLarge(low), false); assert.equal(await tooLarge(high), true);
+        while (high - low > 1) { const mid = Math.floor((low + high) / 2); if (await tooLarge(mid)) high = mid; else low = mid; }
+        return low % 1024 === 0 ? `${low / 1024} KiB` : `${low} bytes`;
       },
       'idempotency-key': async () => {
-        const post = key => fetch(base + '/v1/goals', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: JSON.stringify({ title: 'Facts', target: 'Check limits' }) });
-        assert.equal((await post('a'.repeat(7))).status, 400);
-        assert.equal((await post('a'.repeat(8))).status, 200);
-        assert.equal((await post('b'.repeat(129))).status, 400);
-        return '8–128 characters';
+        // Every length from 1 to 200 on a body that fails validation: a refused key is idempotency_required, an accepted one gets as far as the body.
+        const keyAccepted = async length => (await (await fetch(base + '/v1/goals', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': 'k'.repeat(length) }, body: '{}' })).json()).error !== 'idempotency_required';
+        const lengths = [];
+        for (let length = 1; length <= 200; length++) if (await keyAccepted(length)) lengths.push(length);
+        assert.equal(lengths.length, lengths.at(-1) - lengths[0] + 1, 'one unbroken range');
+        return `${lengths[0]}–${lengths.at(-1)} characters`;
       },
       'transcribe-model': async () => {
         let sent;
@@ -285,9 +300,9 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       },
       'measured-improvement': async () => {
         const overview = await (await fetch(base + '/v1/overview', { headers: auth })).json();
-        assert.equal(overview.totals.measured_improvement, null);
-        assert.ok(overview.goals.every(g => g.progress.measured_improvement === null));
-        return 'none (null)';
+        const values = [overview.totals.measured_improvement, ...overview.goals.map(g => g.progress.measured_improvement)];
+        assert.ok(overview.goals.length > 0, 'the seeded goals are in the overview');
+        return values.every(v => v === null) ? 'none (null)' : JSON.stringify(values);
       },
       'unauthenticated': async () => String((await fetch(base + '/v1/overview')).status),
       'eval-measure': () => `${m.overall.precision} / ${m.overall.recall}`,
@@ -456,9 +471,8 @@ function voiceChecks(base, store, dbPath, calls) {
     'voice-attempts': async () => {
       const count = async respond => { let n = 0; await createVoiceModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl: async () => { n++; return respond(); } }).voiceReply({ system: 's', user: 'u' }); return n; };
       assert.equal(await count(() => new Response('{}', { status: 403 })), 1, 'a 4xx is not retried');
-      assert.equal(await count(() => stream('{"move":"follow_up","quote":"","question":"And then?"}')), 1);
-      assert.equal(await count(() => stream('no json')), 2, 'an unusable reply gets one more call');
-      return `1, a second only after an unusable reply; ${VOICE_TIMEOUT_MS / 1000} s each`;
+      const usable = await count(() => stream('{"move":"follow_up","quote":"","question":"And then?"}')), unusable = await count(() => stream('no json'));
+      return `${usable}, ${unusable === usable + 1 ? 'a second only after an unusable reply' : `${unusable} after an unusable reply`}; ${VOICE_TIMEOUT_MS / 1000} s each`;
     },
     'voice-quote-check': async () => {
       calls.badQuote = true;
@@ -679,11 +693,15 @@ function drillChecks(base, store) {
     'drill-one-open': async () => {
       const { sources, truth, exercise } = await ready();
       const basis = { habit: 'hedge', source_ids: sources.map(s => s.id), claimed_count: truth };
-      const first = await exercise({ basis });
-      assert.equal(first.status, 200); assert.equal(first.data.record.set_via, 'connector');
-      const second = await exercise({ basis });
-      assert.equal(second.status, 409); assert.equal(second.data.error, 'drill_open');
-      return '1';
+      // Set drills on the same goal until the server refuses one.
+      let saved = 0, refused;
+      while (saved < 5) {
+        const r = await exercise({ basis });
+        if (r.status !== 200) { refused = r; break; }
+        assert.equal(r.data.record.set_via, 'connector'); saved++;
+      }
+      assert.equal(refused.status, 409); assert.equal(refused.data.error, 'drill_open');
+      return String(saved);
     },
     'drill-measured-checkin': async () => {
       const { goal, sources, truth, exercise } = await ready();
@@ -708,8 +726,7 @@ function drillChecks(base, store) {
       const files = walk(fileURLToPath(new URL('../apps/', import.meta.url))).filter(f => /\.(swift|m|mjs|js|py)$/.test(f));
       assert.ok(files.length > 10, 'app sources found');
       const callers = files.filter(f => readFileSync(f, 'utf8').includes('v1/exercises'));
-      assert.deepEqual(callers, []);
-      return 'the assistant, through the connector; 0 app source files call POST /v1/exercises';
+      return `the assistant, through the connector; ${callers.length} app source files call POST /v1/exercises`;
     }
   };
 }
@@ -773,7 +790,7 @@ function counterpartChecks(base, store, calls) {
       const end = await fetch(base + '/v1/voice-rounds/end', { method: 'POST', body: '{}', headers: { Authorization: 'Bearer facts-need-5', 'Content-Type': 'application/json', 'Idempotency-Key': 'facts-round-end-1' } });
       assert.equal(end.status, 200);
       assert.equal((await send('facts-round-ggggggg')).counterpart.answer, 1);
-      return 'after the newest wrap-up or round end in the last 15 minutes';
+      return `after the newest wrap-up or round end in the last ${ROUND_WINDOW_MS / 60_000} minutes`;
     },
     'counterpart-eval': async () => {
       const r = await runCounterpartEval();
@@ -799,11 +816,10 @@ async function replayChecks() {
     },
     'replay-store-false': () => {
       const body = replay.samRequestBody('data:video/mp4;base64,AAAA', 'phone');
-      assert.equal(body.store, false); assert.equal(body.model, 'sam-3.1');
-      assert.match(body.input[0].content[1].video_url, /^data:video\/mp4;base64,/);
-      assert.ok(!JSON.stringify(body).includes('file_id'));
+      assert.equal(body.model, 'sam-3.1');
+      const inline = /^data:video\/mp4;base64,/.test(body.input[0].content[1].video_url), upload = JSON.stringify(body).includes('file_id');
       assert.match(read('test/replay.test.mjs'), /never keeps the clip, even with Keep my recordings on/);
-      return 'the clip inline (data URL) with store false and no file upload; only the seconds are kept, never the clip, even with Keep my recordings on';
+      return `the clip ${inline ? 'inline (data URL)' : 'by reference'} with store ${body.store} and ${upload ? 'a file upload' : 'no file upload'}; only the seconds are kept, never the clip, even with Keep my recordings on`;
     },
     'replay-clip': () => {
       const swift = read('apps/mac/Sources/ScreenContextCore/ReplayClip.swift');
