@@ -375,6 +375,10 @@ final class CompanionModel: ObservableObject {
     @Published var tugInPanel = false
     /// The latest spoken round's card, for the docked panel.
     @Published var latestVoiceCard: VoiceCard?
+    /// Tug lives in the top bar, so the floating window stays hidden. Pointing still draws its ring.
+    @Published var floatingSuppressed = false
+    /// A global shortcut could not be registered (another copy of the app holds it), in plain words.
+    @Published var hotkeyNotice: String?
 
     /// Set by the app delegate: the actions the view and menu trigger.
     var onCapture: () -> Void = {}
@@ -390,7 +394,7 @@ final class CompanionModel: ObservableObject {
 
     private var collapseTask: Task<Void, Never>?
 
-    var isHidden: Bool { isPresenting || dockedPanelOpen }
+    var isHidden: Bool { isPresenting || dockedPanelOpen || floatingSuppressed }
     /// Presenting (⌃⌥H) or a meeting app in front: nothing of ours may appear on screen, be said or be read.
     var isPresenting: Bool { presenting || inMeetingApp || phase == .hidden }
 

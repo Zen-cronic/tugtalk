@@ -16,7 +16,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     var onPreview: (MascotPhase?) -> Void = { _ in }
     var onPreviewPointing: () -> Void = {}
     var onGlyphSheet: () -> Void = {}
-    var onDockMode: (Bool) -> Void = { _ in }
+    var onTugHome: (TugHome) -> Void = { _ in }
+    var onOpenTopBar: () -> Void = {}
     var onDemoMode: (Bool) -> Void = { _ in }
     var onSelectGoal: (String?) -> Void = { _ in }
     var goals: () -> [(id: String, title: String)] = { [] }
@@ -63,10 +64,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(action("Ask Muse About Last Card", enabled: model.lastCard != nil, run: onAskMuse))
         let talk = NSMenuItem(title: "Voice: Hold ⌃⌥T and Talk, Let Go to Send", action: nil, keyEquivalent: ""); talk.isEnabled = false
         menu.addItem(talk)
+        if Settings.tugHome.showsTopBar { menu.addItem(action("Open Top Bar Panel", run: onOpenTopBar)) }
         menu.addItem(.separator())
         menu.addItem(toggle("Presenting (Hide Companion)", key: "h", on: model.presenting) { [model] in model.presenting.toggle() })
         menu.addItem(toggle("Ghost Mode (Clicks Pass Through)", key: "g", on: model.ghost) { [model] in model.ghost.toggle() })
-        menu.addItem(toggle("Show in Dock", on: Settings.dockMode) { [weak self] in self?.onDockMode(!Settings.dockMode) })
+        menu.addItem(submenu("Where Tug Lives", TugHome.allCases.map { home in
+            toggle(home.title, on: Settings.tugHome == home) { [weak self] in self?.onTugHome(home) }
+        }))
         menu.addItem(toggle("Hide While a Meeting App Is in Front", on: Settings.autoHideInMeetings) { [model] in
             Settings.autoHideInMeetings.toggle()
             if !Settings.autoHideInMeetings { model.inMeetingApp = false }
