@@ -121,7 +121,7 @@ final class CaptureFlow {
             point(at: card)
             afterSave()
         } catch let error as CoachError {
-            model.set(.offline(error.plainMessage, retryable: error.isRetryable))
+            model.set(.offline(error.plainMessage(for: .saveCard), retryable: error.isRetryable))
         } catch {
             model.set(.offline("The card could not be saved.", retryable: true))
         }
@@ -196,19 +196,6 @@ final class CaptureFlow {
         // With a fixture window the card names that window, so the card matches what is on screen.
         if usesFixture { return FrontApp(name: fixtureWindow == nil ? "TextEdit" : FixtureWindow.title, bundleID: "com.apple.TextEdit", processID: 0) }
         return FrontApp(name: app?.localizedName ?? "this app", bundleID: app?.bundleIdentifier ?? "", processID: app?.processIdentifier ?? 0)
-    }
-}
-
-extension CoachError {
-    /// For the card: plain words, never a status code.
-    var plainMessage: String {
-        switch self {
-        case .server(429, _, let message): "\(message) Try again later."
-        case .server(let status, _, _) where status >= 500: "The coach couldn't save this just now. Try again."
-        case .server(401, _, _): "The coach refused the connector key."
-        case .server(_, _, let message): message
-        default: localizedDescription
-        }
     }
 }
 

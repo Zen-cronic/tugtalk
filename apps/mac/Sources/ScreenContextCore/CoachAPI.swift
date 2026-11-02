@@ -122,6 +122,26 @@ public enum CoachError: LocalizedError, Equatable {
     }
 }
 
+/// What the companion was doing when a request failed, for the words on the card.
+public enum CoachAction: Sendable { case saveCard, voiceReply }
+
+extension CoachError {
+    /// The one mapping from an error to the card's words: plain, never a status code.
+    public func plainMessage(for action: CoachAction) -> String {
+        switch (self, action) {
+        case (.server(401, _, _), _): "The coach refused the connector key."
+        case (.server(429, _, let message), _): "\(message) Try again later."
+        case (.server(413, _, _), .voiceReply): "That was too long. Keep an answer under a minute."
+        case (.server(400, _, let message), .voiceReply): "The coach couldn't use that recording: \(message)"
+        case (.server(503, "reply_unconfigured", _), .voiceReply): "Voice replies are not set up on this coach yet."
+        case (.server(let status, _, _), .saveCard) where status >= 500: "The coach couldn't save this just now. Try again."
+        case (.server(let status, _, _), .voiceReply) where status >= 500: "The coach couldn't reply just now. Try again."
+        case (.server(_, _, let message), _): message
+        default: localizedDescription
+        }
+    }
+}
+
 /// Talks to the shared coaching backend. Ported from the watch app's API client.
 /// The Mac keeps no coaching state of its own: it reads the same fresh overview every device reads.
 public struct CoachAPI: Sendable {

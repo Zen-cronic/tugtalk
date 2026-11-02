@@ -290,3 +290,20 @@ final class CoachAPITests: XCTestCase {
         XCTAssertEqual(overview.latest_screen_context?.id, "c1")
     }
 }
+
+final class PlainMessageTests: XCTestCase {
+    func testOneMappingGivesEachActionItsOwnPlainWords() {
+        XCTAssertEqual(CoachError.server(502, "x", "upstream").plainMessage(for: .saveCard), "The coach couldn't save this just now. Try again.")
+        XCTAssertEqual(CoachError.server(502, "x", "upstream").plainMessage(for: .voiceReply), "The coach couldn't reply just now. Try again.")
+        XCTAssertEqual(CoachError.server(503, "reply_unconfigured", "m").plainMessage(for: .voiceReply), "Voice replies are not set up on this coach yet.")
+        XCTAssertEqual(CoachError.server(413, "too_large", "m").plainMessage(for: .voiceReply), "That was too long. Keep an answer under a minute.")
+        XCTAssertEqual(CoachError.server(400, "bad", "Not a WAV.").plainMessage(for: .voiceReply), "The coach couldn't use that recording: Not a WAV.")
+        XCTAssertEqual(CoachError.server(400, "bad", "Text is empty.").plainMessage(for: .saveCard), "Text is empty.")
+        for action in [CoachAction.saveCard, .voiceReply] {
+            XCTAssertEqual(CoachError.server(401, "auth", "m").plainMessage(for: action), "The coach refused the connector key.")
+            XCTAssertEqual(CoachError.server(429, "rate", "Hourly limit reached.").plainMessage(for: action), "Hourly limit reached. Try again later.")
+            XCTAssertEqual(CoachError.offline("No network.").plainMessage(for: action), "No network.")
+            XCTAssertFalse(CoachError.server(409, "conflict", "Changed elsewhere.").plainMessage(for: action).contains("409"), "never a status code")
+        }
+    }
+}

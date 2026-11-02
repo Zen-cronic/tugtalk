@@ -217,7 +217,7 @@ final class VoiceFlow {
             } catch is CancellationError {
                 return
             } catch let error as CoachError {
-                self?.fail(key, message: Self.message(for: error), retryable: VoiceRoundUploader.isRetryable(error))
+                self?.fail(key, message: error.plainMessage(for: .voiceReply), retryable: VoiceRoundUploader.isRetryable(error))
             } catch {
                 self?.fail(key, message: "The reply could not be read.", retryable: true)
             }
@@ -281,19 +281,6 @@ final class VoiceFlow {
     }
 
     private func markCardFinished() { card?.finished = true }
-
-    static func message(for error: CoachError) -> String {
-        switch error {
-        case .server(401, _, _): "The coach refused the connector key."
-        case .server(413, _, _): "That was too long. Keep an answer under a minute."
-        case .server(400, _, let message): "The coach couldn't use that recording: \(message)"
-        case .server(409, _, let message): message
-        case .server(503, "reply_unconfigured", _): "Voice replies are not set up on this coach yet."
-        case .server(let status, _, _) where status >= 500: "The coach couldn't reply just now. Try again."
-        case .server(_, _, let message): message
-        default: error.localizedDescription
-        }
-    }
 
     private static func ms(since date: Date?) -> Int { date.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1 }
 
