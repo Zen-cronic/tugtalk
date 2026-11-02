@@ -456,3 +456,122 @@ respond(id, 200, { ok: true }, false);
         self.assertEqual(self.volume.events, ['commit'], 'the bootstrap rows were committed once, at startup')
 
 if __name__ == '__main__': unittest.main()
+
+
+class LiveBridgeTests(BridgeTests):
+    """WS /v1/voice-rounds/live through the adapter, with fake workers that play src/live-voice.mjs's side."""
+
+    async def socket(self, app, frames, auth=True, path='/v1/voice-rounds/live', pause=0.0):
+        """Plays the client: frames are ('text', str) | ('bytes', bytes) | ('wait', seconds) | ('disconnect',)."""
+        incoming = asyncio.Queue()
+        await incoming.put({'type': 'websocket.connect'})
+        sent = []
+        async def feed():
+            for frame in frames:
+                if frame[0] == 'wait':
+                    await asyncio.sleep(frame[1]); continue
+                if frame[0] == 'disconnect':
+                    await incoming.put({'type': 'websocket.disconnect', 'code': 1001}); continue
+                await incoming.put({'type': 'websocket.receive', frame[0]: frame[1]})
+        async def receive():
+            return await incoming.get()
+        async def send(event):
+            if event['type'] == 'websocket.send' and 'text' in event and json.loads(event['text']).get('type') == 'saved':
+                self.volume.events.append('saved')
+            if event['type'] == 'websocket.close':
+                await incoming.put({'type': 'websocket.disconnect', 'code': event['code']})
+            sent.append(event)
+        headers = [(b'host', b'example--web.us-east.modal.run')] + ([(b'authorization', b'Bearer local-test-only')] if auth else [])
+        feeder = asyncio.get_running_loop().create_task(feed())
+        await asyncio.wait_for(app({'type': 'websocket', 'path': path, 'headers': headers}, receive, send), timeout=10)
+        feeder.cancel()
+        return sent
+
+    START = ('text', json.dumps({'type': 'start', 'idempotency_key': 'live-bridge-1', 'language': 'en'}))
+
+    async def test_live_refuses_a_socket_without_a_bearer_credential_before_accepting_it(self):
+        sent = await self.socket(self.app, [self.START], auth=False)
+        self.assertEqual(sent, [{'type': 'websocket.close', 'code': 1008}])
+        sent = await self.socket(self.app, [self.START], path='/v1/voice-rounds/other')
+        self.assertEqual(sent, [{'type': 'websocket.close', 'code': 1008}])
+        self.assertEqual(self.app.worker.starts, 0, 'no worker was started for a refused socket')
+
+    async def test_live_round_streams_events_and_audio_and_says_saved_only_after_the_commit(self):
+        record = Path(self.temp.name) / 'worker-saw.jsonl'
+        app = self.bridge(self.volume, worker_path=self.fake('live-worker.mjs', f"""
+            appendFileSync({json.dumps(str(record))}, JSON.stringify(m) + '\\n');
+            if (m.envelope?.live) {{ globalThis.audio = []; await release(id); out({{ id, event: {{ type: 'ready' }} }}); return; }}
+            if (m.audio) {{ globalThis.audio.push(m.audio); return; }}
+            if (m.end) {{
+              out({{ id, event: {{ type: 'reply', round_id: 'round-1', frames: globalThis.audio.length }} }});
+              out({{ id, audio_out: Buffer.from('mp3-1').toString('base64') }});
+              await acquire(id);
+              respond(id, 200, {{ round_id: 'round-1', receipt_id: 'receipt-1' }});
+              await pause(30);
+              out({{ id, audio_out: Buffer.from('mp3-2').toString('base64') }});
+              out({{ id, closed: true }});
+            }}
+        """))
+        sent = await self.socket(app, [self.START, ('bytes', b'\\x01\\x02' * 1000), ('bytes', b'\\x03\\x04' * 1000), ('text', '{"type":"end"}')])
+        self.assertEqual(sent[0], {'type': 'websocket.accept'})
+        kinds = [('text', json.loads(e['text'])['type']) if 'text' in e else ('bytes', e['bytes']) if 'bytes' in e else (e['type'], e.get('code')) for e in sent[1:]]
+        self.assertEqual(kinds, [('text', 'ready'), ('text', 'reply'), ('bytes', b'mp3-1'), ('text', 'saved'), ('bytes', b'mp3-2'), ('websocket.close', 1000)])
+        reply = json.loads(sent[2]['text'])
+        self.assertEqual(reply['frames'], 2, 'both PCM frames reached the worker before the release')
+        self.assertEqual(self.volume.events, ['commit', 'saved'], 'saved only after the commit')
+        saw = [json.loads(line) for line in record.read_text().splitlines()]
+        self.assertEqual(saw[0]['envelope']['live']['idempotency_key'], 'live-bridge-1')
+        self.assertEqual(saw[0]['envelope']['headers'], {'authorization': 'Bearer local-test-only'}, 'only the credential is passed on')
+        self.assertTrue(0 < saw[0]['budget_ms'] < 150_000)
+        self.assertEqual([base64.b64decode(m['audio']) for m in saw if 'audio' in m], [b'\\x01\\x02' * 1000, b'\\x03\\x04' * 1000])
+        self.assertTrue(any(m.get('end') for m in saw))
+
+    async def test_live_round_whose_commit_fails_is_never_called_saved(self):
+        self.volume.fail = True
+        app = self.bridge(self.volume, worker_path=self.fake('live-fail-worker.mjs', """
+            if (m.envelope?.live) { await release(id); return; }
+            if (m.end) { await acquire(id); respond(id, 200, { round_id: 'round-1' }); out({ id, closed: true }); }
+        """))
+        sent = await self.socket(app, [self.START, ('bytes', b'\\x00' * 4000), ('text', '{"type":"end"}')])
+        events = [json.loads(e['text']) for e in sent if 'text' in e]
+        self.assertEqual([e['type'] for e in events], ['error'])
+        self.assertEqual(events[0]['error'], 'storage_or_worker_unavailable')
+        self.assertNotIn('saved', self.volume.events)
+
+    async def test_live_client_that_leaves_before_release_cancels_the_hold(self):
+        record = Path(self.temp.name) / 'cancel-saw.jsonl'
+        app = self.bridge(self.volume, worker_path=self.fake('live-cancel-worker.mjs', f"""
+            appendFileSync({json.dumps(str(record))}, JSON.stringify(m) + '\\n');
+            if (m.envelope?.live) {{ await release(id); return; }}
+            if (m.cancel) {{ await acquire(id); respond(id, 499, {{ error: 'cancelled' }}, false); out({{ id, closed: true }}); }}
+        """))
+        sent = await self.socket(app, [self.START, ('bytes', b'\\x00' * 4000), ('wait', 0.05), ('disconnect',)])
+        saw = [json.loads(line) for line in record.read_text().splitlines()]
+        self.assertTrue(any(m.get('cancel') for m in saw))
+        self.assertNotIn('commit', self.volume.events, 'a cancelled hold wrote nothing to commit')
+
+    async def test_spoken_reply_does_not_wait_for_a_model_request_and_is_not_committed(self):
+        app = self.bridge(self.volume, worker_path=self.fake('speech-lock-worker.mjs', """
+            if (env.path === '/v1/voice-rounds') { await release(id); await pause(400); await acquire(id); respond(id, 200, { ok: 'round' }); return; }
+            respond(id, 200, { ok: 'speech' }, false);
+        """))
+        order = []
+        async def one(path):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': b''}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer local-test-only'), (b'idempotency-key', b'k-12345678'), (b'content-type', b'audio/wav')]
+            await app({'type': 'http', 'method': 'POST', 'path': path, 'headers': headers}, receive, send)
+            order.append(path)
+        round_task = asyncio.get_running_loop().create_task(one('/v1/voice-rounds'))
+        await asyncio.sleep(0.1)
+        await one('/v1/voice-rounds/round-1/speech')
+        self.assertEqual(order, ['/v1/voice-rounds/round-1/speech'], 'the spoken reply answered while the round still held the model lock')
+        self.assertEqual(self.volume.events, [], 'and nothing was committed for it')
+        await round_task
+        self.assertEqual(self.volume.events, ['commit'])
+
+
+# LiveBridgeTests reuses BridgeTests' setup and helpers; its inherited tests already run once under BridgeTests.
+for _name in [n for n in vars(BridgeTests) if n.startswith('test_')]:
+    setattr(LiveBridgeTests, _name, None)

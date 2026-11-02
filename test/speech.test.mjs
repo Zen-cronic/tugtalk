@@ -170,7 +170,7 @@ test('speech through the hosting worker: one process serves both requests, relea
     assert.equal(whole.head, undefined); assert.equal(whole.chunks.length, 0);
     assert.equal(whole.final.response.status, 200); assert.equal(whole.final.response.headers['Content-Type'], 'audio/wav');
     assert.deepEqual(Buffer.from(whole.final.response.body_b64, 'base64'), Buffer.concat(AUDIO));
-    assert.equal(whole.final.dirty, true, 'a POST is committed before it is answered');
+    assert.equal(whole.final.dirty, false, 'a spoken reply is not committed before its answer; its audit row goes with the next write');
     const streamed = await run('a2', true);
     assert.deepEqual(streamed.phases, ['release', 'acquire']);
     assert.equal(streamed.head.status, 200); assert.equal(streamed.head.headers['Content-Type'], 'audio/wav');
