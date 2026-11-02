@@ -43,8 +43,8 @@
       <div class="wrap hero-grid">
         <div class="hero-copy">
           <p class="eyebrow"><strong>Comms Coach</strong> · speaking practice for Apple Watch</p>
-          <h1>Your assistant remembers how you speak.</h1>
-          <p class="lead lead-first">Practise a spoken answer on your Apple Watch. Comms Coach counts your
+          <h1>Practise on your watch. Your assistant remembers.</h1>
+          <p class="lead lead-first">Answer a question out loud on your Apple Watch. Comms Coach counts your
             <mark class="hl hl-filler">fillers</mark>, <mark class="hl hl-hedge">hedges</mark> and
             <mark class="hl hl-restart">restarts</mark>.</p>
           <!-- FOUNDER: one or two sentences in your own words -->
@@ -56,12 +56,17 @@
           <p class="lead lead-more">Each answer is saved to one record that Muse, Meta's assistant, reads on your phone and laptop, so the next chat starts from how you actually speak.</p>
         </div>
 
-        <figure class="hero-stage">
+        <figure class="hero-stage" data-string-group>
+          <div class="hero-watch" aria-hidden="true">
+            <div class="watch watch-small"><div class="watch-case"><img src="assets/watch-ready.png" width="324" height="394" alt=""></div><span class="watch-crown"></span></div>
+          </div>
+          <div class="string-link hero-link" aria-hidden="true">
+            <svg class="s-h" viewBox="0 0 100 40" preserveAspectRatio="none"><path data-string d="M0 20 Q50 40 100 20"><animate attributeName="d" values="M0 20 Q50 40 100 20;M0 20 Q50 16 100 20;M0 20 Q50 20 100 20" keyTimes="0;0.7;1" dur="0.42s" begin="indefinite" fill="freeze" data-taut/></path></svg>
+          </div>
           <div class="cart">
             <div class="cart-label hero-card">
               <svg class="tug tug-hero" viewBox="0 0 64 84" aria-hidden="true" focusable="false">
-                <path class="t-string" d="M32 55 C30 64 42 70 48 64 C52 60 47 57 46 61 C45 66 54 69 60 68"/>
-                <circle class="t-knot" cx="60.5" cy="68" r="2.2"/>
+                <path class="t-string" d="M32 55 C33 61 24 62 20 58 C17 55 20 52 22 54.5 C24 58 14 61 2 55"/>
                 <g class="tug-can">
                   <path class="t-body" d="M14 18 V47 Q14 56 32 56 Q50 56 50 47 V18 Z"/>
                   <path class="t-band" d="M14.5 27 Q32 31 49.5 27 M14.5 47 Q32 51 49.5 47"/>
@@ -71,7 +76,10 @@
                   <path class="t-line" d="M22 31.5 Q25 30 28.5 31 M35.5 31 Q39 30 42 31.5 M29 42.5 Q32 45 35 42.5"/>
                 </g>
               </svg>
-              <p class="name-tag"><strong>Tug</strong>, your sparring partner</p>
+              <div class="tug-says">
+                <p class="name-tag"><strong>Tug</strong>, your sparring partner</p>
+                <p class="bubble">Two fillers. Want another go?</p>
+              </div>
               <p class="card-head">Example answer</p>
               <p class="transcript" data-sweep><mark class="hl hl-filler">Um</mark>, so <mark class="hl hl-hedge">I think</mark> the main point is <mark class="hl hl-filler">basically</mark> that we should ship the smaller version first.</p>
               <ul class="chips" aria-label="Counts for this sentence">
@@ -80,7 +88,7 @@
               </ul>
             </div>
           </div>
-          <figcaption class="visually-hidden">An example answer, with two fillers and a hedge highlighted, introduced by Tug, the tin-can mascot.</figcaption>
+          <figcaption class="visually-hidden">A watch records an example answer; its transcript shows two fillers and a hedge highlighted. Tug, the tin-can mascot, asks for another go.</figcaption>
         </figure>
       </div>
     </section>
@@ -96,7 +104,7 @@
         <ol class="track" data-slot-group>
           <li class="step slot">
             <div class="thumb thumb-watch">
-              <div class="watch watch-small"><div class="watch-case"><img src="assets/watch-ready.png" width="416" height="496" alt="Watch app ready to record, with the goal Answer clearly, English, and a Record button" loading="lazy"></div><span class="watch-crown" aria-hidden="true"></span></div>
+              <div class="watch watch-small"><div class="watch-case"><img src="assets/watch-ready.png" width="324" height="394" alt="Watch app ready to record, with the goal Answer clearly, English, and a Record button" loading="lazy"></div><span class="watch-crown" aria-hidden="true"></span></div>
             </div>
             <p class="step-n">Step 1 of 4</p>
             <h3>Record on the watch</h3>
@@ -143,23 +151,23 @@
         <div class="measured-grid">
           <div class="measured-copy">
             <p class="transcript transcript-lg" data-sweep>
-              <mark class="hl hl-filler">Um</mark>, so <mark class="hl hl-hedge">I think</mark> the main point is <mark class="hl hl-filler">basically</mark> that we should ship the smaller version first. <mark class="hl hl-restart">Sorry</mark>, <mark class="hl hl-restart">let me restart</mark>. The main point is ship the smaller version first because it lets us test with real users this week
+              <mark class="hl hl-filler">Um</mark>, so <mark class="hl hl-hedge">I think</mark> the main point is <mark class="hl hl-filler">basically</mark> that we should ship the smaller version first. <mark class="hl hl-restart">Sorry</mark>, <mark class="hl hl-restart">let me restart</mark>. The main point is ship the smaller version first because it lets us test with real users this week.
             </p>
             <figure class="quote">
               <svg class="tug tug-ask" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-                <path class="t-string" d="M32 55 C40 61 51 58 53 47 C54.5 39 49 36 48 41 C47 45 53 46 56 40"/>
-                <g class="tug-can" transform="rotate(-6 32 56)">
+                <path class="t-string" d="M32 55 C31 61 40 62 44 58 C47 55 44 52 42 54.5 C40 58 48 60.5 62 54"/>
+                <g class="tug-can">
                   <path class="t-body" d="M14 18 V47 Q14 56 32 56 Q50 56 50 47 V18 Z"/>
                   <path class="t-band" d="M14.5 27 Q32 31 49.5 27 M14.5 47 Q32 51 49.5 47"/>
                   <ellipse class="t-rim" cx="32" cy="18" rx="18" ry="5.5"/>
                   <ellipse class="t-inner" cx="32" cy="18.5" rx="13.5" ry="3.4"/>
                   <g class="tug-eyes"><circle class="t-eye" cx="25.5" cy="37" r="2.6"/><circle class="t-eye" cx="38.5" cy="37" r="2.6"/></g>
-                  <path class="t-line" d="M22 32.5 L28.5 32 M35.5 29 Q39 26 42.5 27.5 M28.5 43 Q32.5 45.5 36 41.5"/>
+                  <path class="t-line" d="M22 31.5 Q25 30 28.5 31 M35.5 31 Q39 30 42 31.5 M29 42.5 Q32 45 35 42.5"/>
                 </g>
               </svg>
               <div>
                 <figcaption>Suggested exercise, from Muse Spark Open</figcaption>
-                <blockquote><p>“Record yourself 3 times saying only ‘The main point is ship the smaller version first because it lets us test with real users this week’ — no fillers or hedges…”</p></blockquote>
+                <blockquote><p>“60-second reset drill (under 2 minutes): Record yourself 3 times saying only ‘The main point is ship the smaller version first because it lets us test with real users this week’ — no fillers or hedges, pause 5 seconds between takes.”</p></blockquote>
               </div>
             </figure>
           </div>
@@ -168,10 +176,10 @@
             <div class="tile tile-filler slot"><span class="tally-num">2</span><span class="tally-label">fillers</span><span class="tally-sub">“Um”, “basically”: 5 per 100 words</span></div>
             <div class="tile tile-hedge slot"><span class="tally-num">1</span><span class="tally-label">hedge</span><span class="tally-sub">“I think”</span></div>
             <div class="tile tile-restart slot"><span class="tally-num">2</span><span class="tally-label">restarts</span><span class="tally-sub">“Sorry”, “let me restart”</span></div>
-            <div class="tile tile-wpm slot"><span class="tally-num">166</span><span class="tally-label">words per minute</span><span class="tally-sub">40 words in the answer</span></div>
+            <div class="tile tile-wpm slot"><span class="tally-num">166</span><span class="tally-label">words per minute</span><span class="tally-sub">a conversational pace</span></div>
           </div>
         </div>
-        <p class="footnote">This example was recorded through the live pipeline from a scripted test clip, read by a computer voice on Nov 1, 2026 (receipt 5aeff421).</p>
+        <p class="footnote">Recorded through the live service from a scripted clip read by a computer voice.</p>
       </div>
     </section>
 
@@ -180,12 +188,12 @@
       <div class="wrap">
         <div class="devices-head">
           <h2 id="devices-title">One practice record on three devices</h2>
-          <p>Each device reads the latest version of the same record.</p>
+          <p>Watch records. Mac and phone pick it up.</p>
         </div>
 
         <div class="lineup" role="list" data-string-group>
           <figure class="obj obj-watch" role="listitem">
-            <div class="obj-device"><div class="watch watch-mid"><div class="watch-case"><img src="assets/watch-ready.png" width="416" height="496" alt="Watch app ready to record, with the goal Answer clearly and English selected" loading="lazy"></div><span class="watch-crown" aria-hidden="true"></span></div></div>
+            <div class="obj-device"><div class="watch watch-mid"><div class="watch-case"><img src="assets/watch-ready.png" width="324" height="394" alt="Watch app ready to record, with the goal Answer clearly and English selected" loading="lazy"></div><span class="watch-crown" aria-hidden="true"></span></div></div>
             <figcaption><strong>Apple Watch</strong> records</figcaption>
           </figure>
 
@@ -206,14 +214,12 @@
                   </div>
                   <div class="voice-card">
                     <div class="vc-head">
-                      <svg class="tug tug-mini" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-                        <path class="t-string" d="M32 55 C31 61 40 62 44 58 C47 55 44 52 42 54.5 C40 58 48 60.5 62 54"/>
-                        <g class="tug-can">
-                          <path class="t-body" d="M14 18 V47 Q14 56 32 56 Q50 56 50 47 V18 Z"/>
-                          <ellipse class="t-rim" cx="32" cy="18" rx="18" ry="5.5"/>
-                          <ellipse class="t-inner" cx="32" cy="18.5" rx="13.5" ry="3.4"/>
-                          <g class="tug-eyes"><circle class="t-eye" cx="25.5" cy="37" r="3"/><circle class="t-eye" cx="38.5" cy="37" r="3"/></g>
-                        </g>
+                      <svg class="glyph tug-mini" viewBox="0 0 26 24" aria-hidden="true" focusable="false">
+                        <path class="g-string" d="M11 20.6 C11.8 23.2 17 23.4 25 18.6"/>
+                        <path class="g-body" d="M4.6 6.8 V16.4 Q4.6 21 11 21 Q17.4 21 17.4 16.4 V6.8 Z"/>
+                        <ellipse class="g-rim" cx="11" cy="6.8" rx="6.4" ry="2.3"/>
+                        <ellipse class="g-inner" cx="11" cy="6.9" rx="3.9" ry="1"/>
+                        <circle class="g-eye" cx="8.6" cy="13.2" r="1.15"/><circle class="g-eye" cx="13.4" cy="13.2" r="1.15"/>
                       </svg>
                       <span class="status">Speaking</span>
                     </div>
@@ -254,41 +260,45 @@
           </figure>
         </div>
 
+        <div class="mac-note">
+        <p class="mac-line">On the Mac, ask about the document in front of you; Tug answers out loud.</p>
         <ul class="checklist" aria-label="On the Mac">
-          <li>Hold a shortcut and talk; Tug answers out loud</li>
+          <li>Hold a shortcut and talk</li>
           <li>Reads only the window in front, only when you ask</li>
           <li>Names, emails and numbers are hidden before window text leaves your Mac</li>
         </ul>
+        </div>
       </div>
     </section>
 
     <!-- Before and after -->
     <section class="statement band-dark" aria-labelledby="payoff-title">
       <div class="wrap">
-        <h2 id="payoff-title" class="payoff-title">Same answer, second try</h2>
+        <h2 id="payoff-title" class="payoff-title">Before and after the restart</h2>
         <div class="attempts" data-slot-group>
           <div class="attempt slot">
-            <p class="attempt-n">First try</p>
             <p class="transcript"><mark class="hl hl-filler">Um</mark>, so <mark class="hl hl-hedge">I think</mark> the main point is <mark class="hl hl-filler">basically</mark> that we should ship the smaller version first.</p>
-            <ul class="chips" aria-label="Counts for the first try">
+            <ul class="chips" aria-label="Counts before the restart">
               <li class="chip chip-filler"><b>2</b> fillers</li>
               <li class="chip chip-hedge"><b>1</b> hedge</li>
-              <li class="chip chip-restart"><b>0</b> restarts</li>
             </ul>
           </div>
-          <div class="attempt-link" aria-hidden="true"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0 20 Q50 30 100 20"/></svg></div>
-          <div class="attempt attempt-best slot">
-            <p class="attempt-n">Second try</p>
-            <p class="transcript">The main point is ship the smaller version first because it lets us test with real users this week</p>
-            <ul class="chips" aria-label="Counts for the second try">
+          <div class="boundary slot">
+            <p class="transcript"><mark class="hl hl-restart">Sorry</mark>, <mark class="hl hl-restart">let me restart</mark>.</p>
+            <ul class="chips" aria-label="Counts for the restart phrase">
+              <li class="chip chip-restart"><b>2</b> restarts</li>
+            </ul>
+          </div>
+          <div class="attempt slot">
+            <p class="transcript">The main point is ship the smaller version first because it lets us test with real users this week.</p>
+            <ul class="chips" aria-label="Counts after the restart">
               <li class="chip chip-filler"><b>0</b> fillers</li>
               <li class="chip chip-hedge"><b>0</b> hedges</li>
-              <li class="chip chip-restart"><b>0</b> restarts</li>
             </ul>
           </div>
         </div>
         <div class="payoff-foot">
-          <p class="payoff-note">Both tries come from the same example answer, before and after “Sorry, let me restart”, counted by the same code.</p>
+          <p class="payoff-note">The same 14-second answer, split at the restart. The restart phrase itself counts as 2 restarts, so the three parts add up to the counts above.</p>
           <a class="btn btn-inv" href="#measured" data-demo-link>Watch the demo</a>
         </div>
       </div>
@@ -299,8 +309,8 @@
       <div class="wrap limits">
         <h2 id="claims-title">Honest limits</h2>
         <ul class="limit-list">
-          <li class="limit"><span class="limit-label">Counts come from code, not a model</span></li>
-          <li class="limit"><span class="limit-label">Audio is deleted after transcription</span></li>
+          <li class="limit"><span class="limit-label">Counts come from code, not&nbsp;a&nbsp;model</span></li>
+          <li class="limit"><span class="limit-label">Audio is deleted after&nbsp;transcription</span></li>
           <li class="limit"><span class="limit-label">No claims of progress yet</span></li>
         </ul>
       </div>
@@ -308,24 +318,22 @@
 
     <!-- French practice -->
     <section class="french" id="french" aria-labelledby="french-title">
-      <div class="wrap french-grid">
-        <div class="fr-side">
-          <dl class="fr-pair" aria-label="Example phrase" data-slot-group>
-            <div class="slot"><dt>Said</dt><dd class="transcript" lang="fr">«&nbsp;J'ai besoin de ça.&nbsp;»</dd></div>
-            <div class="slot"><dt>Repaired</dt><dd class="transcript" lang="fr">«&nbsp;J'en ai besoin.&nbsp;»</dd></div>
-          </dl>
-          <ol class="lifecycle" aria-label="Phrase stages">
-            <li>Suggested</li>
-            <li>Confirmed</li>
-            <li>Repaired</li>
-            <li>Reused</li>
-          </ol>
-        </div>
+      <div class="wrap french-band">
         <div class="fr-copy">
-          <p class="tag">In development</p>
+          <p class="tag">Coming next · in development</p>
           <h2 id="french-title">French speaking practice</h2>
-          <p>A short spoken debrief in French becomes a few phrases worth fixing. You confirm each one, repair it and reuse it days later; confirmed phrases export to Anki.</p>
+          <p>A short spoken debrief in French becomes a few phrases to repair and reuse. Confirmed phrases export to Anki.</p>
         </div>
+        <dl class="fr-pair" aria-label="Example phrase" data-slot-group>
+          <div class="slot"><dt>Said</dt><dd class="transcript" lang="fr">«&nbsp;Avant le cours, <b>j'ai&nbsp;allé</b> à la bibliothèque.&nbsp;»</dd></div>
+          <div class="slot"><dt>Repaired</dt><dd class="transcript" lang="fr">«&nbsp;Avant le cours, <b>je&nbsp;suis&nbsp;allé</b> à la bibliothèque.&nbsp;»</dd></div>
+        </dl>
+        <ol class="lifecycle" aria-label="Phrase stages">
+          <li>Suggested</li>
+          <li>Confirmed</li>
+          <li>Repaired</li>
+          <li>Reused</li>
+        </ol>
       </div>
     </section>
 
@@ -344,8 +352,15 @@
         Comms Coach
       </p>
       <div class="foot-note">
-        <p>Built during the Meta AI Developer Hackathon, Oct 30 – Nov 4, 2026: the API on Oct 30; the watch app, the eval and this page on Nov 1; the Mac companion and voice replies on Nov 2.</p>
-        <p>Speech-to-text by Meta <span class="mono">muse-voice-transcribe-1.0</span>; observations by <span class="mono">muse-spark-open-1026</span>; read through Muse. Example answer: receipt <span class="mono">5aeff421</span>. The phone chat is an example.</p>
+        <p>Built during the Meta AI Developer Hackathon, Oct 30 – Nov 4, 2026.</p>
+        <details class="about">
+          <summary>About this build</summary>
+          <ul>
+            <li>Example answer: receipt <span class="mono">5aeff421</span>, recorded through the live service on Nov 1, 2026 from a scripted clip read by a computer voice. The phone chat is an example.</li>
+            <li>Speech-to-text by Meta <span class="mono">muse-voice-transcribe-1.0</span>; observations by <span class="mono">muse-spark-open-1026</span>; read through Muse.</li>
+            <li>Built on Oct 30 (the API), Nov 1 (the watch app, the eval and this page) and Nov 2 (the Mac companion and voice replies).</li>
+          </ul>
+        </details>
       </div>
       <nav aria-label="Footer">
         <a href="#how">How it works</a>
