@@ -100,7 +100,7 @@ By category, live against the lexicon:
 What it shows:
 
 - **Precision rose and recall fell.** The model labelled all 12 content traps as content, and code removed every one of them. It also labelled 11 real habits as content, and code removed those too.
-- **The model labelled most hedges as content.** Of the 16 hedges the lexicon found correctly, the model called 10 content ("sort of", "kind of", "Maybe", "probably", "I THINK", "Je pense", "un peu", "Peut-être", "Disons", "Je crois"). Hedge recall fell from 0.889 to 0.333. The eleventh wrong label was the restart "What I mean is".
+- **The model labelled most hedges as content.** Of the 16 hedges the lexicon found correctly, the model called 10 content ("sort of", "kind of", "Maybe", "probably", "I THINK" in the one-line answer "I THINK SO", "Je pense", "un peu", "Peut-être", "Disons", "Je crois"). Where "I think" opened a statement, as in "I think the budget is fine", it labelled it a habit, in 3 of 3 items, so there the word list and the model agree. Hedge recall fell from 0.889 to 0.333. The eleventh wrong label was the restart "What I mean is".
 - **Live overall F1 (0.788) is below the lexicon alone (0.819).** Fillers and restarts improved; hedges lost more than they gained.
 - **The scripted arm's 0.877 / 0.820 did not predict the hedge drop.** We wrote those replies knowing the gold labels, with deliberate format faults. They tested the checking code, not the model's judgement, and none of them reads a hedge as meaning.
 - **Every label passed code's check.** All 51 labels named a proposed candidate once and copied its quote exactly, so no rejection kept a lexicon count. The span check cannot catch a wrong label that quotes correctly; on this run, those are the 11 removed habits.
