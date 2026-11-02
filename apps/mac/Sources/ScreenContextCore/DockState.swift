@@ -92,11 +92,13 @@ public struct LatestRoundNumber: Equatable, Sendable {
     public let habit: RoundSummary.Habit
     /// "down from 2 in your first answer", or "in your last answer".
     public let caption: String
+    /// The round ended with fewer than it started with: good news, never shown in an alarm colour.
+    public var improved = false
 
     public static func make(summary: RoundSummary?, latest: VoiceMetrics?) -> LatestRoundNumber? {
         if let s = summary {
             return LatestRoundNumber(value: s.last, habit: s.habit,
-                                     caption: s.dropped ? "down from \(s.first) in your first answer" : "in your last answer")
+                                     caption: s.dropped ? "down from \(s.first) in your first answer" : "in your last answer", improved: s.dropped)
         }
         guard let m = latest else { return nil }
         let counts: [(RoundSummary.Habit, Int?)] = [(.filler, m.filler_count), (.hedge, m.hedge_count), (.restart, m.restart_count)]

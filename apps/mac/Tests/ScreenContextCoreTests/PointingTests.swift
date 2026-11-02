@@ -60,8 +60,10 @@ final class ScreenMappingTests: XCTestCase {
 
     func testRingLeavesRoomAndMovesAreNoticed() {
         let ring = ScreenMapping.ringRect(around: CGRect(x: 100, y: 100, width: 200, height: 20))
-        XCTAssertTrue(ring.contains(CGRect(x: 100, y: 100, width: 200, height: 20)))
-        XCTAssertGreaterThanOrEqual(ring.minX, 100 - 12)
+        XCTAssertEqual(ring, CGRect(x: 91, y: 91, width: 218, height: 38), "9 pt of room on every side")
+        // A line near the window's left edge: the ring stays 16 pt inside the window.
+        let inside = ScreenMapping.ringRect(around: CGRect(x: 104, y: 300, width: 200, height: 20), inside: CGRect(x: 100, y: 100, width: 800, height: 600))
+        XCTAssertEqual(inside.minX, 116)
         XCTAssertFalse(ScreenMapping.hasMoved(from: CGRect(x: 0, y: 0, width: 10, height: 10), to: CGRect(x: 0.2, y: 0, width: 10, height: 10)))
         XCTAssertTrue(ScreenMapping.hasMoved(from: CGRect(x: 0, y: 0, width: 10, height: 10), to: CGRect(x: 4, y: 0, width: 10, height: 10)))
     }

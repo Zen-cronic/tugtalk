@@ -118,9 +118,15 @@ public enum ScreenMapping {
         return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
-    /// The ring around a line: the line's box with room around the glyphs.
-    public static func ringRect(around line: CGRect) -> CGRect {
-        line.insetBy(dx: -max(8, line.height * 0.45), dy: -max(5, line.height * 0.35))
+    /// The ring around a line: the line's box with 9 pt of room on every side. When `window` is given, the
+    /// ring is kept at least 16 pt inside its edges, so it never sits on the window's frame.
+    public static func ringRect(around line: CGRect, inside window: CGRect? = nil) -> CGRect {
+        let ring = line.insetBy(dx: -9, dy: -9)
+        guard let window else { return ring }
+        let room = window.insetBy(dx: 16, dy: 16)
+        guard room.width > 0, room.height > 0 else { return ring }
+        let clipped = ring.intersection(room)
+        return clipped.isNull || clipped.isEmpty ? ring : clipped
     }
 
     /// True when a window has moved or resized since it was captured (more than half a point).

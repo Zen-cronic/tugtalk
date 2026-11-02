@@ -96,11 +96,12 @@ final class LatestRoundNumberTests: XCTestCase {
         let summary = RoundSummary.make([try metrics(#"{"filler_count":2,"hedge_count":1,"restart_count":2}"#), try metrics(#"{"filler_count":0,"hedge_count":1,"restart_count":1}"#)])
         let number = try XCTUnwrap(LatestRoundNumber.make(summary: summary, latest: nil))
         XCTAssertEqual(number.value, 0); XCTAssertEqual(number.habit, .filler); XCTAssertEqual(number.caption, "down from 2 in your first answer")
+        XCTAssertTrue(number.improved)
     }
 
     func testOtherwiseTheMostUsedHabitInTheLatestAnswer() throws {
         let number = try XCTUnwrap(LatestRoundNumber.make(summary: nil, latest: try metrics(#"{"filler_count":1,"hedge_count":3,"restart_count":0}"#)))
-        XCTAssertEqual(number.value, 3); XCTAssertEqual(number.habit, .hedge)
+        XCTAssertEqual(number.value, 3); XCTAssertEqual(number.habit, .hedge); XCTAssertFalse(number.improved)
         XCTAssertNil(LatestRoundNumber.make(summary: nil, latest: nil))
     }
 }
