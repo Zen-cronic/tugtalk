@@ -41,6 +41,11 @@ final class CaptureFlow {
 
     func capture() {
         guard !busy else { return }
+        // Hidden while presenting or in a meeting app: nothing is read, and nothing appears on the shared screen.
+        guard !model.isPresenting else {
+            captureLog.notice("refused: presenting")
+            return
+        }
         guard let api = Connection.api()?.api else {
             model.set(.offline(Connection.unavailableReason, retryable: false))
             return

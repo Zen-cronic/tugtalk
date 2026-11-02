@@ -64,6 +64,11 @@ final class PointingController {
 
     func show(_ request: PointingRequest, speak: Bool = true) {
         dismiss()
+        // Presenting or in a meeting app: no ring on the shared screen and no sentence out loud.
+        guard !model.isPresenting else {
+            captureLog.notice("no ring: presenting")
+            return
+        }
         guard let main = NSScreen.screens.first else { return }
         let mainHeight = main.frame.height
         let windowRect = request.windowBounds.map { ScreenMapping.appKitRect(fromGlobalTopLeft: $0, mainDisplayHeight: mainHeight) }
@@ -142,6 +147,7 @@ final class PointingController {
     }
 
     private func say(_ sentence: String) {
+        guard !model.isPresenting else { return }
         model.talking = true
         speaker.speak(SpokenLine(text: sentence, language: .en, roundID: nil), events: SpeechEvents(
             started: { _ in },
@@ -164,8 +170,9 @@ final class PointingController {
     private func tick() {
         guard let request else { return }
         let now = Date()
-        // Close with the card.
+        // Close with the card, and at once when presenting starts.
         if case .speaking(let card) = model.phase, card.recordID == request.recordID {} else { dismiss(); return }
+        if model.isPresenting { captureLog.notice("ring removed: presenting"); dismiss(); return }
         // Checked again each time: the window moved, closed or was covered, so the ring would be wrong.
         let verdict = gate(request, ignoring: panel.map { [UInt32($0.windowNumber)] } ?? [])
         if verdict != .clear {

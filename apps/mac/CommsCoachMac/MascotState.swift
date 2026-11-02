@@ -374,7 +374,9 @@ final class CompanionModel: ObservableObject {
 
     private var collapseTask: Task<Void, Never>?
 
-    var isHidden: Bool { presenting || inMeetingApp || phase == .hidden || dockedPanelOpen }
+    var isHidden: Bool { isPresenting || dockedPanelOpen }
+    /// Presenting (⌃⌥H) or a meeting app in front: nothing of ours may appear on screen, be said or be read.
+    var isPresenting: Bool { presenting || inMeetingApp || phase == .hidden }
 
     func set(_ new: MascotPhase, collapseAfter seconds: Double? = nil) {
         collapseTask?.cancel()
