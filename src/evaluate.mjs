@@ -3,7 +3,7 @@
 // and scripted replies always yield byte-identical results. runLiveAdjudication is the separate live arm.
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { measure, LEXICON, LEXICON_VERSION, FORMS, parseObject, ANALYSIS_BUDGETS, ANALYSIS_MODEL } from './capture.mjs';
+import { measure, LEXICON, LEXICON_VERSION, FORMS, parseObject, shapeOf, ANALYSIS_BUDGETS, ANALYSIS_MODEL } from './capture.mjs';
 import { adjudicationCandidates, buildAdjudication, adjudicateCapture, acceptLabels, ADJUDICATION_METHOD, REJECTIONS } from './adjudicate.mjs';
 
 export const CATEGORIES = ['fillers', 'hedges', 'restarts'];
@@ -52,11 +52,12 @@ export function flatListCounts(transcript, language) {
 
 // Replay scripted replies through the same parse, shape check and one-retry rule as sparkJSON (src/capture.mjs).
 export function scriptedModelResult(replies) {
-  for (const [n, content] of replies.slice(0, ANALYSIS_BUDGETS.length).entries()) {
-    const parsed = parseObject(content), labels = parsed && acceptLabels(parsed);
+  const sent = replies.slice(0, ANALYSIS_BUDGETS.length);
+  for (const [n, content] of sent.entries()) {
+    const parsed = parseObject(content, shapeOf(acceptLabels)), labels = parsed && acceptLabels(parsed);
     if (labels) return { status: 'model_labels', labels, model: ANALYSIS_MODEL, provider_request_id: null, attempts: n + 1 };
   }
-  return { status: 'unavailable', reason: 'No scripted reply held usable JSON.', attempts: ANALYSIS_BUDGETS.length };
+  return { status: 'unavailable', reason: 'No scripted reply held usable JSON.', attempts: sent.length };
 }
 const countsOf = adjudication => ({ fillers: adjudication.adjudicated_count.fillers, hedges: adjudication.adjudicated_count.hedges, restarts: adjudication.adjudicated_count.restarts });
 export function scriptedAdjudication(item, scripted) {

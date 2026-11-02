@@ -45,3 +45,43 @@ test('the observation and the screen card both go through the shared loop with t
   const card = await createScreenModel({ env, fetchImpl: sc.fetchImpl }).describeScreen({ goal: null, text: 'x', language: 'en', purpose: 'reading', app_name: null });
   assert.deepEqual(card, { status: 'model_observation', summary: 's', observation: 'o', next_step: 'n', model: ANALYSIS_MODEL, provider_request_id: 'resp-1', attempts: 2 });
 });
+
+test('parseObject: braces in the prose do not break it; the last object of the expected shape wins', async () => {
+  const { parseObject, shapeOf } = await import('../src/capture.mjs');
+  const items = shapeOf(accept);
+  assert.deepEqual(parseObject('The ask {in braces} is buried. {"items":[1]}', items), { items: [1] });
+  assert.deepEqual(parseObject('Draft: {"items": "no"} then final {"items":[2]} {not json}', items), { items: [2] });
+  assert.deepEqual(parseObject('{"items":[3]} and an aside {"other":1}', items), { items: [3] }, 'a later object of the wrong shape is skipped');
+  assert.deepEqual(parseObject('Example {"items":[0]}\n```json\n{"items":[4]}\n```\nDone {x}', items), { items: [4] }, 'a fenced block comes first');
+  assert.deepEqual(parseObject('{"items":[{"a":"}"}]}', items), { items: [{ a: '}' }] }, 'braces inside strings are skipped');
+  assert.deepEqual(parseObject('{"outer":{"items":[5]}}'), { outer: { items: [5] } }, 'a nested object is not taken out of its parent');
+  assert.deepEqual(parseObject('Unclosed {note {"items":[6]}', items), { items: [6] });
+  assert.deepEqual(parseObject('{"other": 1}', items), { other: 1 }, 'with no match, the object that parsed comes back for the shape check');
+  assert.equal(parseObject('{"items": [1, "cut off'), null);
+  assert.equal(parseObject('no json {here}'), null);
+  assert.equal(parseObject('[1, 2]'), null);
+  assert.equal(parseObject('{'.repeat(5000) + '"a":1'), null, 'a pathological reply ends quickly');
+});
+
+test('sparkJSON: braces in the prose cost no retry, and attempts counts the requests actually sent', async () => {
+  const prose = scripted(reply('Here {as asked} is the answer: {"items":[1]} (see {notes}).'));
+  assert.deepEqual(await sparkJSON({ env, fetchImpl: prose.fetchImpl, system: 's', user: 'u', accept }), { ok: true, value: [1], provider_request_id: 'resp-1', attempts: 1 });
+  assert.equal(prose.bodies.length, 1);
+  for (const status of [400, 401, 403, 404]) {
+    const s = scripted(new Response('{}', { status }));
+    const result = await sparkJSON({ env, fetchImpl: s.fetchImpl, system: 's', user: 'u', accept });
+    assert.deepEqual({ ok: result.ok, attempts: result.attempts, sent: s.bodies.length }, { ok: false, attempts: 1, sent: 1 }, `HTTP ${status}`);
+  }
+  const twice = scripted(new Response('{}', { status: 503 }), new TypeError('network'));
+  assert.deepEqual(await sparkJSON({ env, fetchImpl: twice.fetchImpl, system: 's', user: 'u', accept }), { ok: false, reason: 'Analysis request failed.', attempts: 2 });
+  let calls = 0;
+  const refuse = async () => { calls++; if (calls === 1) return new Response('{}', { status: 503 }); throw Object.assign(new Error('refused'), { budgetRefused: true }); };
+  assert.deepEqual(await sparkJSON({ env, fetchImpl: refuse, system: 's', user: 'u', accept }),
+    { ok: false, reason: 'Analysis skipped: not enough time left in this request.', attempts: 1, skipped_for_time: true });
+  const adjudicated = await createModelClients({ env, fetchImpl: scripted(new Response('{}', { status: 400 })).fetchImpl })
+    .analyze({ goal: null, transcript: 't', metrics: measure('t', 1000, 'en'), language: 'en' });
+  assert.deepEqual(adjudicated, { status: 'unavailable', reason: 'Analysis returned HTTP 400.', attempts: 1 });
+  const { scriptedModelResult } = await import('../src/evaluate.mjs');
+  assert.equal(scriptedModelResult(['no json']).attempts, 1, 'the offline replay counts the replies it read');
+  assert.equal(scriptedModelResult(['{"labels": "x"} then {"labels": []}']).attempts, 1);
+});

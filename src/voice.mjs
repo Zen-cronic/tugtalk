@@ -5,7 +5,7 @@
 // not say are removed before the question is returned to be spoken. Audio is never stored.
 import { randomUUID } from 'node:crypto';
 import { ApiError, digest } from './store.mjs';
-import { inspectWav, measure, habitHits, tokenize, parseObject, LANGUAGES } from './capture.mjs';
+import { inspectWav, measure, habitHits, tokenize, parseObject, shapeOf, LANGUAGES } from './capture.mjs';
 import { scrub } from './screen-context.mjs';
 import { sparkCall, SPARK_STREAM_MODEL, DEFAULT_MAX_TOKENS } from './spark-stream.mjs';
 import { createBudget, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
@@ -143,7 +143,7 @@ export function createVoiceModel({ env = process.env, fetchImpl = fetch } = {}) 
         const r = await sparkCall({ env, fetchImpl, system, user, stream: true, reasoningEffort: VOICE_EFFORT, maxTokens: VOICE_MAX_TOKENS, timeoutMs });
         modelMs += r.timing_ms.total ?? 0;
         if (r.ok) {
-          const reply = acceptReply(parseObject(r.content));
+          const reply = acceptReply(parseObject(r.content, shapeOf(acceptReply)));
           if (reply) return { status: 'model_reply', reply, model: SPARK_STREAM_MODEL, provider_request_id: r.provider_request_id ?? null, attempts, model_ms: modelMs };
           reason = 'Reply did not match the expected shape.';
           continue;

@@ -5,7 +5,7 @@
 // many replies would put words in the person's mouth that they never said, with and without the check.
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { parseObject } from './capture.mjs';
+import { parseObject, shapeOf } from './capture.mjs';
 import { acceptReply, checkReply, verifyQuote } from './voice.mjs';
 
 export const VOICE_REPLIES_URL = new URL('../eval/voice-replies.json', import.meta.url);
@@ -25,7 +25,7 @@ export function runVoiceEval(raw = readFileSync(VOICE_REPLIES_URL)) {
   let baselineUnsaid = 0, checkedUnsaid = 0, agree = 0;
   for (const c of fixtures.cases) {
     tally.cases++;
-    const parsed = acceptReply(parseObject(c.raw));
+    const parsed = acceptReply(parseObject(c.raw, shapeOf(acceptReply)));
     if (!parsed) {
       tally.unusable++;
       const ok = c.expect.unusable === true; if (ok) agree++;
