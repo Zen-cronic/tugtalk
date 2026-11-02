@@ -82,13 +82,13 @@ async function send() {
   const released = performance.now();
   const r = await fetch(`${base}/v1/voice-rounds`, { method: 'POST', headers, body: audio });
   const data = await r.json();
-  return { status: r.status, client_ms: Math.round(performance.now() - released), request_id: r.headers.get('x-request-id'), data };
+  return { status: r.status, client_ms: Math.round(performance.now() - released), request_id: r.headers.get('x-request-id'), server_timing: r.headers.get('server-timing'), data };
 }
 
 const runs = [await send()];
 if (flag('repeat')) runs.push(await send());
 for (const run of runs) {
-  if (flag('json')) { console.log(JSON.stringify({ status: run.status, client_ms: run.client_ms, clip_ms: clipMs, goal_id: goal, ...run.data })); continue; }
+  if (flag('json')) { console.log(JSON.stringify({ status: run.status, client_ms: run.client_ms, clip_ms: clipMs, goal_id: goal, server_timing: run.server_timing, ...run.data })); continue; }
   if (run.status !== 200) { console.log(`HTTP ${run.status} ${run.data.error}: ${run.data.message}`); continue; }
   const d = run.data, m = d.metrics, p = m.pauses;
   console.log([
@@ -106,12 +106,14 @@ const last = runs.at(-1);
 if (speechFile && last.status === 200) {
   const start = performance.now();
   const r = await fetch(`${base}/v1/voice-rounds/${last.data.round_id}/speech`, { method: 'POST', headers: auth });
+  const headers_ms = Math.round(performance.now() - start);
   if (!r.ok) { const e = await r.json().catch(() => ({})); console.log(`speech:   HTTP ${r.status} ${e.error ?? ''}`); }
   else {
     const chunks = []; let first = null;
     for await (const chunk of r.body) { first ??= Math.round(performance.now() - start); chunks.push(Buffer.from(chunk)); }
     writeFileSync(speechFile, Buffer.concat(chunks));
-    const timing = { provider: r.headers.get('x-speech-provider'), voice: r.headers.get('x-speech-voice'), type: r.headers.get('content-type'),
+    const timing = { provider: r.headers.get('x-speech-provider'), voice: r.headers.get('x-speech-voice'), type: r.headers.get('content-type'), server_timing: r.headers.get('server-timing'),
+      headers_ms,
       first_byte_ms: first, total_ms: Math.round(performance.now() - start), bytes: chunks.reduce((n, c) => n + c.length, 0), file: speechFile };
     console.log(flag('json') ? JSON.stringify({ speech: timing }) : `speech:   ${timing.provider} ${timing.voice}, first byte ${timing.first_byte_ms} ms, total ${timing.total_ms} ms, ${timing.bytes} bytes -> ${speechFile}`);
   }
