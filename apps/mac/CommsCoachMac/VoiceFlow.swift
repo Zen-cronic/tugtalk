@@ -13,7 +13,8 @@ let voiceLog = Logger(subsystem: "com.zencronic.commscoach.mac", category: "voic
 final class VoiceFlow {
     private let model: CompanionModel
     private var machine = VoiceTurnMachine()
-    private let speaker = Speaker()
+    /// The coach's ElevenLabs voice by default, Apple's voice on this Mac as the fallback.
+    private let speech: SpeechRouter
     private let store = VoiceClipStore()
     private var recorder: MicRecorder?
     /// DEBUG `-voiceFixtureWAV <path>`: this file stands in for the microphone, so no permission is needed.
@@ -35,10 +36,15 @@ final class VoiceFlow {
         #else
         fixture = nil
         #endif
+        #if DEBUG
+        // `-voiceSpeaker apple` skips the coach voice, for testing the fallback on purpose.
+        let appleOnly = UserDefaults.standard.string(forKey: "voiceSpeaker") == "apple"
+        #else
+        let appleOnly = false
+        #endif
+        speech = SpeechRouter(remote: appleOnly ? nil : RemoteSpeaker(api: { Connection.api()?.api }), fallback: AppleSpeaker())
         let swept = store.sweep()
         if swept > 0 { voiceLog.notice("deleted \(swept, privacy: .public) recording(s) left from an earlier run") }
-        speaker.onStart = { [weak self] in self?.speechStarted() }
-        speaker.onFinish = { [weak self] ended in self?.speechFinished(at: ended) }
         // Another state took over the bubble (a screen capture, say): stop speaking and drop a kept clip.
         phaseWatch = model.$phase.sink { [weak self] phase in
             guard !phase.isVoice else { return }
@@ -58,8 +64,8 @@ final class VoiceFlow {
         if fixture == nil {
             switch MicPermission.status {
             case .granted: break
-            case .undetermined: if speaking { speaker.stop(); _ = machine.dismiss() }; model.set(.micPermission(denied: false)); return
-            case .denied: if speaking { speaker.stop(); _ = machine.dismiss() }; model.set(.micPermission(denied: true)); return
+            case .undetermined: if speaking { speech.stop(); _ = machine.dismiss() }; model.set(.micPermission(denied: false)); return
+            case .denied: if speaking { speech.stop(); _ = machine.dismiss() }; model.set(.micPermission(denied: true)); return
             }
         }
         guard Connection.api() != nil else {
@@ -90,9 +96,9 @@ final class VoiceFlow {
             switch effect {
             case .stopSpeaking:
                 bargeInAt = Date()
-                speaker.stop()
+                speech.stop()
                 markCardFinished()
-                voiceLog.notice("speech stopped \(Self.ms(since: self.bargeInAt), privacy: .public) ms after the key press")
+                voiceLog.notice("speech stopped in \(Self.ms(since: self.bargeInAt), privacy: .public) ms")
             case .startRecording(let key):
                 startRecording(key)
             case .upload(let key, let promptEndedAt):
@@ -215,14 +221,17 @@ final class VoiceFlow {
     private func speak(_ question: String) {
         guard let card else { return }
         model.set(.voiceSpeaking(card))
-        speaker.speak(question, language: Settings.voiceLanguage)
+        speech.speak(SpokenLine(text: question, language: Settings.voiceLanguage, roundID: card.roundID),
+                     started: { [weak self] source in self?.speechStarted(source) },
+                     finished: { [weak self] ended in self?.speechFinished(at: ended) })
     }
 
-    private func speechStarted() {
+    private func speechStarted(_ source: SpeechSource) {
         guard var card, let releasedAt else { return }
         card.releaseToVoice = Date().timeIntervalSince(releasedAt)
+        card.voice = source
         self.card = card
-        voiceLog.notice("first word \(Self.ms(since: releasedAt), privacy: .public) ms after release")
+        voiceLog.notice("first word \(Self.ms(since: releasedAt), privacy: .public) ms after release (\(source == .remote ? "coach voice" : "fallback voice", privacy: .public))")
         if case .voiceSpeaking = model.phase { model.set(.voiceSpeaking(card)) }
     }
 

@@ -47,6 +47,8 @@ struct VoiceCard: Equatable {
     var releaseToVoice: TimeInterval?
     /// The question has played to the end (or was stopped).
     var finished = false
+    /// Which voice said it: the coach's ElevenLabs voice, or Apple's voice on this Mac as a fallback.
+    var voice: SpeechSource?
     var isPreview = false
 
     init(roundID: String, receiptID: String, question: String, move: VoiceReply.Move?, transcript: String, quote: String?,
@@ -62,6 +64,15 @@ struct VoiceCard: Equatable {
     }
 
     var endsRound: Bool { move == .wrap_up }
+
+    /// "ElevenLabs voice", or the fallback note with its reason.
+    var voiceNote: String? {
+        switch voice {
+        case .remote: Connection.isLocalDevelopmentRequested && !isPreview ? "Voice from the local test server" : "ElevenLabs voice, through the coach"
+        case .fallback(let reason): "Fallback voice on this Mac: \(reason)"
+        case nil: nil
+        }
+    }
 
     var moveTitle: String {
         switch move {
@@ -272,6 +283,7 @@ enum PreviewSamples {
                              move: .challenge, transcript: "Um, I think I'm ready to lead the Q1 launch, maybe, because I ran the beta and the team knows me.",
                              quote: "maybe", metrics: metrics, latency: latency, replayed: false, isPreview: true)
         card.releaseToVoice = 4.1
+        card.voice = .remote
         return card
     }()
 

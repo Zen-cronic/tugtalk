@@ -344,6 +344,10 @@ struct VoiceCardView: View {
                     icon: { Image(systemName: "ruler").foregroundStyle(Color(nsColor: Palette.record)) }
                     .accessibilityLabel("Measured by code: \(metrics)")
             }
+            if let note = card.voiceNote {
+                Label { Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+                    icon: { Image(systemName: card.voice == .remote ? "waveform" : "speaker.badge.exclamationmark").foregroundStyle(.secondary) }
+            }
             if let latency = card.latencyLine {
                 Label { Text(latency).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
                     icon: { Image(systemName: "timer").foregroundStyle(.secondary) }

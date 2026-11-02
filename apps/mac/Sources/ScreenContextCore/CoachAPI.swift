@@ -125,7 +125,7 @@ public enum CoachError: LocalizedError, Equatable {
 public struct CoachAPI: Sendable {
     public let baseURL: URL
     private let token: String
-    private let session: URLSession
+    let session: URLSession
 
     public init(baseURL: URL, token: String, session: URLSession = .shared) {
         self.baseURL = baseURL; self.token = token; self.session = session

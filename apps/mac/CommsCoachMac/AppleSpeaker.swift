@@ -1,29 +1,23 @@
 @preconcurrency import AVFoundation
 import ScreenContextCore
 
-/// Speaks the coach's question with Apple's on-device synthesizer. Not a sponsor service, and no
-/// audio leaves the Mac for this step. The whole question is spoken once it has arrived.
+/// The fallback voice: Apple's on-device synthesizer, used when the coach's voice is unavailable.
+/// Not a sponsor service, and no audio leaves the Mac for this step.
 @MainActor
-final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
+final class AppleSpeaker: NSObject, ReplySpeaker, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
     private var current: ObjectIdentifier?
-
-    /// The first word is playing.
-    var onStart: () -> Void = {}
-    /// The question played to the end, with the time it ended.
-    var onFinish: (Date) -> Void = { _ in }
-
-    var isSpeaking: Bool { current != nil }
+    private var events: SpeechEvents?
 
     override init() {
         super.init()
         synthesizer.delegate = self
     }
 
-    func speak(_ text: String, language: VoiceLanguage) {
+    func speak(_ line: SpokenLine, events: SpeechEvents) {
         stop()
-        let utterance = AVSpeechUtterance(string: text)
-        let voice = Self.bestVoice(for: language)
+        let utterance = AVSpeechUtterance(string: line.text)
+        let voice = Self.bestVoice(for: line.language)
         utterance.voice = voice
         #if DEBUG
         // `-voiceVolume 0.2` keeps local test runs quiet.
@@ -32,17 +26,16 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
         }
         #endif
         current = ObjectIdentifier(utterance)
-        voiceLog.notice("speaking with \(voice?.name ?? "the default voice", privacy: .public) (\(Self.qualityName(voice), privacy: .public))")
+        self.events = events
+        voiceLog.notice("fallback voice: \(voice?.name ?? "the default voice", privacy: .public) (\(Self.qualityName(voice), privacy: .public))")
         synthesizer.speak(utterance)
     }
 
-    /// Stops at once, mid-word. Returns whether anything was playing.
-    @discardableResult
-    func stop() -> Bool {
-        let was = current != nil
+    /// Stops at once, mid-word.
+    func stop() {
         current = nil
+        events = nil
         if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
-        return was
     }
 
     /// A downloaded Premium voice, else Enhanced, else the system default for the language.
@@ -72,22 +65,23 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         let id = ObjectIdentifier(utterance)
-        DispatchQueue.main.async { MainActor.assumeIsolated { if self.current == id { self.onStart() } } }
+        DispatchQueue.main.async { MainActor.assumeIsolated { if self.current == id { self.events?.started() } } }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         let id = ObjectIdentifier(utterance), ended = Date()
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
-                guard self.current == id else { return }
+                guard self.current == id, let events = self.events else { return }
                 self.current = nil
-                self.onFinish(ended)
+                self.events = nil
+                events.finished(ended)
             }
         }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         let id = ObjectIdentifier(utterance)
-        DispatchQueue.main.async { MainActor.assumeIsolated { if self.current == id { self.current = nil } } }
+        DispatchQueue.main.async { MainActor.assumeIsolated { if self.current == id { self.current = nil; self.events = nil } } }
     }
 }
