@@ -82,16 +82,19 @@ extension MascotPhase {
 @MainActor
 enum BarType {
     static let size: CGFloat = 12
+    /// Anybody's width axis for the bar word only: at 12 pt the wide cut (104) turns the heavy "r" into a flag, so the
+    /// bar uses a narrower cut of the same face. Cards keep 104.
+    static let barWidth: CGFloat = 88
     static let ctFont: CTFont = {
         TypeFace.register()
-        let axes: [Int: CGFloat] = [0x77647468: 104, 0x77676874: 700]
+        let axes: [Int: CGFloat] = [0x77647468: barWidth, 0x77676874: 700]
         let attributes: [CFString: Any] = [kCTFontNameAttribute: "Anybody-Thin", kCTFontVariationAttribute: axes as CFDictionary]
         return CTFontCreateWithFontDescriptor(CTFontDescriptorCreateWithAttributes(attributes as CFDictionary), size, nil)
     }()
     /// "Your turn": the same face, heavier.
     static let ctHeavy: CTFont = {
         TypeFace.register()
-        let axes: [Int: CGFloat] = [0x77647468: 104, 0x77676874: 900]
+        let axes: [Int: CGFloat] = [0x77647468: barWidth, 0x77676874: 820]
         let attributes: [CFString: Any] = [kCTFontNameAttribute: "Anybody-Thin", kCTFontVariationAttribute: axes as CFDictionary]
         return CTFontCreateWithFontDescriptor(CTFontDescriptorCreateWithAttributes(attributes as CFDictionary), size, nil)
     }()
@@ -109,9 +112,9 @@ enum BarType {
     /// bar's edge holds still between states.
     static func minimumWord(glyph: CGFloat) -> CGFloat { glyph + 6 + max(width("Listening"), width("Your turn", heavy: true)) }
 
-    /// The right wing's one width for every mark, sized to the widest (record light, timer and camera dot), so it
-    /// holds still between states too. Zero when there is no mark.
-    static let markSlot: CGFloat = 72
+    /// The right wing's one width for every mark, sized to the widest (record light, timer and camera eye), so it
+    /// holds still between states too; each mark sits centred in it. Zero when there is no mark.
+    static let markSlot: CGFloat = 78
     static func markWidth(_ mark: NotchBarStatus.Mark) -> CGFloat { mark == .none ? 0 : markSlot }
 }
 
@@ -282,7 +285,10 @@ struct NotchBarView: View {
                 if ui.rightWing > 0 || ui.expanded { HStack(spacing: 2) {
                     Spacer(minLength: 0)
                     if mark != .none, ui.rightWing > 0 || ui.expanded {
-                        BarMark(mark: mark).padding(.trailing, ui.expanded ? 6 : 0).accessibilityHidden(true)
+                        // Collapsed: centred in the wing's one width, the same padding on both sides, so no dead
+                        // sunflower sits between the notch and the mark.
+                        BarMark(mark: mark).frame(width: ui.expanded ? nil : BarType.markSlot).padding(.trailing, ui.expanded ? 6 : 0)
+                            .accessibilityHidden(true)
                     }
                     // Open: the settings and hide controls live in the bar itself, as bare glyphs.
                     if ui.expanded {
@@ -292,7 +298,8 @@ struct NotchBarView: View {
                         BandGlyph(symbol: "eye.slash", label: "Hide Tug (⌃⌥H)") { ui.onHide() }
                     }
                 }
-                .padding(.trailing, ui.expanded ? NotchBarUI.glyphInset : NotchBarUI.inset)
+                .padding(.leading, ui.expanded ? 0 : NotchBarPlacement.notchGap)
+                .padding(.trailing, ui.expanded ? NotchBarUI.glyphInset : NotchBarPlacement.notchGap)
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture { ui.onBarClick() } }
@@ -346,7 +353,7 @@ struct BarMark: View {
         case .recordLight(let time):
             HStack(spacing: 5) {
                 RecordLight()
-                Text(time).font(TypeFace.mono(12, weight: 600)).monospacedDigit()
+                Text(time).font(TypeFace.mono(12, weight: 600)).monospacedDigit().lineLimit(1).fixedSize()
                 // Facing the camera or not, while a hold has the camera on.
                 CameraDot().padding(.leading, 2)
             }
@@ -765,6 +772,15 @@ enum HabitWord {
     }
 }
 
+/// The evidence chips' one text grammar: Hanken Grotesk, the number in bold, the unit at line weight.
+struct EvidenceChipText: View {
+    let number: String
+    let unit: String
+    var body: some View {
+        (Text(number).font(TypeFace.body(13, weight: 800)) + Text(" " + unit).font(TypeFace.body(13, weight: 600))).monospacedDigit()
+    }
+}
+
 /// The one count component: the numeral and its unit in one chip at line weight, with an optional caption on the
 /// same baseline. Only the colour changes with the habit.
 struct HabitCount: View {
@@ -776,7 +792,7 @@ struct HabitCount: View {
         // The habit's own token (fillers: Tok.filler with Tok.fillerEdge), full strength in both looks, ink text.
         let (fill, edge) = HabitChip.colours(habit)
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("\(count) \(HabitWord.word(habit, count))").font(TypeFace.body(13, weight: 650)).monospacedDigit()
+            EvidenceChipText(number: "\(count)", unit: HabitWord.word(habit, count))
                 .foregroundStyle(Color(Tok.inkFixed))
                 .padding(.horizontal, 7).padding(.vertical, 3)
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(fill)))
