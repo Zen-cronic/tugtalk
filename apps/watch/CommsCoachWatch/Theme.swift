@@ -14,6 +14,8 @@ enum Palette {
     static let mutedDark = Color(hex: 0xBDB2A2)    // secondary text on the dark face
     static let field = Color(hex: 0xF6B730)        // sunflower: choices on the setup screen
 
+    static let worry = field                       // Tug's sweat drop on error screens, the one warm accent there
+
     // Metrics: fill (dark value) and shell edge
     static let filler = Color(hex: 0xFF7A66)
     static let fillerEdge = Color(hex: 0xE5412F)
@@ -107,12 +109,13 @@ private struct SlotIn: ViewModifier {
 /// Primary action: filled with ink, ink-dark on the dark face. Secondary: an outline of the same ink.
 struct CoachButtonStyle: ButtonStyle {
     var primary = true
+    var height: CGFloat = 44
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .face(.text, 17, weight: 700, relativeTo: .headline)
             .foregroundStyle(primary ? Palette.ink : Palette.inkDark)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: height)
             .background {
                 Capsule().fill(primary ? Palette.inkDark : Color.clear)
                 Capsule().strokeBorder(Palette.inkDark, lineWidth: primary ? 0 : 2)

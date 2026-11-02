@@ -14,6 +14,8 @@ struct TugGlyph: View {
     var cut = false
     var showsCan = true
     var showsString = true
+    /// Errors: raised inner brows and a sweat drop.
+    var worried = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -23,7 +25,7 @@ struct TugGlyph: View {
                     .stroke(Palette.tugString, style: StrokeStyle(lineWidth: max(1.5, size * 0.075), lineCap: .round))
             }
             if showsCan {
-                TugCan()
+                TugCan(worried: worried)
                     .frame(width: size, height: size)
                     .rotationEffect(.degrees(pull * 5), anchor: UnitPoint(x: 0.5, y: 0.88)) // leans into the tug
                     .offset(x: pull * size * 0.03)
@@ -36,6 +38,8 @@ struct TugGlyph: View {
 
 /// The can, traced from the mascot sheet's 64-unit drawing.
 private struct TugCan: View {
+    var worried = false
+
     var body: some View {
         Canvas { context, canvas in
             let k = canvas.width / 64
@@ -62,6 +66,21 @@ private struct TugCan: View {
 
             context.fill(oval(25, 37, 3.4, 3.4), with: .color(Palette.tugOutline))
             context.fill(oval(39, 37, 3.4, 3.4), with: .color(Palette.tugOutline))
+
+            if worried {
+                // Brows with their inner ends raised, and one sweat drop beside the rim.
+                var brows = Path()
+                brows.move(to: p(19.5, 31)); brows.addLine(to: p(28, 28))
+                brows.move(to: p(36, 28)); brows.addLine(to: p(44.5, 31))
+                context.stroke(brows, with: .color(Palette.tugOutline), style: StrokeStyle(lineWidth: 3.2 * k, lineCap: .round))
+                var drop = Path()
+                drop.move(to: p(57, 21))
+                drop.addCurve(to: p(57, 34), control1: p(53, 27), control2: p(51.5, 34))
+                drop.addCurve(to: p(57, 21), control1: p(62.5, 34), control2: p(61, 27))
+                drop.closeSubpath()
+                context.fill(drop, with: .color(Palette.worry))
+                context.stroke(drop, with: .color(Palette.tugOutline), style: StrokeStyle(lineWidth: 1.6 * k, lineJoin: .round))
+            }
         }
     }
 }
