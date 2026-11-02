@@ -219,9 +219,11 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       if (why === 'cancelled') {
         transcriber?.close();
         await acquire();
-        // Audio that reached the transcriber is billed, so the hold counts toward the hourly limit.
-        if (transcriber?.sentBytes) audit(VOICE_ROUNDS_PATH, 499, 'live cancelled');
-        return { status: 499, body: { error: 'cancelled', message: 'The hold ended before release.', request_id: requestId }, dirty: false };
+        // Audio that reached the transcriber is billed, so the hold counts toward the hourly limit. That audit row is a
+        // write the hosting adapter must commit (dirty), or a restart would forget it and let the limit be passed.
+        const billed = Boolean(transcriber?.sentBytes);
+        if (billed) audit(VOICE_ROUNDS_PATH, 499, 'live cancelled');
+        return { status: 499, body: { error: 'cancelled', message: 'The hold ended before release.', request_id: requestId }, dirty: billed };
       }
       const releasedAt = performance.now();
       // "Faced the camera" numbers come with the end message, since they are known only at release. The answer is never

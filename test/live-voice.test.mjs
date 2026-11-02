@@ -169,9 +169,17 @@ test('live: a hold cancelled before release saves nothing, calls no reply model,
     await tick();
     round.cancel();
     const result = await round.done;
-    assert.equal(result.status, 499); assert.equal(result.dirty, false);
+    assert.equal(result.status, 499);
+    assert.equal(result.dirty, true, 'the counted 499 row is committed, so it survives a restart');
     assert.equal(s.calls.voiceReply, 0); assert.equal(s.meta.sockets[0].closed !== null, true);
     assert.equal(s.store.list('alice', 'voice-rounds').length, 0);
+    assert.equal(s.store.recentRequests('alice', 'POST', VOICE_ROUNDS_PATH, [499], 60_000), 1);
+    // A hold cancelled before any audio reached Meta wrote nothing that counts, so there is nothing to commit.
+    const early = s.open({ ...START, idempotency_key: 'live-key-0008' });
+    await tick();
+    early.cancel();
+    const quiet = await early.done;
+    assert.equal(quiet.status, 499); assert.equal(quiet.dirty, false);
     assert.equal(s.store.recentRequests('alice', 'POST', VOICE_ROUNDS_PATH, [499], 60_000), 1);
   } finally { s.cleanup(); }
 });
