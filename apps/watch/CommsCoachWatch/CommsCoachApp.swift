@@ -29,6 +29,8 @@ final class CaptureModel: ObservableObject {
     private var pending: PendingCapture?
     private(set) var isPreview = false
     private(set) var scrollToObservation = false
+    private(set) var scrollToActions = false
+    private(set) var scrollToTry = false
 
     init() {
         // At the cap the recorder stops itself; the capture goes to upload exactly as a Stop tap would.
@@ -45,6 +47,8 @@ final class CaptureModel: ObservableObject {
         if arguments.contains("-previewResult") {
             isPreview = true
             scrollToObservation = arguments.contains("-scrollToObservation")
+            scrollToActions = arguments.contains("-scrollToActions") // the result's buttons, at the end of the screen
+            scrollToTry = arguments.contains("-scrollToTry") // the short exercise line and its More button
             phase = .done(.preview)
             return
         }
@@ -55,7 +59,7 @@ final class CaptureModel: ObservableObject {
             if selectedGoal == nil { selectedGoal = goals.first }
             phase = .ready
         } catch {
-            phase = .failed(error.localizedDescription)
+            phase = .failed(Self.plain(error))
         }
         #if DEBUG
         // Debug builds only: start one recording without a tap, for simulator checks of the cap.
@@ -112,9 +116,17 @@ final class CaptureModel: ObservableObject {
             self.pending = nil
             phase = .done(receipt)
         } catch {
-            phase = .failed(error.localizedDescription) // file and key kept; Retry resends the same request
+            phase = .failed(Self.plain(error)) // file and key kept; Retry resends the same request
         }
     }
 
     var canRetryUpload: Bool { pending != nil }
+
+    /// Network failures in plain words; any other error keeps its own message.
+    static func plain(_ error: Error) -> String {
+        let offline: [URLError.Code] = [.notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost,
+                                        .cannotFindHost, .dnsLookupFailed, .timedOut, .dataNotAllowed, .internationalRoamingOff]
+        if let error = error as? URLError, offline.contains(error.code) { return "Lost connection." }
+        return error.localizedDescription
+    }
 }

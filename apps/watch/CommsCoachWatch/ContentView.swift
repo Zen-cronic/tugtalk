@@ -2,24 +2,32 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var model = CaptureModel()
+    @State private var scrolled = false
 
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(spacing: 10) { content }
+                    VStack(spacing: 8) { content }
                         .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 6) // keeps cards clear of the screen's rounded corners
                 }
+                .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 4 } action: { _, now in
+                    scrolled = now
+                }
+                .mask(alignment: .top) { HeaderFade(active: scrolled) }
                 .task {
                     await model.load()
-                    if model.scrollToObservation {
+                    if model.scrollToTry {
                         try? await Task.sleep(for: .milliseconds(400)) // let the result lay out first
-                        proxy.scrollTo("observation", anchor: .bottom)
+                        proxy.scrollTo("try", anchor: .center)
+                    } else if model.scrollToObservation || model.scrollToActions {
+                        try? await Task.sleep(for: .milliseconds(400))
+                        proxy.scrollTo(model.scrollToActions ? "actions" : "observation", anchor: .bottom)
                     }
                 }
             }
-            .navigationTitle(model.isPreview ? "Preview" : "Coach")
-            .navigationBarTitleDisplayMode(showingResult ? .inline : .automatic) // the hero number is the headline
+            .navigationTitle(showingResult ? "Result" : "Coach")
         }
     }
 
@@ -36,119 +44,374 @@ struct ContentView: View {
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .loading:
-            ProgressView("Loading goals")
+            ProgressView { Text("Loading goals").face(.text, 15) }
+                .tint(Palette.inkDark)
+                .foregroundStyle(Palette.inkDark)
         case .ready:
             setup
             Button { Task { await model.startRecording() } } label: {
-                Label("Record", systemImage: "mic.fill").frame(maxWidth: .infinity)
+                Label { Text("Record") } icon: { RecordLamp(lit: false) }
             }
-            .tint(.red)
+            .buttonStyle(CoachButtonStyle(height: 52))
+            .padding(.bottom, 8)
         case .recording:
-            ElapsedLabel(recorder: model.recorder)
-            Text(model.selectedGoal?.title ?? "No goal").font(.footnote).foregroundStyle(.secondary)
-            Text("Stops at \(Self.clock(Recorder.maxSeconds))").font(.caption2).foregroundStyle(.secondary)
+            recording
             Button { Task { await model.stopAndUpload() } } label: {
-                Label("Stop", systemImage: "stop.fill").frame(maxWidth: .infinity)
+                Label { Text("Stop") } icon: { RoundedRectangle(cornerRadius: 2).frame(width: 12, height: 12) }
             }
+            .buttonStyle(CoachButtonStyle())
+            Text(model.selectedGoal?.title ?? "No goal")
+                .face(.text, 14, relativeTo: .footnote)
+                .foregroundStyle(Palette.mutedDark)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
         case .uploading:
-            ProgressView("Analyzing")
-            Text("Meta transcription and coaching").font(.footnote).foregroundStyle(.secondary)
+            VStack(spacing: 6) {
+                TugWorking(size: 50)
+                    .padding(.bottom, 6)
+                Text("Analyzing").face(.display, 20, relativeTo: .title3)
+                    .foregroundStyle(Palette.inkDark)
+                Text("Counting fillers, hedges and restarts")
+                    .face(.text, 14, weight: 500, relativeTo: .footnote)
+                    .foregroundStyle(Palette.mutedDark)
+                    .multilineTextAlignment(.center)
+                ProgressDots()
+                    .padding(.top, 2)
+            }
+            .padding(.top, 8)
         case .done(let receipt):
             result(receipt)
-            Button("New capture") { model.phase = .ready }
+            Button { Task { await model.startRecording() } } label: {
+                Label { Text("Record again") } icon: { RecordLamp(lit: false) }
+            }
+            .buttonStyle(CoachButtonStyle())
+            Button("Change goal") { model.phase = .ready }
+                .buttonStyle(CoachButtonStyle(primary: false))
+                .id("actions")
         case .failed(let message):
-            Text(message).font(.footnote).multilineTextAlignment(.center)
+            failure(message)
             if model.canRetryUpload {
                 Button("Retry upload") { Task { await model.upload() } }
+                    .buttonStyle(CoachButtonStyle())
             }
             Button("Reload") { Task { await model.load() } }
+                .buttonStyle(CoachButtonStyle(primary: !model.canRetryUpload))
         }
     }
 
+    /// Goal and language in one card; it opens one list with both choices.
     private var setup: some View {
-        VStack(spacing: 6) {
-            Picker("Goal", selection: $model.selectedGoal) {
-                Text("No goal").tag(GoalSummary?.none)
-                ForEach(model.goals) { goal in Text(goal.title).tag(GoalSummary?.some(goal)) }
+        NavigationLink {
+            SetupList(model: model)
+        } label: {
+            HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(model.selectedGoal?.title ?? "No goal").face(.text, 16, weight: 700, relativeTo: .headline)
+                        .foregroundStyle(Palette.ink)
+                    Text(model.language == "fr" ? "Français" : "English").face(.text, 14, weight: 600, relativeTo: .footnote)
+                        .foregroundStyle(Palette.muted)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Palette.ink)
             }
-            Picker("Language", selection: $model.language) {
-                Text("English").tag("en")
-                Text("Français").tag("fr")
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Palette.field, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-        .pickerStyle(.navigationLink)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Goal and language")
+        .accessibilityValue("\(model.selectedGoal?.title ?? "No goal"), \(model.language == "fr" ? "Français" : "English")")
     }
 
-    /// One hero number, three secondary numbers, then the model's words.
+    /// The recording card: the light is on, the clock runs, and the cap is stated up front.
+    private var recording: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                RecordLamp(lit: true)
+                Text("Recording").face(.text, 15, weight: 700, relativeTo: .headline)
+            }
+            .foregroundStyle(Palette.inkDark)
+            ElapsedLabel(recorder: model.recorder)
+            Text("Stops at \(Self.clock(Recorder.maxSeconds))")
+                .face(.text, 14, weight: 600, relativeTo: .footnote)
+                .foregroundStyle(Palette.inkDark)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Palette.rack, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// One hero number, then the two other habits and pace, then the coach's words.
     /// The hero is always fillers so the screen reads the same way after every capture.
     private func result(_ receipt: CaptureReceipt) -> some View {
         let m = receipt.record.metrics
         let analysis = receipt.record.analysis
-        return VStack(spacing: 6) {
-            VStack(spacing: 0) {
-                Text("\(m.filler_count)")
-                    .font(.system(size: 64, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.filler)
-                    .minimumScaleFactor(0.6)
+        let verdict = analysis.observation.flatMap { CoachText.lead(of: $0, maxWords: 7) }
+        return VStack(alignment: .leading, spacing: 6) {
+            if let verdict {
+                // The coach's own opening clause, so the screen leads with the verdict, not the count.
+                Text(verdict.lead)
+                    .face(.text, 15, weight: 700, relativeTo: .headline)
+                    .foregroundStyle(Palette.inkDark)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            CartChip(fill: Palette.filler, edge: Palette.fillerEdge, radius: 16, edgeHeight: 5) {
+                HStack(alignment: .center, spacing: 6) {
+                    Text("\(m.filler_count)")
+                        .face(.display, 44, relativeTo: .largeTitle)
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(m.filler_count == 1 ? "filler" : "fillers").face(.text, 18, weight: 700, relativeTo: .headline)
+                        Text("in \(m.word_count) words").face(.text, 14, weight: 500, relativeTo: .footnote)
+                    }
                     .lineLimit(1)
-                    .padding(.vertical, -8) // trim the font's line padding so the secondary row stays above the fold
-                Text(m.filler_count == 1 ? "FILLER" : "FILLERS")
-                    .font(.caption2.weight(.semibold))
-                    .tracking(1.2)
-                    .foregroundStyle(Palette.filler)
-                Text("in \(m.word_count) words")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .minimumScaleFactor(0.8)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, -2) // trim the numeral's line padding so the stats stay above the fold
             }
             .accessibilityElement(children: .combine)
+            .slotIn()
 
-            HStack(spacing: 4) {
-                SmallMetric(value: "\(m.hedge_count)", label: "hedges", color: Palette.hedge)
-                SmallMetric(value: "\(m.restart_count)", label: "restarts", color: Palette.restart)
-                SmallMetric(value: m.words_per_minute.map(String.init) ?? "–", label: "wpm", color: .white)
+            HStack(spacing: 6) {
+                SmallMetric(value: m.hedge_count, singular: "hedge", plural: "hedges", fill: Palette.hedge, edge: Palette.hedgeEdge)
+                SmallMetric(value: m.restart_count, singular: "restart", plural: "restarts", fill: Palette.restart, edge: Palette.restartEdge)
+                PaceMetric(wpm: m.words_per_minute)
             }
+            .slotIn()
 
-            VStack(alignment: .leading, spacing: 6) {
-                if let observation = analysis.observation {
-                    Text(observation).font(.footnote)
+            VStack(alignment: .leading, spacing: 10) {
+                if let verdict {
+                    Text(verdict.rest)
+                        .face(.text, 15, relativeTo: .body)
+                        .foregroundStyle(Palette.inkDark)
+                } else if let observation = analysis.observation {
+                    Text(observation)
+                        .face(.text, 15, relativeTo: .body)
+                        .foregroundStyle(Palette.inkDark)
                 } else {
-                    Text("No observation this time; the counts are saved.").font(.footnote).foregroundStyle(.secondary)
+                    Text("No observation this time; the counts are saved.")
+                        .face(.text, 15, relativeTo: .body)
+                        .foregroundStyle(Palette.mutedDark)
                 }
                 if let exercise = analysis.suggested_exercise {
-                    Text("Try: \(exercise)").font(.footnote).foregroundStyle(.secondary)
+                    // An instruction is a quote with a rule on the left, never a filled block that looks like a button.
+                    HStack(alignment: .top, spacing: 8) {
+                        Capsule().fill(Palette.inkDark).frame(width: 3)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Try").face(.display, 15, relativeTo: .headline)
+                            Text(CoachText.headline(of: exercise, maxWords: 6)).face(.text, 15, weight: 600, relativeTo: .body)
+                        }
+                        .foregroundStyle(Palette.inkDark)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityElement(children: .combine)
+                    .id("try")
+                    NavigationLink {
+                        ScrollView {
+                            Text(exercise).face(.text, 16, weight: 500, relativeTo: .body)
+                                .foregroundStyle(Palette.inkDark)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 6)
+                        }
+                        .navigationTitle("Try")
+                    } label: {
+                        Text("More")
+                    }
+                    .buttonStyle(CoachButtonStyle(primary: false, height: 36))
                 }
-                Text("Also in Muse on your phone and Mac.").font(.caption2).foregroundStyle(.secondary)
+                HStack(alignment: .center, spacing: 4) {
+                    TugGlyph(size: 28, reach: 8, endY: 0.6, pull: 1)
+                    Text("Also in Muse, Meta's assistant, on your phone and Mac.")
+                        .face(.text, 13, weight: 600, relativeTo: .caption)
+                        .foregroundStyle(Palette.inkDark)
+                }
+                .padding(.top, 2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .id("observation")
         }
     }
 
-}
-
-/// Habit colours shared with the landing page (site/styles.css).
-enum Palette {
-    static let filler = Color(red: 1.0, green: 0.835, blue: 0.290)   // #FFD54A
-    static let hedge = Color(red: 0.663, green: 0.824, blue: 1.0)    // #A9D2FF
-    static let restart = Color(red: 1.0, green: 0.690, blue: 0.769)  // #FFB0C4
+    /// A worried Tug with a cut string, the error in plain words, and what is still safe, above the action.
+    private func failure(_ message: String) -> some View {
+        VStack(spacing: 4) {
+            TugGlyph(size: 32, reach: 14, cut: true, worried: true)
+            Text(message)
+                .face(.text, 15, relativeTo: .body)
+                .foregroundStyle(Palette.inkDark)
+                .multilineTextAlignment(.center)
+            if model.canRetryUpload {
+                Text("Your answer is saved on the watch.")
+                    .face(.text, 13, weight: 600, relativeTo: .caption)
+                    .foregroundStyle(Palette.mutedDark)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.bottom, 2)
+    }
 }
 
 private struct SmallMetric: View {
-    let value: String
-    let label: String
-    let color: Color
+    let value: Int
+    let singular: String
+    let plural: String
+    let fill: Color
+    let edge: Color
+
+    var body: some View {
+        CartChip(fill: fill, edge: edge) {
+            VStack(spacing: 0) {
+                Text("\(value)").face(.display, 22, relativeTo: .title3).monospacedDigit()
+                Text(value == 1 ? singular : plural).face(.text, 12, weight: 700, relativeTo: .caption2)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Pace is context, not a habit: neutral ink, no chip, and narrower than the habit chips.
+private struct PaceMetric: View {
+    let wpm: Int?
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(value)
-                .font(.system(.title3, design: .rounded).weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(color)
-            Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
+            Text(wpm.map(String.init) ?? "–").face(.text, 18, weight: 700, relativeTo: .headline).monospacedDigit()
+                .foregroundStyle(Palette.pace)
+            Text("wpm").face(.text, 12, weight: 500, relativeTo: .caption2)
+                .foregroundStyle(Palette.mutedDark)
         }
-        .frame(maxWidth: .infinity)
+        .frame(width: 38)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The recording light. Unlit it is a ring. Lit it is solid, and a ring pulses out from it while the mic is live.
+/// With Reduce Motion the pulse is replaced by a steady outer ring.
+private struct RecordLamp: View {
+    let lit: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            if lit {
+                Circle().stroke(Palette.recordDot, lineWidth: 1.5)
+                    .scaleEffect(reduceMotion ? 1.6 : (pulse ? 2.1 : 1))
+                    .opacity(reduceMotion ? 0.7 : (pulse ? 0 : 0.9))
+                Circle().fill(Palette.recordDot)
+            } else {
+                Circle().strokeBorder(Palette.ink, lineWidth: 2) // unlit, it sits on an ink-dark button
+            }
+        }
+        .frame(width: 13, height: 13)
+        .padding(lit ? 4 : 0) // room for the outer ring
+        .onAppear {
+            guard lit, !reduceMotion else { return }
+            withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) { pulse = true }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Three dots that light in turn while the answer is analysed. They change brightness only, never position,
+/// so they stay the same with Reduce Motion.
+private struct ProgressDots: View {
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.45)) { context in
+            let step = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 3
+            HStack(spacing: 6) {
+                ForEach(0..<3, id: \.self) { i in
+                    Circle().fill(Palette.inkDark).frame(width: 6, height: 6).opacity(i == step ? 1 : 0.42) // the dim dots stay above 3:1 on the face
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Scrolled content fades out before it reaches the clock and title band, so text never shows behind the title.
+/// Static, so it is the same with Reduce Motion.
+private struct HeaderFade: View {
+    /// Off at rest, so nothing below the large title is touched; on once the content scrolls under the title.
+    let active: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: active ? 44 : 0)
+            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: active ? 10 : 0)
+            Color.black
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// Both setup choices on one list. Picking an option marks it; Back returns to Record.
+private struct SetupList: View {
+    @ObservedObject var model: CaptureModel
+
+    var body: some View {
+        List {
+            Section("Goal") {
+                option("No goal", selected: model.selectedGoal == nil) { model.selectedGoal = nil }
+                ForEach(model.goals) { goal in
+                    option(goal.title, selected: model.selectedGoal == goal) { model.selectedGoal = goal }
+                }
+            }
+            Section("Language") {
+                option("English", selected: model.language == "en") { model.language = "en" }
+                option("Français", selected: model.language == "fr") { model.language = "fr" }
+            }
+        }
+        .navigationTitle("Setup")
+    }
+
+    private func option(_ title: String, selected: Bool, choose: @escaping () -> Void) -> some View {
+        Button(action: choose) {
+            HStack {
+                Text(title).face(.text, 16, relativeTo: .body)
+                Spacer(minLength: 4)
+                if selected { Image(systemName: "checkmark").foregroundStyle(Palette.field) }
+            }
+        }
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Splits coach text for the wrist. Nothing is reworded: a lead is the coach's own opening words.
+enum CoachText {
+    /// The observation's opening clause (up to the first comma or full stop) when it is short, and the rest of it.
+    static func lead(of text: String, maxWords: Int) -> (lead: String, rest: String)? {
+        guard let cut = text.firstIndex(where: { $0 == "," || $0 == "." }) else { return nil }
+        let lead = text[..<cut].trimmingCharacters(in: .whitespaces)
+        let rest = text[text.index(after: cut)...].trimmingCharacters(in: .whitespaces)
+        let words = lead.split(separator: " ").count
+        guard words >= 2, words <= maxWords, !rest.isEmpty else { return nil }
+        return (lead, rest.prefix(1).uppercased() + rest.dropFirst())
+    }
+
+    /// The exercise's name (before any colon or bracket), or its first words when it has no name.
+    static func headline(of text: String, maxWords: Int) -> String {
+        let name = text.prefix { $0 != ":" && $0 != "(" && $0 != "." }.trimmingCharacters(in: .whitespaces)
+        let words = name.split(separator: " ")
+        if !words.isEmpty, words.count <= maxWords { return name }
+        let all = text.split(separator: " ")
+        return all.prefix(maxWords).joined(separator: " ") + (all.count > maxWords ? "…" : "")
     }
 }
 
@@ -159,7 +422,9 @@ private struct ElapsedLabel: View {
 
     var body: some View {
         Text(ContentView.clock(recorder.elapsed))
-            .font(.title2.monospacedDigit())
+            .face(.display, 34, relativeTo: .title)
+            .monospacedDigit()
+            .foregroundStyle(Palette.inkDark)
             .contentTransition(.numericText())
     }
 }

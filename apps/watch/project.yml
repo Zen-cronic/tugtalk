@@ -29,6 +29,9 @@ targets:
         NSMicrophoneUsageDescription: Records a short practice answer you choose to capture, so your coach can measure fillers, pace and restarts. Audio is uploaded once and not kept.
         CoachAPIBaseURL: $(COACH_API_BASE_URL)
         CoachAPIToken: $(COACH_API_TOKEN)
+        UIAppFonts:
+          - Anybody-Variable.ttf
+          - HankenGrotesk-Variable.ttf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kaungzinhein.commscoach.watch
