@@ -28,9 +28,8 @@ final class VoiceFlow {
     private var capTask: Task<Void, Never>?
     private var uploadTask: Task<Void, Never>?
     private var phaseWatch: AnyCancellable?
-    /// The answers of the spoken round so far, counted on this Mac since the last wrap-up.
-    private var roundAnswers = 0
-    private var roundMetrics: [VoiceMetrics] = []
+    /// The answers of the spoken round so far, counted on this Mac since the last wrap-up or reset.
+    private var tally = RoundTally()
 
     var afterSave: () -> Void = {}
 
@@ -92,10 +91,16 @@ final class VoiceFlow {
         model.set(.notice("Not sent. Hold Talk until you finish."), collapseAfter: 3)
     }
 
-    /// The bubble was closed, by its button or a click on the character.
-    func dismissed() { perform(machine.dismiss()) }
+    /// The bubble was closed, by its button or a click on the character. The round ends with it.
+    func dismissed() {
+        tally.reset()
+        perform(machine.dismiss())
+    }
 
+    /// Another state took the bubble (a screen capture, a nudge): the round ends. A reply card that only
+    /// collapsed to idle keeps the round, and a long silence ends it by itself (`RoundTally.idleGap`).
     private func leftVoice() {
+        if model.phase != .idle { tally.reset() }
         switch machine.phase {
         case .speaking, .failed, .listening: perform(machine.dismiss())
         default: break
@@ -225,16 +230,12 @@ final class VoiceFlow {
         let effects = machine.replyReady(key: key, question: receipt.reply.question, endsRound: receipt.reply.kind == .wrap_up)
         guard !effects.isEmpty else { return }  // an older hold's reply
         var next = VoiceCard(receipt)
-        roundAnswers += 1
-        if let m = receipt.metrics { roundMetrics.append(m) }
-        next.round = roundAnswers
-        if next.endsRound {
-            next.summary = RoundSummary.make(roundMetrics)
-            roundAnswers = 0
-            roundMetrics = []
-        }
+        let counted = tally.record(receipt.metrics, endsRound: next.endsRound, at: Date())
+        next.round = counted.round
+        next.summary = counted.summary
         card = next
         if case .failed = machine.phase {
+            tally.reset()
             perform(effects)
             model.set(.voiceError("The reply had no question to speak.", retryable: false))
             return
@@ -244,6 +245,7 @@ final class VoiceFlow {
     }
 
     private func fail(_ key: String, message: String, retryable: Bool) {
+        tally.reset()
         if case .thinking = machine.phase {
             perform(machine.uploadFailed(key: key, retryable: retryable))
         } else {

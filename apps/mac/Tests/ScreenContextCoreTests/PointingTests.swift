@@ -207,3 +207,30 @@ final class CardAvoidanceTests: XCTestCase {
         XCTAssertNil(CardAvoidance.verticalShift(card: CGRect(x: 120, y: 100, width: 300, height: 600), avoid: ring, visible: visible))
     }
 }
+
+final class RoundTallyTests: XCTestCase {
+    private func m(_ fillers: Int) -> VoiceMetrics? {
+        try? JSONDecoder().decode(VoiceMetrics.self, from: Data(#"{"word_count":20,"filler_count":\#(fillers),"hedge_count":0,"restart_count":0}"#.utf8))
+    }
+    private let t0 = Date(timeIntervalSince1970: 1_000)
+
+    func testAWrapUpSumsUpTheRoundAndTheNextRoundStartsAtOne() {
+        var tally = RoundTally()
+        XCTAssertEqual(tally.record(m(3), endsRound: false, at: t0).round, 1)
+        let end = tally.record(m(1), endsRound: true, at: t0 + 30)
+        XCTAssertEqual(end.round, 2); XCTAssertEqual(end.summary?.first, 3); XCTAssertEqual(end.summary?.last, 1)
+        XCTAssertEqual(tally.record(m(2), endsRound: false, at: t0 + 60).round, 1)
+    }
+
+    func testAResetOrALongSilenceKeepsRoundsFromSpanningSessions() {
+        var tally = RoundTally()
+        _ = tally.record(m(4), endsRound: false, at: t0)
+        tally.reset()   // the reply was dismissed, or failed
+        let after = tally.record(m(1), endsRound: true, at: t0 + 10)
+        XCTAssertEqual(after.round, 1); XCTAssertNil(after.summary, "no 'down from 4' from the earlier session")
+        _ = tally.record(m(5), endsRound: false, at: t0 + 20)
+        let late = tally.record(m(0), endsRound: true, at: t0 + 20 + RoundTally.idleGap + 1)
+        XCTAssertEqual(late.round, 1, "a reply after a long silence is a new round")
+        XCTAssertNil(late.summary)
+    }
+}

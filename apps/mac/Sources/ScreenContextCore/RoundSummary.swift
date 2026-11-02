@@ -39,3 +39,31 @@ public struct RoundSummary: Sendable, Equatable {
         return RoundSummary(habit: pick.0, first: pick.1, last: pick.2, answers: measured.count)
     }
 }
+
+/// Counts the answers of one spoken round on this Mac, so the card can say "Round 2" and, at the wrap-up,
+/// "down from 2". A round never spans sessions: `reset()` on a dismissed or failed reply or when another
+/// state takes over, and a reply after `idleGap` of silence starts a new round by itself.
+public struct RoundTally: Sendable, Equatable {
+    /// The same expiry the last question's end time has: after it, an answer is a new session.
+    public static let idleGap: TimeInterval = VoiceTurnMachine.promptExpiry
+
+    public private(set) var answers = 0
+    public private(set) var metrics: [VoiceMetrics] = []
+    private var lastReplyAt: Date?
+
+    public init() {}
+
+    /// One reply arrived: its place in the round and, when it ends the round, the round's summary.
+    public mutating func record(_ m: VoiceMetrics?, endsRound: Bool, at now: Date) -> (round: Int, summary: RoundSummary?) {
+        if let lastReplyAt, now.timeIntervalSince(lastReplyAt) > Self.idleGap { reset() }
+        answers += 1
+        if let m { metrics.append(m) }
+        lastReplyAt = now
+        guard endsRound else { return (answers, nil) }
+        let result = (answers, RoundSummary.make(metrics))
+        reset()
+        return result
+    }
+
+    public mutating func reset() { answers = 0; metrics = []; lastReplyAt = nil }
+}
