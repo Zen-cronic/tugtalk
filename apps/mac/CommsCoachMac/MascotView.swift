@@ -511,13 +511,15 @@ struct YourTurnBar: View {
         TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
             let pulse = reduceMotion ? 1 : 0.55 + 0.45 * sin(context.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.6)
             HStack(spacing: 8) {
-                Text("Your turn").font(TypeFace.body(14, weight: 700)).foregroundStyle(Color(Tok.inkFixed))
+                Text("Your turn").font(TypeFace.body(14, weight: 700)).foregroundStyle(Color(Tok.inkFixed)).lineLimit(1)
                 ShortcutLine(text: "hold ⌃⌥T", font: TypeFace.body(13, weight: 600), ink: Tok.inkFixed)
             }
             .padding(.horizontal, 12).frame(minHeight: 34)
             .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(Tok.field)))
             .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color(Tok.inkFixed).opacity(0.25 + 0.5 * pulse), lineWidth: 1.5))
         }
+        // The bar keeps its own width: without this the row squeezed "Your turn" until it broke letter by letter.
+        .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Your turn. Hold Control Option T to answer.")
     }
