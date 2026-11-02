@@ -17,6 +17,7 @@ Meta's Model API has no text-to-speech model. The spoken reply comes from `POST 
   - `X-Language`: `en` (default) or `fr`.
   - `X-Prompt-Ended-At`: ISO 8601 time when the mascot finished speaking its previous question.
   - `X-Occurred-At`: ISO 8601 time when the recording started (key down). This is the same header `POST /v1/recordings` takes. Onset needs it (see below).
+  - `X-Camera-Metrics`: four "faced the camera" numbers the Mac measured during the hold, when the camera is turned on; stored as `metrics.camera`. Strictly checked, and not part of the fingerprint. See [camera.md](camera.md).
 
 An exact retry (same key, same audio and the same headers) returns the stored round and makes no model call. The same key with different audio or headers returns 409.
 

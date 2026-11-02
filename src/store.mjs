@@ -96,7 +96,7 @@ export class Store {
       const rounds=context.voice_rounds.slice().sort((a,b)=>b.occurred_at.localeCompare(a.occurred_at)||b.id.localeCompare(a.id));
       const roundBrief=r=>r&&{id:r.id,version:r.version,occurred_at:r.occurred_at,goal_id:r.goal_id,screen_context_id:r.screen_context_id,language:r.language,
         metrics:{word_count:r.metrics.word_count,words_per_minute:r.metrics.words_per_minute,filler_count:r.metrics.filler_count,hedge_count:r.metrics.hedge_count,
-          restart_count:r.metrics.restart_count,longest_pause_ms:r.metrics.pauses?.longest_pause_ms??null,onset_ms_approx:r.metrics.onset_ms_approx},
+          restart_count:r.metrics.restart_count,longest_pause_ms:r.metrics.pauses?.longest_pause_ms??null,onset_ms_approx:r.metrics.onset_ms_approx,...(r.metrics.camera?{camera:r.metrics.camera}:{})},
         reply:r.reply};
       const extension=this.extendFresh?this.extendFresh({user,goalId,context}):undefined;
       const revised={goals:context.goals,exercises:context.exercises,check_ins:context.check_ins,sessions:context.sessions};

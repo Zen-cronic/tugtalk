@@ -36,7 +36,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 120 | A `node --test` run of the other test files (all must pass), plus this one |
+| `node-tests` | Node test cases, as `npm test` reports them | 125 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 22 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
@@ -98,3 +98,11 @@ Every number or name we state about this project, and where it comes from. `test
 | `hosted-live-transcript` | Same rounds: release to the final transcript, p50 / max, and how it was transcribed | 482 / 493 ms; Meta realtime in 5 of 5 | `voice_latency.live_rounds` in docs/hosted-latency.json |
 | `hosted-live-steps` | Same rounds, measured on the server: reply model p50 / max, and the reply to its first audio (Wit), p50 / max | model 2203 / 2804 ms; reply to audio 1043 / 2679 ms | `voice_latency.live_rounds` in docs/hosted-latency.json |
 | `hosted-speech-prefetch` | Hosted WAV round: the spoken reply requested after the receipt, first byte and server time | 284 ms, server 5.9 ms (made while the round was saved; no commit) | `voice_latency.wav_round` in docs/hosted-latency.json |
+
+## Faced the camera (Mac, optional)
+
+| ID | Claim | Value | Checked against |
+|---|---|---|---|
+| `camera-header` | What the Mac sends about the camera for one answer (`X-Camera-Metrics`, stored as `metrics.camera`) | 4 integers (faced_camera_pct, looked_away_count, longest_look_away_ms, frames); any other field is refused | `CAMERA_FIELDS` (src/camera-metrics.mjs); HTTP: the Mac's header is stored, and one with an extra field returns 400 |
+| `camera-cone` | When a camera frame counts as "faced the camera", and the shortest counted look-away | head turn ≤ 20° and tilt ≤ 15°; look-aways counted from 1.0 s | `FacingRule` and `minLookAway` in apps/mac/Sources/ScreenContextCore/CameraMeter.swift, and the rule in `eval/camera-synthetic.json` |
+| `camera-synthetic` | Offline meter check on synthetic head angles with noise and missed frames, not a real face | 8 scenarios × 20 seeds: look-away count right in 160 of 160; worst share error 9 points | `eval/camera-synthetic.json` (`swift run camera-eval synthetic`) |

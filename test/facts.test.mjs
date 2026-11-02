@@ -18,6 +18,7 @@ import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS } from '../src/voice.m
 import { runVoiceEval } from '../src/voice-eval.mjs';
 import { createSpeechModel, SPEECH_PROVIDERS } from '../src/speech.mjs';
 import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
+import { CAMERA_FIELDS, CAMERA_METHOD } from '../src/camera-metrics.mjs';
 import { MODEL_BUDGET_MS, ADAPTER_DEADLINE_MS, MIN_START_MS } from '../src/budget.mjs';
 import { MEDIA_CAP_BYTES, MEDIA_DOWNLOAD_LIMIT } from '../src/media.mjs';
 
@@ -279,7 +280,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       ...voiceChecks(base, store, dbPath, calls),
       ...await speechChecks(),
       ...liveVoiceChecks(),
-      ...hostedChecks()
+      ...hostedChecks(),
+      ...cameraChecks(base)
     };
 
     const facts = parseFacts();
@@ -563,6 +565,37 @@ function hostedChecks() {
       const s = v.wav_round.speech_after_receipt;
       assert.equal(s.voice, 'wit$Rebecca'); assert.equal('commit' in s.server_timing, false, 'the speech request was not committed');
       return `${s.first_byte_ms} ms, server ${s.server_timing.total} ms (made while the round was saved; no commit)`;
+    }
+  };
+}
+
+// "Faced the camera": the header's fields over HTTP, the Mac's cone read from its source, and the committed synthetic eval.
+function cameraChecks(base) {
+  const post = (key, header) => fetch(base + '/v1/voice-rounds', { method: 'POST', body: wav(1.4),
+    headers: { Authorization: 'Bearer facts-secret', 'Content-Type': 'audio/wav', 'Idempotency-Key': key, 'X-Camera-Metrics': header } });
+  return {
+    'camera-header': async () => {
+      const ok = await (await post('facts-camera-1', '{"faced_camera_pct":62,"frames":148,"longest_look_away_ms":4100,"looked_away_count":3}')).json();
+      const fields = Object.keys(ok.metrics.camera).filter(k => k !== 'method');
+      assert.deepEqual(fields.sort(), Object.keys(CAMERA_FIELDS).sort());
+      assert.equal(ok.metrics.camera.method, CAMERA_METHOD);
+      assert.equal((await post('facts-camera-2', '{"faced_camera_pct":62,"frames":148,"longest_look_away_ms":4100,"looked_away_count":3,"image":"AAAA"}')).status, 400);
+      return `${fields.length} integers (${Object.keys(CAMERA_FIELDS).join(', ')}); any other field is refused`;
+    },
+    'camera-cone': () => {
+      const swift = read('apps/mac/Sources/ScreenContextCore/CameraMeter.swift');
+      const [, yaw, pitch] = swift.match(/init\(maxYaw: Double = (\d+), maxPitch: Double = (\d+)\)/);
+      const minAway = swift.match(/minLookAway: Double = ([\d.]+)/)[1];
+      const synthetic = JSON.parse(read('eval/camera-synthetic.json'));
+      assert.deepEqual(synthetic.rule, { max_pitch_deg: Number(pitch), max_yaw_deg: Number(yaw) }, 'the eval ran the shipped cone');
+      return `head turn ≤ ${yaw}° and tilt ≤ ${pitch}°; look-aways counted from ${Number(minAway).toFixed(1)} s`;
+    },
+    'camera-synthetic': () => {
+      const r = JSON.parse(read('eval/camera-synthetic.json'));
+      const runs = r.scenarios.length * r.seeds, right = r.scenarios.reduce((n, s) => n + s.count_matches, 0);
+      assert.equal(right / runs, r.count_match_rate);
+      assert.match(r.note, /not Vision's accuracy on a real face/);
+      return `${r.scenarios.length} scenarios × ${r.seeds} seeds: look-away count right in ${right} of ${runs}; worst share error ${r.worst_pct_error} points`;
     }
   };
 }

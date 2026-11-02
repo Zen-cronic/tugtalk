@@ -10,6 +10,7 @@ import { scrub } from './screen-context.mjs';
 import { sparkCall, jsonClosed, SPARK_STREAM_MODEL, DEFAULT_MAX_TOKENS } from './spark-stream.mjs';
 import { createBudget, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
 import { attachMedia } from './media.mjs';
+import { parseCameraMetrics } from './camera-metrics.mjs';
 
 const NO_PHASES = { async release() {}, async acquire() {} };
 export const VOICE_ROUNDS_PATH = '/v1/voice-rounds';
@@ -39,7 +40,10 @@ export function voiceParams(headers) {
   if (promptEndedAt !== null && !isIso(promptEndedAt)) throw new ApiError(400, 'invalid_value', 'X-Prompt-Ended-At must be an ISO 8601 timestamp.');
   if (occurredAt !== null && !isIso(occurredAt)) throw new ApiError(400, 'invalid_value', 'X-Occurred-At must be an ISO 8601 timestamp.');
   const iso = v => v && new Date(v).toISOString();
-  return { language, goalId, screenContextId, promptEndedAt: iso(promptEndedAt), occurredAt: iso(occurredAt) };
+  // Optional "faced the camera" numbers from the Mac (src/camera-metrics.mjs). Not part of the idempotency fingerprint:
+  // the audio and its parameters identify the round, and an exact retry returns the round first saved.
+  const camera = parseCameraMetrics(headers['x-camera-metrics']);
+  return { language, goalId, screenContextId, promptEndedAt: iso(promptEndedAt), occurredAt: iso(occurredAt), ...(camera ? { camera } : {}) };
 }
 
 // The quote is accepted only if its words appear in the transcript as one unbroken run, in order.
@@ -169,7 +173,7 @@ export function voiceMetrics(transcription, durationMs, params) {
     if (value >= 0 && value <= ONSET_MAX_MS) onset = Math.round(value);
   }
   return { word_count: m.word_count, words_per_minute: m.words_per_minute, filler_count: m.filler_count, hedge_count: m.hedge_count,
-    restart_count: m.restart_count, pauses: m.pauses, onset_ms_approx: onset };
+    restart_count: m.restart_count, pauses: m.pauses, onset_ms_approx: onset, ...(params.camera ? { camera: params.camera } : {}) };
 }
 
 const newest = list => list.slice().sort((a, b) => b.occurred_at.localeCompare(a.occurred_at) || b.id.localeCompare(a.id))[0] ?? null;
