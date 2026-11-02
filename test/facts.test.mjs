@@ -498,6 +498,7 @@ function hostedChecks() {
   const h = JSON.parse(read('docs/hosted-latency.json'));
   const median = xs => { const s = [...xs].sort((a, b) => a - b); return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2; };
   const fresh = h.after.voice_rounds.filter(r => !r.replayed), replay = h.after.voice_rounds.filter(r => r.replayed);
+  const v = h.voice_latency, live = v.live_rounds;
   return {
     'hosted-health': () => {
       assert.equal(h.before.warm_health_ms.length, h.after.warm_health_ms.length);
@@ -517,6 +518,24 @@ function hostedChecks() {
       assert.equal(replay.length, 1); assert.equal(replay[0].status, 200);
       assert.equal(replay[0].server_timing.handler < 100, true, 'the replay made no model call');
       return `none, ${replay[0].release_to_reply_ms} ms`;
+    },
+    'hosted-voice-before': () => `${v.before.release_to_reply_ms} ms and ${v.before.release_to_first_word_ms} ms`,
+    'hosted-live-voice': () => {
+      const reply = live.map(r => r.release_to_reply_ms), audio = live.map(r => r.release_to_first_audio_ms);
+      return `reply ${median(reply)} / ${Math.max(...reply)} ms; first audio byte ${median(audio)} / ${Math.max(...audio)} ms (${live.length} rounds)`;
+    },
+    'hosted-live-transcript': () => {
+      const t = live.map(r => r.release_to_transcript_ms);
+      return `${median(t)} / ${Math.max(...t)} ms; Meta realtime in ${live.filter(r => r.transcription === 'realtime').length} of ${live.length}`;
+    },
+    'hosted-live-steps': () => {
+      const model = live.map(r => r.server.model), gap = live.map(r => r.server.release_to_speech - r.server.release_to_reply);
+      return `model ${median(model)} / ${Math.max(...model)} ms; reply to audio ${median(gap)} / ${Math.max(...gap)} ms`;
+    },
+    'hosted-speech-prefetch': () => {
+      const s = v.wav_round.speech_after_receipt;
+      assert.equal(s.voice, 'wit$Rebecca'); assert.equal('commit' in s.server_timing, false, 'the speech request was not committed');
+      return `${s.first_byte_ms} ms, server ${s.server_timing.total} ms (made while the round was saved; no commit)`;
     }
   };
 }
