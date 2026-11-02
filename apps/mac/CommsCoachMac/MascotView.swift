@@ -486,7 +486,7 @@ struct VoiceCardView: View {
     }
 
     private var provenance: String {
-        [card.voiceNote, card.shortLatency, "\(card.modelLabel) · receipt \(card.receiptID.prefix(8))\(card.replayed ? " · already saved" : "")"]
+        [card.voiceNote, card.shortLatency, "\(card.modelLabel) · \(card.receiptID.isEmpty ? "saving" : "receipt \(card.receiptID.prefix(8))")\(card.replayed ? " · already saved" : "")"]
             .compactMap { $0 }.joined(separator: "\n")
     }
 }

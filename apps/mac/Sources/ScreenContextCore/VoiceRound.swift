@@ -66,6 +66,8 @@ public struct VoiceLatency: Decodable, Sendable, Equatable {
     public let asr: Double?
     public let model: Double?
     public let total: Double?
+
+    public init(asr: Double?, model: Double?, total: Double?) { self.asr = asr; self.model = model; self.total = total }
 }
 
 public struct VoiceRoundReceipt: Decodable, Sendable, Equatable {

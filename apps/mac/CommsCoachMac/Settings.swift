@@ -48,6 +48,22 @@ enum Settings {
         set { defaults.set(newValue, forKey: "dockMode") }
     }
 
+    enum ReplyVoice: String, CaseIterable { case rebecca, thisMac
+        var title: String { self == .rebecca ? "Rebecca" : "This Mac" }
+    }
+    static var replyVoice: ReplyVoice {
+        get { defaults.string(forKey: "replyVoice").flatMap(ReplyVoice.init(rawValue:)) ?? .rebecca }
+        set { defaults.set(newValue.rawValue, forKey: "replyVoice") }
+    }
+
+    /// Stream the answer while ⌃⌥T is held (WS /v1/voice-rounds/live), so the transcript is ready on release.
+    /// On by default; `-liveVoice NO` sends the WAV on release instead. A live round that fails falls back to that.
+    static var liveVoice: Bool {
+        // `bool(forKey:)` also reads a launch argument ("NO"), which is a string, not a Bool.
+        get { defaults.object(forKey: "liveVoice") == nil ? true : defaults.bool(forKey: "liveVoice") }
+        set { defaults.set(newValue, forKey: "liveVoice") }
+    }
+
     static var autoHideInMeetings: Bool {
         get { defaults.object(forKey: "autoHideInMeetings") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "autoHideInMeetings") }
