@@ -158,6 +158,7 @@ final class VoiceFlow {
     /// The bubble was closed, by its button or a click on the character. The round ends with it.
     func dismissed() {
         tally.reset(); roundNeed.reset()
+        ReplayCheck.shared.roundAbandoned()
         perform(machine.dismiss())
     }
 
@@ -323,6 +324,7 @@ final class VoiceFlow {
         let ms = Self.ms(since: releasedAt)
         voiceLog.notice("reply in \(ms, privacy: .public) ms after release (server total \(receipt.latency_ms?.total.map { String(Int($0)) } ?? "n/a", privacy: .public) ms, replayed \(receipt.replayed, privacy: .public))")
         show(VoiceCard(receipt), key: key, question: receipt.reply.question, endsRound: receipt.reply.kind == .wrap_up, metrics: receipt.metrics)
+        if receipt.reply.kind == .wrap_up { ReplayCheck.shared.roundEnded(roundID: receipt.round_id) } // the hands check, if on
         afterSave()
     }
 
@@ -409,6 +411,7 @@ final class VoiceFlow {
                 if case .voiceSpeaking(let visible) = model.phase, visible.roundID == shown.roundID {
                     var updated = visible; updated.receiptID = receipt.receipt_id; model.set(.voiceSpeaking(updated))
                 }
+                if shown.endsRound { ReplayCheck.shared.roundEnded(roundID: shown.roundID) } // the hands check, if on
             }
             afterSave()
         case .error(let error):

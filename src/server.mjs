@@ -17,6 +17,7 @@ import { acceptWebSocket } from './ws-server.mjs';
 import { attachMedia } from './media.mjs';
 import { handleKeepRoutes } from './media-routes.mjs';
 import { checkBasis, checkDueAt, drillParams, withDrill } from './drills.mjs';
+import { createReplayModel, handleReplay, REPLAY_PATH } from './replay.mjs';
 
 export const RECORDINGS_PATH = '/v1/recordings';
 // Guards paid calls against a stuck capture button or a leaked key. Counts saved and model-failed recordings in the last hour.
@@ -192,14 +193,16 @@ export function connectorDocument(baseUrl) {
       + `onset_ms_approx is approximate. Audio is not stored unless Keep my recordings is on. `
       + `gate.reason measured_close means code measured that the answer closed the round; the model chose the words. Code-only rounds (reply_mode code) have no model reply. `
       + `metrics.camera, present only when the person turned on the Mac camera for practice, holds four code-measured numbers for that answer from Apple Vision head angles on the Mac: faced_camera_pct (share of the answer the head faced the camera), looked_away_count (look-aways of 1 s or more), longest_look_away_ms and frames. `
-      + `It is head direction, not gaze: say "faced the camera", never eye contact, and do not describe the person's feelings or character from it. No camera image is stored or sent.`,
+      + `It is head direction, not gaze: say "faced the camera", never eye contact, and do not describe the person's feelings or character from it. The camera meter stores and sends no camera image. `
+      + `replay, present only when the person turned on the hands check for that round, holds seconds counted by code from SAM 3.1 boxes (seconds.phone_in_hand, seconds.paper_in_hand). `
+      + `Name only the counted object and the seconds, for example "phone in hand 3 s"; never describe feelings, character, posture or appearance. No camera image or clip is stored.`,
     `Keep my recordings (settings in the overview, and GET /v1/settings) is off by default. `
       + `Off, audio is deleted after transcription. `
       + `On, the original audio of each capture and voice round stays in the person's account (media.kept true on the record), and they can see, download or delete it from their devices, or turn the setting off and delete what is kept. `
       + `Read it; never change it or delete recordings yourself, and never describe audio you cannot hear. `
       + `A re-measured session keeps its earlier metrics in measurements, with remeasured.method naming the current lexicon; say which version you cite.`,
     `Setup verification must be GET /v1/context only. Do not create schedules or modify user memories.`,
-    `This prototype has no webhook, no general file upload (only the WAV capture route used by capture devices), no billing, and no access to personal Muse history. `
+    `This prototype has no webhook, no general file upload (only the WAV capture routes and the opt-in hands-check clip, which capture devices send), no billing, and no access to personal Muse history. `
       + `Revoke access in Muse and with the local token revocation command when finished.`,
     ``
   ].join('\n');
@@ -207,7 +210,7 @@ export function connectorDocument(baseUrl) {
 // screenContextHooks: optional system(ctx) prompt and extendRecord(record, ctx), as for recordings (src/screen-context.mjs).
 // clock: milliseconds for the per-request time budget (a fake clock in tests). Behind the hosting adapter, req.budgetMs
 // carries what is left of the request's own deadline, and the budget never runs past it.
-export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel(),...createVoiceModel(),...createSpeechModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={},clock=()=>performance.now()}={}) {
+export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...createModelClients(),...createScreenModel(),...createAdjudicationModel(),...createVoiceModel(),...createSpeechModel(),...createReplayModel()},phases=NO_PHASES,recordingHooks={},screenContextHooks={},clock=()=>performance.now()}={}) {
   return async(req,res)=>{
     const requestId=randomUUID(), startedAt=performance.now(); let user;
     const budget=()=>createBudget({totalMs:Math.min(MODEL_BUDGET_MS,Number.isFinite(req.budgetMs)?req.budgetMs:Infinity),clock});
@@ -247,6 +250,9 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
         const key=requireIdempotencyKey(req.headers), params=voiceParams(req.headers);
         return send(200,await handleVoiceRound(store,models,user,{params,audio:await audioOf(req),startedAt},key,requestId,phases,budget()));
       }
+      // Hands check at round end (src/replay.mjs). Without REPLAY_ENABLED=1 the route does not exist.
+      const replay=req.method==='POST'&&models.replayEnabled?.()&&path.match(REPLAY_PATH);
+      if(replay) return send(200,await handleReplay(store,models,user,replay[1],req,requireIdempotencyKey(req.headers),requestId,phases,budget()));
       const speech=req.method==='POST'&&path.match(SPEECH_PATH);
       if(speech) return await handleSpeech(store,models,user,speech[1],{res,requestId,phases,audit:(status,label)=>store.audit(requestId,user,req.method,path,status,label)});
       if(await handleKeepRoutes(store,models,user,req,path,{res,send,requestId,phases,budget:budget(),bodyOf,requireIdempotencyKey,audit:(status,label)=>store.audit(requestId,user,req.method,path,status,label)})) return;

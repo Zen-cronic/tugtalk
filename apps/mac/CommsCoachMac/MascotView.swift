@@ -467,7 +467,7 @@ struct VoiceCardView: View {
             if card.summary == nil, let stat = LatestRoundNumber.make(summary: nil, latest: card.metrics) {
                 HabitChip(count: stat.value, habit: stat.habit, caption: "in this answer")
             }
-            if let camera = card.camera { CameraChip(metrics: camera) }
+            ReplayRow(card: card) // the camera chip, or the hands check (ReplayStrip.swift)
             if card.needLine != nil || card.codeOnly { NeedLine(card: card) }
             if !card.transcript.isEmpty, card.summary == nil {
                 DisclosureGroup(isExpanded: $showTranscript) {

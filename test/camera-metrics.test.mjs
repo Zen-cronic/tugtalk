@@ -128,7 +128,7 @@ test('connector text: Muse is told what metrics.camera is, in plain terms', () =
   assert.match(doc, /faced_camera_pct/);
   assert.match(doc, /head direction, not gaze/);
   assert.match(doc, /say "faced the camera"/);
-  assert.match(doc, /No camera image is stored or sent/);
+  assert.match(doc, /The camera meter stores and sends no camera image/);
   for (const banned of ['confident', 'nervous', 'body language', 'personality', 'emotion', 'mood', 'energy']) assert.equal(doc.toLowerCase().includes(banned), false, banned);
 });
 

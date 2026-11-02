@@ -68,6 +68,20 @@ if (process.env.STUB_SPEECH_MP3) {
     async start(c) { await new Promise(r => setTimeout(r, 300)); for (let i = 0; i < mp3.length; i += 1024) { c.enqueue(mp3.subarray(i, i + 1024)); await new Promise(r => setTimeout(r, 40)); } c.close(); } }),
     { headers: { 'content-type': 'audio/mpeg' } }) }));
 }
+// The hands check (src/replay.mjs) with no SAM call: each prompt answers with the saved SAM output for the CC0 test clip
+// (test/fixtures/sam), so any clip counts phone in hand 7.0 s. STUB_REPLAY_FAIL=1 makes the paper prompt fail instead.
+// STUB_REPLAY_MS sets how long each answer takes (default 2000 ms).
+if (!live) {
+  const sam = name => readFileSync(new URL(`../test/fixtures/sam/${name}`, import.meta.url), 'utf8');
+  const outputs = { hand: sam('real_hand.txt'), phone: sam('real_phone.txt'), paper: '' };
+  const replayMs = Number(process.env.STUB_REPLAY_MS ?? 2000);
+  Object.assign(models, { replayEnabled: () => true, replayReady: () => true,
+    async replaySegment(dataUrl, concept) {
+      await new Promise(r => setTimeout(r, replayMs));
+      if (process.env.STUB_REPLAY_FAIL === '1' && concept === 'paper') return { ok: false, reason: 'stub failure requested' };
+      return { ok: true, text: outputs[concept], frames_processed: 100, ms: replayMs };
+    } });
+}
 const server = createApp(store, { ...(live ? {} : { models }), baseUrl: `http://127.0.0.1:${port}` });
 server.listen(port, '127.0.0.1', () => console.log(JSON.stringify({ listening: `http://127.0.0.1:${port}`, token_file: tokenFile, database: join(dir, 'stub.sqlite'), models: live ? 'live (paid Meta and Baseten calls)' : STUB })));
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close(() => { store.close(); process.exit(0); }));

@@ -701,7 +701,7 @@ struct ReplyCard: View {
         MainLine(text: card.question, compact: compact).accessibilityLabel("Question: \(card.question)")
         if !compact {
             if card.summary == nil { EvidenceRow(card: card, onLayout: onLayout) }
-            if let camera = card.camera { CameraChip(metrics: camera) }
+            ReplayRow(card: card) // the camera chip, or the hands check on Round done (ReplayStrip.swift)
             if card.needLine != nil || card.codeOnly { NeedLine(card: card) }
             RecordingNote(note: card.recordingNote)
         }

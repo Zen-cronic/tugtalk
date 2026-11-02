@@ -1,0 +1,36 @@
+{
+ "clip": "synthetic, rendered on this Mac: 640x360, 10 fps, 100 frames",
+ "fps": 10,
+ "frames": 100,
+ "visible": {
+  "left_hand": [
+   [
+    0,
+    20
+   ]
+  ],
+  "right_hand": [
+   [
+    0,
+    40
+   ],
+   [
+    70,
+    100
+   ]
+  ],
+  "phone": [
+   [
+    50,
+    80
+   ]
+  ],
+  "paper": [
+   [
+    10,
+    30
+   ]
+  ]
+ },
+ "note": "Frame ranges are start inclusive, end exclusive. Partly visible objects count as visible."
+}

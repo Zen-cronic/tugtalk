@@ -25,13 +25,16 @@ keep_warm = os.environ.get('KEEP_WARM', '') == '1'
 # A container stays up for 5 minutes after its last request, so the pauses in a practice conversation do not
 # cold-start the next round. Each idle tail costs at most about $0.004.
 SCALEDOWN_SECONDS = 300
+# REPLAY_ENABLED=1 at deploy time turns on the hands check route (src/replay.mjs); unset, the route does not exist.
+replay_enabled = '1' if os.environ.get('REPLAY_ENABLED', '') == '1' else ''
 
 @app.function(image=image, volumes={'/data': volume}, secrets=[models_secret],
               env={'CONNECTOR_TOKEN_HASH': bootstrap_hash,
                    'CONNECTOR_PUBLIC_HOST': 'kaungzinhein113--synthetic-coaching-connector-web.us-east.modal.run',
                    # The observation and the screen card ask for medium reasoning effort; the provider default stalled
                    # or came back empty on 2 of 3 bench calls. Voice replies set low in code (src/voice.mjs).
-                   'ANALYSIS_EFFORT': 'medium'},
+                   'ANALYSIS_EFFORT': 'medium',
+                   'REPLAY_ENABLED': replay_enabled},
               min_containers=1 if keep_warm else 0, max_containers=1, scaledown_window=SCALEDOWN_SECONDS,
               cpu=0.25, memory=512, timeout=180)
 # One container, several inputs at once: bridge.py runs every request on one long-lived Node worker and

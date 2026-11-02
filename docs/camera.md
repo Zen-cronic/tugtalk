@@ -71,3 +71,7 @@ swift run -c release camera-eval score --poses /tmp/poses.json --labels /tmp/lab
 - `-cameraFixture <poses.json>` replays a list of `{t, yaw, pitch}` frames during each hold instead of opening the camera, so no permission is needed. With `-voiceFixtureWAV` and the local stub server, one scripted hold writes a real round with `metrics.camera`.
 - `-cameraPreview facing|away|cycle` (with `-previewState "voice listening"`), `card` (with `-previewState "voice follow-up"`), and `explainer|denied|on` show each state with sample numbers; nothing is sent.
 - `-disableHotkeys YES` keeps a test copy from taking ⌃⌥T from a copy already running.
+
+## The hands check (a separate opt-in)
+
+Everything above stays true for "faced the camera": its frames are dropped once read, and no camera image is stored or sent. One exception, off by default and asked each round: **Check what's in my hands** sends a silent clip of that round's answers (10 frames a second, at most 15 seconds) through our server to Meta's SAM 3.1, with `store: false`, so Meta keeps no stored response. Only the seconds it counted are kept. See [docs/replay.md](replay.md).
