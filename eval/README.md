@@ -5,7 +5,9 @@ How accurate are the habit counts that `measure()` (`src/capture.mjs`) puts on e
 Recompute it:
 
 ```sh
-npm run eval        # prints the table and checks it against eval/results.json
+npm run eval                       # prints the table and checks it against eval/results.json
+npm run eval -- --live             # prints what a live adjudication run would cost; makes no call
+npm run eval -- --live --approved  # runs it (paid; needs BASETEN_API_KEY)
 ```
 
 or `GET /v1/eval` on a running server (public, read-only, no user data). A test (`test/eval.test.mjs`) regenerates the results and fails if they drift from the committed file or from the README's first line.
@@ -50,3 +52,32 @@ See `results.json` for every number and the full list of disagreements. In short
 - Clean controls: 0 false counts for both.
 
 A fair reading: the counts are exact on the speech they were designed for, and wrong in predictable, listed ways outside it. A better lexicon needs context rules and a corpus labelled by someone other than us.
+
+## Adjudicated arm: scripted adjudication outputs, not live model runs
+
+On a capture, Muse Spark Open labels each ambiguous word-list hit as a habit or content, and code checks every label before it changes a count (`src/adjudicate.mjs`; the README section "How Meta's models measure" explains the design). The `adjudicated_scripted` system measures what that **checking code** does, without paid calls:
+
+- Code proposes the candidates on each corpus item exactly as it does on a capture: 51 candidates on 42 items. The 15 pure vocal fillers ("um", "uh", "euh") are counted without asking.
+- `scripted-adjudication.json` holds one scripted reply per item, as raw model text. We wrote them on November 2, 2026, knowing the gold labels. Replies without a fault give the gold answer. 14 of the 42 carry one deliberate fault each, named in the file: 3 wrong labels, 4 edited quotes, a capitalised label, a missing candidate, a conflicting duplicate, an empty reason, an invented candidate, a reply cut off mid-JSON (answered on the retry) and two prose answers with no JSON.
+- The replies go through the same parser, shape check, one-retry rule and label check as live replies.
+
+What it shows (`results.json`, `adjudication` and `systems.adjudicated_scripted`):
+
+| System | Precision | Recall | fp | fn |
+|---|---|---|---|---|
+| Flat word list | 0.754 | 0.852 | 17 | 9 |
+| Lexicon only (`measure()`) | 0.788 | 0.852 | 14 | 9 |
+| Adjudicated, scripted replies | 0.877 | 0.820 | 7 | 11 |
+
+- Code rejected 8 of the 51 labels (4 quote mismatches, 1 invalid label, 1 missing, 1 duplicate, 1 empty reason), had no usable reply for 1 more, and kept the lexicon count for all 9.
+- 7 of the 12 content traps were removed. The other 5 stayed counted, because their label was rejected, never arrived as JSON, or was wrong.
+- Recall fell from 0.852 to 0.820. Two wrong "content" labels removed real habits ("probably", and "Ben" read as a name). A wrong label that quotes the span correctly passes the check. That is the limit of a span check, and the eval counts these: 3 accepted wrong labels.
+- The model can only remove proposed hits, so adjudication cannot raise recall. Out-of-lexicon habits ("like", "quoi") stay missed, and "Sorry, let me restart" still counts as two restarts.
+- Clean controls stay at 0.
+
+What it does not show: how often Muse Spark Open itself labels correctly. 28 of our 42 scripted replies give the gold answer because we wrote them that way. Only a live run can measure the model.
+
+## Live arm (prepared, not run)
+
+`npm run eval -- --live` prints the cost of a live run and stops: **42 Muse Spark Open calls** (one per item with candidates), at most 84 if every first reply needs the larger-budget retry. With `--approved` and `BASETEN_API_KEY` set, it runs the production adjudication client on every item and writes `eval/live-results.json` (not compared with the committed file). It has not been run.
+

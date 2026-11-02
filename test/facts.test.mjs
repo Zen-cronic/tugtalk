@@ -9,8 +9,10 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { Store } from '../src/store.mjs';
 import { createApp, captureParams } from '../src/server.mjs';
-import { MAX_AUDIO_BYTES, MAX_AUDIO_MS, TRANSCRIBE_MODEL, ANALYSIS_MODEL, LANGUAGES, inspectWav, measure, createModelClients } from '../src/capture.mjs';
-import { runEval } from '../src/evaluate.mjs';
+import { MAX_AUDIO_BYTES, MAX_AUDIO_MS, TRANSCRIBE_MODEL, ANALYSIS_MODEL, LANGUAGES, LEXICON, inspectWav, measure, createModelClients } from '../src/capture.mjs';
+import { runEval, parseItem, CORPUS_URL } from '../src/evaluate.mjs';
+import { measurePauses } from '../src/pauses.mjs';
+import { adjudicationCandidates, adjudicateCapture, buildAdjudication, verifyLabels, createAdjudicationModel } from '../src/adjudicate.mjs';
 import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -194,14 +196,17 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         const inputs = modal.match(/^@modal\.concurrent\(max_inputs=(\d+)\)$/m)[1];
         assert.match(read('deploy/bridge.py'), /^    model_lock = asyncio\.Lock\(\)$/m, 'model routes take their own lock');
         assert.match(read('deploy/test_bridge.py'), /def test_concurrent_requests_keep_one_database_holder_and_one_model_call_at_a_time\(/);
-        return `${inputs} at once; one model request at a time`;
+        return `${inputs} at once; one model-calling request at a time`;
       },
       'hosting': () => {
         assert.match(modal, /max_containers=1\b/);
         return `1 container, ${modal.match(/memory=(\d+)/)[1]} MB, ${modal.match(/timeout=(\d+)/)[1]} s timeout`;
       },
       'watch-target': () => `watchOS ${read('apps/watch/project.yml').match(/watchOS: "([\d.]+)"/)[1]}`,
-      'mac-target': () => `macOS ${read('apps/mac/project.yml').match(/macOS: "([\d.]+)"/)[1]}`
+      'mac-target': () => `macOS ${read('apps/mac/project.yml').match(/macOS: "([\d.]+)"/)[1]}`,
+
+      // Measurement by Meta's models
+      ...measurementChecks(evalResult)
     };
 
     const facts = parseFacts();
@@ -210,3 +215,70 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
     for (const fact of facts) assert.equal(await checks[fact.id](), fact.value, `FACTS.md ${fact.id}: ${fact.claim}`);
   } finally { await new Promise(r => server.close(r)); store.close(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+const chat = content => new Response(JSON.stringify({ id: 'fake', choices: [{ message: { content } }] }), { status: 200 });
+function measurementChecks(evalResult) {
+  const a = evalResult.systems.adjudicated_scripted, adj = evalResult.adjudication;
+  return {
+    'pause-source': async () => {
+      let sent;
+      const fetchImpl = async (url, init) => { sent = JSON.parse(await init.body.get('request').text());
+        return new Response(JSON.stringify({ transcript: 'one two', audioDurationMs: 3000, turns: [{ turnId: 0, startMs: 100, endMs: 1000 }, { turnId: 1, startMs: 1600, endMs: 2900 }] }), { status: 200 }); };
+      const t = await createModelClients({ env: { MODEL_API_KEY: 'k' }, fetchImpl }).transcribe(wav(1), { language: 'en', sessionId: 's' });
+      const p = measure(t.transcript, t.audio_duration_ms, 'en', t.turns).pauses;
+      assert.equal(p.status, 'measured'); assert.equal(p.longest_pause_ms, 600);
+      return `${sent.mode} turn gaps, ${p.method}`;
+    },
+    'pause-thresholds': () => {
+      const gap = g => measurePauses([{ start_ms: 0, end_ms: 500 }, { start_ms: 500 + g, end_ms: 3000 }], 3000, 4);
+      const first = key => [...Array(2001).keys()].find(g => gap(g)[key] === 1);
+      return `${first('pause_count')} ms, ${first('long_pause_count')} ms`;
+    },
+    'observation-inputs': async () => {
+      let sent;
+      const fetchImpl = async (url, init) => { sent = JSON.parse(JSON.parse(init.body).messages[1].content); return chat('{"observation":"o","suggested_exercise":"e"}'); };
+      await createModelClients({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }).analyze({ goal: null, transcript: 'Um, what kind of report?', metrics: measure('Um, what kind of report?', 3000, 'en', [{ start_ms: 0, end_ms: 900 }, { start_ms: 2000, end_ms: 2900 }]), language: 'en' });
+      return Object.keys(sent.measured).join(', ');
+    },
+    'adjudication-model': async () => {
+      let sent;
+      const fetchImpl = async (url, init) => { sent = JSON.parse(init.body); return chat('{"labels":[]}'); };
+      await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }), transcript: 'What kind of report?', language: 'en' });
+      return `${sent.model}, temperature ${sent.temperature}`;
+    },
+    'adjudication-calls': async () => {
+      const count = async (transcript, replies) => {
+        let calls = 0;
+        const fetchImpl = async () => chat(replies[calls++] ?? replies.at(-1));
+        await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }), transcript, language: 'en' });
+        return calls;
+      };
+      const good = '{"labels":[{"id":"c1","quote":"kind of","label":"content","reason":"r"}]}';
+      return `${await count('What kind of report?', [good])} with ambiguous hits, ${await count('What kind of report?', ['No.', 'Still no.'])} if the reply is unusable, ${await count('Um, uh, the report.', [good])} without`;
+    },
+    'always-habit': () => Object.keys(LEXICON).map(language => {
+      const never = Object.values(LEXICON[language]).flat().filter(phrase => !adjudicationCandidates(`${phrase}.`, language).candidates.length);
+      return `${never.join(', ')} (${language})`;
+    }).join('; '),
+    'adjudication-quote-check': () => {
+      const { candidates } = adjudicationCandidates('What kind of report?', 'en');
+      const accepted = quote => verifyLabels(candidates, [{ id: 'c1', quote, label: 'content', reason: 'r' }]).results[0].verified;
+      assert.equal(accepted('kind of'), true);
+      return accepted('Kind of') || accepted('kind of report') ? 'yes' : 'no';
+    },
+    'adjudication-never-adds': () => {
+      const items = JSON.parse(readFileSync(CORPUS_URL, 'utf8')).items.map(i => ({ ...i, ...parseItem(i.text) }));
+      const raises = items.some(item => {
+        const { candidates } = adjudicationCandidates(item.transcript, item.language);
+        const labels = [...candidates.map(c => ({ id: c.id, quote: c.quote, label: 'habit', reason: 'r' })), { id: 'c99', quote: 'like', label: 'habit', reason: 'r' }, { id: `c${candidates.length + 1}`, quote: 'x', label: 'habit', reason: 'r' }];
+        const r = buildAdjudication(item.transcript, item.language, { status: 'model_labels', labels });
+        return Object.keys(r.lexicon_count).some(c => r.adjudicated_count[c] > r.lexicon_count[c]);
+      });
+      return raises ? 'yes' : 'no';
+    },
+    'eval-adjudicated-scripted': () => { assert.match(adj.label, /not live model runs/); return `${a.overall.precision} / ${a.overall.recall}`; },
+    'eval-scripted-checks': () => `${adj.labels.rejected} of ${adj.candidates} rejected, ${adj.accepted_labels_against_gold.wrong} wrong accepted`,
+    'eval-live-calls': () => `${adj.live_plan.calls}, at most ${adj.live_plan.max_calls_with_retries} with retries`
+  };
+}
+
