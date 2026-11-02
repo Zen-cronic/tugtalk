@@ -1,0 +1,247 @@
+import Foundation
+
+/// One spoken practice round on the watch, as a pure state machine. Tap Record, answer, tap Stop; the coach's
+/// question comes back and is spoken; answer again. The round ends at the coach's wrap-up or after
+/// `maxAnswers` answers. It decides; the app performs the effects (microphone, upload, speech), so every
+/// transition is unit-tested without a watch.
+public struct SparringMachine: Sendable {
+    public static let maxAnswers = 3
+    /// The server refuses audio under 0.5 s; a shorter recording is a stray tap and is never sent.
+    public static let minimumAnswer: TimeInterval = 0.5
+    /// After this long, the last question no longer marks the start of an answer (the Mac uses the same).
+    public static let promptExpiry: TimeInterval = 300
+
+    /// A question on screen.
+    public struct Shown: Sendable, Equatable {
+        public let answer: Int
+        public let roundID: String
+        public let question: String
+        public let quote: String?
+        public let transcript: String
+        public let mediaNote: String?
+        public let endsRound: Bool
+        /// Nil while the voice is being fetched.
+        public var voice: SpeechVoice?
+        /// The question has been spoken (or could not be): the screen says "Your turn".
+        public var spoken: Bool
+    }
+
+    public enum Phase: Sendable, Equatable {
+        /// Waiting for Record. `answer` is the answer the next recording will be.
+        case ready(answer: Int)
+        case recording(answer: Int, upload: AnswerUpload)
+        case thinking(answer: Int, upload: AnswerUpload)
+        case replying(Shown)
+        /// `upload` is kept only when Retry can resend it.
+        case failed(answer: Int, failure: RoundFailure, upload: AnswerUpload?)
+        case done(RoundSummary?, lastQuestion: String?, mediaNote: String?)
+
+        public var name: String {
+            switch self {
+            case .ready: "ready"
+            case .recording: "recording"
+            case .thinking: "thinking"
+            case .replying(let shown): shown.spoken ? "your turn" : "speaking"
+            case .failed(_, let failure, let upload): "failed \(failure.kind.rawValue)\(upload == nil ? "" : " (retry)")"
+            case .done: "done"
+            }
+        }
+    }
+
+    public enum Effect: Sendable, Equatable {
+        case startRecording(key: String)
+        /// Stop the microphone and keep the file under this key.
+        case stopRecording(key: String)
+        case upload(AnswerUpload)
+        /// The recording under this key is no longer needed.
+        case discard(key: String)
+        /// English: fetch the coach voice for this round.
+        case fetchSpeech(roundID: String)
+        /// The watch voice says this, in this language.
+        case speakOnDevice(String, VoiceLanguage)
+        case stopSpeech
+    }
+
+    public let goalID: String?
+    public let language: VoiceLanguage
+    public private(set) var phase: Phase = .ready(answer: 1)
+    /// The server's measurements of each answer so far.
+    public private(set) var metrics: [VoiceMetrics] = []
+    private var promptEndedAt: Date?
+    private let newKey: @Sendable () -> String
+
+    public init(goalID: String?, language: VoiceLanguage, newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() }) {
+        self.goalID = goalID; self.language = language; self.newKey = newKey
+    }
+
+    /// Answers the server has replied to.
+    public var answered: Int { metrics.count }
+
+    /// Record tapped: on "Your turn", on a question still being spoken (it stops), on a failure, or on
+    /// Round done ("Record again" starts a new round).
+    public mutating func record(at now: Date) -> [Effect] {
+        switch phase {
+        case .ready(let answer):
+            return start(answer, at: now, prompt: currentPrompt(at: now))
+        case .replying(let shown):
+            guard !shown.endsRound else { return [] }
+            // Cut off mid-question, it has no end to measure an onset from.
+            let prompt = shown.spoken ? currentPrompt(at: now) : nil
+            return (shown.spoken ? [] : [.stopSpeech]) + start(shown.answer + 1, at: now, prompt: prompt)
+        case .failed(let answer, _, let upload):
+            let drop: [Effect] = upload.map { [.discard(key: $0.idempotencyKey)] } ?? []
+            return drop + start(answer, at: now, prompt: currentPrompt(at: now))
+        case .done:
+            metrics = []; promptEndedAt = nil
+            return start(1, at: now, prompt: nil)
+        case .recording, .thinking:
+            return []
+        }
+    }
+
+    /// Stop tapped, or the recorder reached its cap (`capped`).
+    public mutating func stop(at now: Date, capped: Bool = false) -> [Effect] {
+        guard case .recording(let answer, let upload) = phase else { return [] }
+        if !capped && now.timeIntervalSince(upload.occurredAt) < Self.minimumAnswer {
+            // A stray tap does not use up the question's end time.
+            promptEndedAt = upload.promptEndedAt
+            phase = .failed(answer: answer, failure: .tooShort, upload: nil)
+            return [.stopRecording(key: upload.idempotencyKey), .discard(key: upload.idempotencyKey)]
+        }
+        phase = .thinking(answer: answer, upload: upload)
+        return [.stopRecording(key: upload.idempotencyKey), .upload(upload)]
+    }
+
+    /// Record was tapped but cannot start (microphone permission is off): the screen says why, and Try again
+    /// asks again. A question still being spoken stops.
+    public mutating func refuse(_ failure: RoundFailure) -> [Effect] {
+        let next: Int, effects: [Effect]
+        switch phase {
+        case .ready(let answer): next = answer; effects = []
+        case .replying(let shown) where !shown.endsRound: next = shown.answer + 1; effects = shown.spoken ? [] : [.stopSpeech]
+        case .failed(let answer, _, let upload): next = answer; effects = upload.map { [.discard(key: $0.idempotencyKey)] } ?? []
+        case .done: metrics = []; next = 1; effects = []
+        default: return []
+        }
+        promptEndedAt = nil
+        phase = .failed(answer: next, failure: failure, upload: nil)
+        return effects
+    }
+
+    /// The microphone could not open, or permission is off.
+    public mutating func recordingFailed(_ failure: RoundFailure) -> [Effect] {
+        guard case .recording(let answer, let upload) = phase else { return [] }
+        phase = .failed(answer: answer, failure: failure, upload: nil)
+        return [.discard(key: upload.idempotencyKey)]
+    }
+
+    /// The server replied. Ignored unless it is for the answer being waited on.
+    public mutating func replied(key: String, _ receipt: VoiceRoundReceipt) -> [Effect] {
+        guard case .thinking(let answer, let upload) = phase, upload.idempotencyKey == key else { return [] }
+        let question = receipt.reply.question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !question.isEmpty else {
+            phase = .failed(answer: answer, failure: .noQuestion, upload: nil)
+            return [.discard(key: key)]
+        }
+        if let m = receipt.metrics { metrics.append(m) }
+        let shown = Shown(answer: answer, roundID: receipt.round_id, question: question, quote: receipt.reply.verifiedQuote,
+                          transcript: receipt.transcript, mediaNote: receipt.media?.note,
+                          endsRound: receipt.reply.wrapsUp || answer >= Self.maxAnswers, voice: nil, spoken: false)
+        // French has no coach voice (Wit.ai is English only): the watch voice speaks it without asking.
+        if language == .fr {
+            var spoken = shown
+            spoken.voice = .watch(reason: "no coach voice in French")
+            phase = .replying(spoken)
+            return [.discard(key: key), .speakOnDevice(question, .fr)]
+        }
+        phase = .replying(shown)
+        return [.discard(key: key), .fetchSpeech(roundID: receipt.round_id)]
+    }
+
+    public mutating func uploadFailed(key: String, _ failure: RoundFailure) -> [Effect] {
+        guard case .thinking(let answer, let upload) = phase, upload.idempotencyKey == key else { return [] }
+        if failure.retryable {
+            phase = .failed(answer: answer, failure: failure, upload: upload)
+            return []
+        }
+        phase = .failed(answer: answer, failure: failure, upload: nil)
+        return [.discard(key: key)]
+    }
+
+    /// Retry: the same recording, the same key and the same headers, so the server never runs (or bills) it twice.
+    public mutating func retry() -> [Effect] {
+        guard case .failed(let answer, _, let upload?) = phase else { return [] }
+        phase = .thinking(answer: answer, upload: upload)
+        return [.upload(upload)]
+    }
+
+    /// The coach voice started playing.
+    public mutating func speechStarted(roundID: String, provider: String?) -> [Effect] {
+        guard case .replying(var shown) = phase, shown.roundID == roundID, !shown.spoken else { return [] }
+        shown.voice = .coach(provider: provider)
+        phase = .replying(shown)
+        return []
+    }
+
+    /// The coach voice failed before playing: the question stays on screen and the watch voice says it.
+    public mutating func speechFailed(roundID: String, reason: String) -> [Effect] {
+        guard case .replying(var shown) = phase, shown.roundID == roundID, !shown.spoken, shown.voice == nil else { return [] }
+        shown.voice = .watch(reason: reason)
+        phase = .replying(shown)
+        return [.speakOnDevice(shown.question, language)]
+    }
+
+    /// The question finished playing (or neither voice could play it). Its end time goes with the next answer.
+    public mutating func speechFinished(roundID: String, at now: Date) -> [Effect] {
+        guard case .replying(var shown) = phase, shown.roundID == roundID, !shown.spoken else { return [] }
+        if shown.voice == nil { shown.voice = .watch(reason: "no voice could play") }
+        shown.spoken = true
+        if shown.endsRound { return finish() }
+        promptEndedAt = now
+        phase = .replying(shown)
+        return []
+    }
+
+    /// "See result" on the last question, before it has finished playing.
+    public mutating func skipToResult() -> [Effect] {
+        guard case .replying(let shown) = phase, shown.endsRound else { return [] }
+        return [.stopSpeech] + finish()
+    }
+
+    /// "End round": the summary of the answers so far. With none, back to the first answer.
+    public mutating func endRound() -> [Effect] {
+        var effects: [Effect] = []
+        switch phase {
+        case .recording(_, let upload): effects = [.stopRecording(key: upload.idempotencyKey), .discard(key: upload.idempotencyKey)]
+        case .failed(_, _, let upload?): effects = [.discard(key: upload.idempotencyKey)]
+        case .replying(let shown) where !shown.spoken: effects = [.stopSpeech]
+        case .thinking, .done: return []
+        default: break
+        }
+        if metrics.isEmpty {
+            phase = .ready(answer: 1); promptEndedAt = nil
+            return effects
+        }
+        return effects + finish()
+    }
+
+    private mutating func finish() -> [Effect] {
+        var lastQuestion: String?, note: String?
+        if case .replying(let shown) = phase { lastQuestion = shown.question; note = shown.mediaNote }
+        phase = .done(RoundSummary.make(metrics), lastQuestion: lastQuestion, mediaNote: note)
+        promptEndedAt = nil
+        return []
+    }
+
+    private func currentPrompt(at now: Date) -> Date? {
+        guard let ended = promptEndedAt, now.timeIntervalSince(ended) <= Self.promptExpiry else { return nil }
+        return ended
+    }
+
+    private mutating func start(_ answer: Int, at now: Date, prompt: Date?) -> [Effect] {
+        let upload = AnswerUpload(idempotencyKey: newKey(), goalID: goalID, language: language, occurredAt: now, promptEndedAt: prompt)
+        promptEndedAt = nil
+        phase = .recording(answer: answer, upload: upload)
+        return [.startRecording(key: upload.idempotencyKey)]
+    }
+}

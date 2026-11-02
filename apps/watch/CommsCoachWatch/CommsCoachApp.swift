@@ -170,6 +170,7 @@ final class CaptureModel: ObservableObject {
         let offline: [URLError.Code] = [.notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost,
                                         .cannotFindHost, .dnsLookupFailed, .timedOut, .dataNotAllowed, .internationalRoamingOff]
         if let error = error as? URLError, offline.contains(error.code) { return "Lost connection." }
+        if case CoachError.server(401, _)? = error as? CoachError { return "The coach refused the connector key. Add a valid key in Secrets.xcconfig and rebuild." }
         return error.localizedDescription
     }
 }

@@ -4,6 +4,8 @@ A voice round is one spoken exchange of practice. The person holds a key on the 
 
 Meta's Model API has no text-to-speech model. The spoken reply comes from `POST /v1/voice-rounds/{round_id}/speech` (below), with a Meta voice when one is configured, and otherwise from an on-device Apple voice on the Mac. The whole reply is spoken once it is ready, not word by word.
 
+On Apple Watch, Practise this answer runs the same round through `POST /v1/voice-rounds` (tap to record, a WAV upload) and the speech route, for up to three answers: see [watch-sparring.md](watch-sparring.md).
+
 ## Request
 
 `POST /v1/voice-rounds`, routed through the same web host and hosting adapter as `POST /v1/recordings`.

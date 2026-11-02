@@ -56,6 +56,11 @@ enum Typeface {
         make("HankenGrotesk-Regular", size: size, axes: [weightAxis: weight])
     }
 
+    /// Azeret Mono, for your own words quoted back (the transcript face, as on the Mac and the landing page).
+    static func mono(_ size: CGFloat, weight: CGFloat = 500) -> Font {
+        make("AzeretMonoRoman-Regular", size: size, axes: [weightAxis: weight])
+    }
+
     private static func make(_ name: String, size: CGFloat, axes: [Int: CGFloat]) -> Font {
         let attributes: [CFString: Any] = [kCTFontNameAttribute: name, kCTFontVariationAttribute: axes]
         let descriptor = CTFontDescriptorCreateWithAttributes(attributes as CFDictionary)
@@ -63,7 +68,7 @@ enum Typeface {
     }
 }
 
-enum Face { case display, text }
+enum Face { case display, text, mono }
 
 /// A bundled face that still follows the wearer's text size.
 private struct ScaledFace: ViewModifier {
@@ -78,13 +83,17 @@ private struct ScaledFace: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content.font(face == .display ? Typeface.display(size, weight: weight) : Typeface.text(size, weight: weight))
+        switch face {
+        case .display: content.font(Typeface.display(size, weight: weight))
+        case .text: content.font(Typeface.text(size, weight: weight))
+        case .mono: content.font(Typeface.mono(size, weight: weight))
+        }
     }
 }
 
 extension View {
     func face(_ face: Face, _ size: CGFloat, weight: CGFloat? = nil, relativeTo style: Font.TextStyle = .body) -> some View {
-        modifier(ScaledFace(face, size: size, weight: weight ?? (face == .display ? 800 : 600), relativeTo: style))
+        modifier(ScaledFace(face, size: size, weight: weight ?? (face == .display ? 800 : face == .mono ? 500 : 600), relativeTo: style))
     }
 
     /// Cards slot in like a cart into a deck: an 8 pt rise with a short settle. The overshoot is on position only.

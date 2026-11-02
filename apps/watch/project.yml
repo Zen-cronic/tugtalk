@@ -4,6 +4,9 @@ options:
   deploymentTarget:
     watchOS: "11.0"
   createIntermediateGroups: true
+packages:
+  SparringCore:
+    path: SparringCore
 configFiles:
   Debug: Config/App.xcconfig
   Release: Config/App.xcconfig
@@ -20,18 +23,21 @@ targets:
     platform: watchOS
     sources:
       - path: CommsCoachWatch
+    dependencies:
+      - package: SparringCore
     info:
       path: CommsCoachWatch/Info.plist
       properties:
         CFBundleDisplayName: Comms Coach
         WKApplication: true
         WKWatchOnly: true
-        NSMicrophoneUsageDescription: Records a short practice answer you choose to capture, so your coach can measure fillers, pace and restarts. Audio is uploaded once and not kept unless you turn on Keep my recordings.
+        NSMicrophoneUsageDescription: Records a short practice answer you choose to capture, so your coach can measure fillers, unsure words, pace and restarts, and ask you a follow-up question. Audio is uploaded once and not kept unless you turn on Keep my recordings.
         CoachAPIBaseURL: $(COACH_API_BASE_URL)
         CoachAPIToken: $(COACH_API_TOKEN)
         UIAppFonts:
           - Anybody-Variable.ttf
           - HankenGrotesk-Variable.ttf
+          - AzeretMono-Variable.ttf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kaungzinhein.commscoach.watch

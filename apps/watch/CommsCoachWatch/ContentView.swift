@@ -5,6 +5,8 @@ struct ContentView: View {
     @State private var scrolled = false
     /// `-openSetup YES` (Debug builds): opens the setup list on launch, for a screenshot of its rows.
     @State private var showSetup = ContentView.openSetupOnLaunch
+    /// "Practise this answer": a spoken round with the same goal and language.
+    @State private var practise = false
 
     static var openSetupOnLaunch: Bool {
         #if DEBUG
@@ -31,6 +33,8 @@ struct ContentView: View {
                     #if DEBUG
                     // `-scrollToDrill YES`: shows the drill line below Record, or the drill result, for a screenshot.
                     if UserDefaults.standard.bool(forKey: "scrollToDrill") { try? await Task.sleep(for: .milliseconds(600)); proxy.scrollTo("drill", anchor: .bottom) }
+                    // `-openSparring YES`: opens the practice round once the goals are loaded, for simulator runs.
+                    if case .ready = model.phase, UserDefaults.standard.bool(forKey: "openSparring") { practise = true }
                     #endif
                     if model.scrollToTry {
                         try? await Task.sleep(for: .milliseconds(400)) // let the result lay out first
@@ -43,6 +47,7 @@ struct ContentView: View {
             }
             .navigationTitle(showingResult ? "Result" : "Coach")
             .navigationDestination(isPresented: $showSetup) { SetupList(model: model) }
+            .navigationDestination(isPresented: $practise) { SparringView(goal: model.selectedGoal, language: model.language) }
         }
     }
 
@@ -68,7 +73,8 @@ struct ContentView: View {
                 Label { Text("Record") } icon: { RecordLamp(lit: false) }
             }
             .buttonStyle(CoachButtonStyle(height: 52))
-            .padding(.bottom, 8)
+            practiseButton
+                .padding(.bottom, 8)
             if let drill = model.drill { DrillLine(drill: drill).id("drill") } // Drill.swift; below Record, so Record stays on the first screen
         case .recording:
             recording
@@ -101,6 +107,7 @@ struct ContentView: View {
                 Label { Text("Record again") } icon: { RecordLamp(lit: false) }
             }
             .buttonStyle(CoachButtonStyle())
+            practiseButton
             Button("Change goal") { model.phase = .ready }
                 .buttonStyle(CoachButtonStyle(primary: false))
                 .id("actions")
@@ -113,6 +120,15 @@ struct ContentView: View {
             Button("Reload") { Task { await model.load() } }
                 .buttonStyle(CoachButtonStyle(primary: !model.canRetryUpload))
         }
+    }
+
+    /// Opens a spoken round: answer out loud and Tug asks the follow-up, up to three answers.
+    private var practiseButton: some View {
+        Button { practise = true } label: {
+            Text("Practise this answer").lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .buttonStyle(CoachButtonStyle(primary: false))
+        .accessibilityHint("Answer out loud, and Tug asks a follow-up question")
     }
 
     /// Goal and language in one card; it opens one list with both choices.
@@ -333,7 +349,7 @@ private struct PaceMetric: View {
 
 /// The recording light. Unlit it is a ring. Lit it is solid, and a ring pulses out from it while the mic is live.
 /// With Reduce Motion the pulse is replaced by a steady outer ring.
-private struct RecordLamp: View {
+struct RecordLamp: View {
     let lit: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pulse = false
@@ -361,7 +377,7 @@ private struct RecordLamp: View {
 
 /// Three dots that light in turn while the answer is analysed. They change brightness only, never position,
 /// so they stay the same with Reduce Motion.
-private struct ProgressDots: View {
+struct ProgressDots: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.45)) { context in
             let step = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 3
@@ -377,7 +393,7 @@ private struct ProgressDots: View {
 
 /// Scrolled content fades out before it reaches the clock and title band, so text never shows behind the title.
 /// Static, so it is the same with Reduce Motion.
-private struct HeaderFade: View {
+struct HeaderFade: View {
     /// Off at rest, so nothing below the large title is touched; on once the content scrolls under the title.
     let active: Bool
 
@@ -470,7 +486,7 @@ private struct SetupList: View {
 
 /// Observes the recorder itself: a nested ObservableObject's changes do not
 /// propagate through CaptureModel, so reading it from ContentView never redraws.
-private struct ElapsedLabel: View {
+struct ElapsedLabel: View {
     @ObservedObject var recorder: Recorder
 
     var body: some View {

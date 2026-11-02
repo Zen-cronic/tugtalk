@@ -57,18 +57,43 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     private func tick() {
+        #if DEBUG
+        if fixtureCopy != nil { elapsed = Date().timeIntervalSince(startedAt); return }
+        #endif
         guard let recorder else { return }
         elapsed = recorder.currentTime
     }
 
     /// Stops and returns the finished file, or nil if nothing was recording.
     func stop() -> URL? {
+        #if DEBUG
+        if let url = fixtureCopy { fixtureCopy = nil; timer?.invalidate(); timer = nil; isRecording = false; return url }
+        #endif
         guard let recorder else { return nil }
         let url = recorder.url
         recorder.stop()
         finish()
         return url
     }
+
+    #if DEBUG
+    /// Debug builds only: a copy of a WAV file stands in for the microphone (no permission is asked), so a whole
+    /// practice round runs in the simulator with known audio. The clock runs as if recording; Stop returns the copy.
+    private var fixtureCopy: URL?
+
+    func startFixture(_ source: URL) throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appending(path: "capture-\(UUID().uuidString).wav")
+        try FileManager.default.copyItem(at: source, to: url)
+        fixtureCopy = url
+        startedAt = Date()
+        elapsed = 0
+        isRecording = true
+        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.tick() }
+        }
+        return url
+    }
+    #endif
 
     private func finish() {
         timer?.invalidate(); timer = nil

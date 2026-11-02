@@ -25,11 +25,12 @@
 	<key>CoachAPIToken</key>
 	<string>$(COACH_API_TOKEN)</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Records a short practice answer you choose to capture, so your coach can measure fillers, pace and restarts. Audio is uploaded once and not kept unless you turn on Keep my recordings.</string>
+	<string>Records a short practice answer you choose to capture, so your coach can measure fillers, unsure words, pace and restarts, and ask you a follow-up question. Audio is uploaded once and not kept unless you turn on Keep my recordings.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Anybody-Variable.ttf</string>
 		<string>HankenGrotesk-Variable.ttf</string>
+		<string>AzeretMono-Variable.ttf</string>
 	</array>
 	<key>WKApplication</key>
 	<true/>

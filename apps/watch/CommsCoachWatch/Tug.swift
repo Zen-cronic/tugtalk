@@ -16,6 +16,8 @@ struct TugGlyph: View {
     var showsString = true
     /// Errors: raised inner brows and a sweat drop.
     var worried = false
+    /// The practice round's faces: listening (brows up), thinking (eyes closed), speaking (mouth open by `mouth`, 0–1).
+    var face: TugFace = .plain
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -25,7 +27,7 @@ struct TugGlyph: View {
                     .stroke(Palette.tugString, style: StrokeStyle(lineWidth: max(1.5, size * 0.075), lineCap: .round))
             }
             if showsCan {
-                TugCan(worried: worried)
+                TugCan(worried: worried, face: face)
                     .frame(width: size, height: size)
                     .rotationEffect(.degrees(pull * 5), anchor: UnitPoint(x: 0.5, y: 0.88)) // leans into the tug
                     .offset(x: pull * size * 0.03)
@@ -39,6 +41,7 @@ struct TugGlyph: View {
 /// The can, traced from the mascot sheet's 64-unit drawing.
 private struct TugCan: View {
     var worried = false
+    var face: TugFace = .plain
 
     var body: some View {
         Canvas { context, canvas in
@@ -64,8 +67,38 @@ private struct TugCan: View {
             context.stroke(rim, with: .color(Palette.tugOutline), style: outline)
             context.fill(oval(32, 18.5, 12, 3), with: .color(Palette.tugInner))
 
-            context.fill(oval(25, 37, 3.4, 3.4), with: .color(Palette.tugOutline))
-            context.fill(oval(39, 37, 3.4, 3.4), with: .color(Palette.tugOutline))
+            let ink = Palette.tugOutline
+            let line = StrokeStyle(lineWidth: 3 * k, lineCap: .round)
+            switch face {
+            case .thinking:
+                // Eyes closed: two short downward arcs.
+                var lids = Path()
+                for x: CGFloat in [25, 39] {
+                    lids.move(to: p(x - 3.6, 36)); lids.addQuadCurve(to: p(x + 3.6, 36), control: p(x, 40.5))
+                }
+                context.stroke(lids, with: .color(ink), style: line)
+            default:
+                let big: CGFloat = face == .listening ? 3.9 : 3.4
+                context.fill(oval(25, 37, big, big), with: .color(ink))
+                context.fill(oval(39, 37, big, big), with: .color(ink))
+            }
+            if face == .listening {
+                // Brows raised high: paying attention.
+                var brows = Path()
+                brows.move(to: p(20.5, 29.5)); brows.addQuadCurve(to: p(29.5, 29.5), control: p(25, 26))
+                brows.move(to: p(34.5, 29.5)); brows.addQuadCurve(to: p(43.5, 29.5), control: p(39, 26))
+                context.stroke(brows, with: .color(ink), style: line)
+            }
+            if case .speaking(let open) = face {
+                let o = CGFloat(max(0, min(1, open)))
+                if o < 0.08 {
+                    var smile = Path()
+                    smile.move(to: p(27.5, 45)); smile.addQuadCurve(to: p(36.5, 45), control: p(32, 48.5))
+                    context.stroke(smile, with: .color(ink), style: line)
+                } else {
+                    context.fill(oval(32, 46, 4.6, 1.4 + 3.6 * o), with: .color(ink))
+                }
+            }
 
             if worried {
                 // Brows with their inner ends raised, and one sweat drop beside the rim.
@@ -80,6 +113,51 @@ private struct TugCan: View {
                 drop.closeSubpath()
                 context.fill(drop, with: .color(Palette.worry))
                 context.stroke(drop, with: .color(Palette.tugOutline), style: StrokeStyle(lineWidth: 1.6 * k, lineJoin: .round))
+            }
+        }
+    }
+}
+
+/// Tug's face in the practice round. `.plain` is the everyday glyph.
+enum TugFace: Equatable {
+    case plain, listening, thinking
+    case speaking(Double)
+}
+
+/// Tug saying the question: the mouth opens and closes while `talking`, and rests in a small smile after.
+/// With Reduce Motion the mouth stays half open while it talks.
+struct TugSpeaking: View {
+    var size: CGFloat
+    var talking: Bool
+    var reach: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if talking && !reduceMotion {
+            TimelineView(.animation(minimumInterval: 1 / 15)) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                TugGlyph(size: size, reach: reach, face: .speaking(0.25 + 0.7 * abs(sin(t * 9))))
+            }
+        } else {
+            TugGlyph(size: size, reach: reach, face: .speaking(talking ? 0.5 : 0))
+        }
+    }
+}
+
+/// Tug listening while you answer: brows up and the string pulled taut, with a small live tremor in the lean.
+/// With Reduce Motion it holds still.
+struct TugListening: View {
+    var size: CGFloat
+    var reach: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if reduceMotion {
+            TugGlyph(size: size, reach: reach, pull: 1, face: .listening)
+        } else {
+            TimelineView(.animation(minimumInterval: 1 / 20)) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                TugGlyph(size: size, reach: reach, pull: 0.86 + 0.14 * sin(t * 7), face: .listening)
             }
         }
     }
@@ -116,6 +194,8 @@ private struct TugString: Shape {
 /// With Reduce Motion the can stays still and only the slack and taut strings crossfade.
 struct TugWorking: View {
     var size: CGFloat = 52
+    /// The practice round's "Thinking": the same tug, with the eyes closed.
+    var face: TugFace = .plain
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var taut = false
 
@@ -126,12 +206,12 @@ struct TugWorking: View {
             ZStack {
                 TugGlyph(size: size, reach: size * 0.7, pull: 0, showsCan: false).opacity(taut ? 0 : 1)
                 TugGlyph(size: size, reach: size * 0.7, pull: 1, showsCan: false).opacity(taut ? 1 : 0)
-                TugGlyph(size: size, reach: size * 0.7, pull: 0, showsString: false)
+                TugGlyph(size: size, reach: size * 0.7, pull: 0, showsString: false, face: face)
             }
             .onAppear { withAnimation(.easeInOut(duration: 1.2).repeatForever()) { taut = true } }
         } else {
             PhaseAnimator(Beat.allCases) { beat in
-                TugGlyph(size: size, reach: size * 0.7, pull: beat == .tug || beat == .hold ? 1 : 0)
+                TugGlyph(size: size, reach: size * 0.7, pull: beat == .tug || beat == .hold ? 1 : 0, face: face)
             } animation: { beat in
                 switch beat {
                 case .tug: .spring(duration: 0.28, bounce: 0.45)
