@@ -17,7 +17,14 @@ public struct FrontApp: Sendable, Equatable {
 public struct CapturedWindow: @unchecked Sendable {
     public let image: CGImage
     public let app: FrontApp
-    public init(image: CGImage, app: FrontApp) { self.image = image; self.app = app }
+    /// Where the image sits on screen, in global display points with the origin at the top left of the
+    /// main display (the Core Graphics convention). Nil when the image did not come from a window.
+    public let frame: CGRect?
+    /// The window's number, to notice when it moves or closes. Nil when unknown.
+    public let windowID: CGWindowID?
+    public init(image: CGImage, app: FrontApp, frame: CGRect? = nil, windowID: CGWindowID? = nil) {
+        self.image = image; self.app = app; self.frame = frame; self.windowID = windowID
+    }
 }
 
 public enum CaptureError: LocalizedError, Equatable {
@@ -93,7 +100,7 @@ public struct ScreenCaptureKitWindowCapture: WindowCapturing {
         configuration.showsCursor = false
         configuration.ignoreShadowsSingleWindow = true
         let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
-        return CapturedWindow(image: image, app: app)
+        return CapturedWindow(image: image, app: app, frame: window.frame, windowID: windowID)
     }
 
     /// The front-to-back window list needs no permission for ids and owners (titles are not read).
