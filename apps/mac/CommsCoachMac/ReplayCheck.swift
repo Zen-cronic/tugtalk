@@ -54,7 +54,13 @@ final class ReplayCheck: ObservableObject {
     }
 
     /// The toggle is offered only when there are frames to send: the camera is on for practice, or a fixture stands in.
-    var available: Bool { fixture != nil || CameraSettings.enabled }
+    var available: Bool {
+        #if REPLAY
+        fixture != nil || CameraSettings.enabled
+        #else
+        false
+        #endif
+    }
 
     func setArmed(_ on: Bool) {
         armed = on
