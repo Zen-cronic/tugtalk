@@ -6,8 +6,10 @@ export class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 export class Store {
-  constructor(path) {
-    this.db = new DatabaseSync(path);
+  constructor(path) { this.path = path; this.open(); }
+  // Reopen after the hosting adapter released the database during slow model calls.
+  open() {
+    this.db = new DatabaseSync(this.path);
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS tokens(hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, scopes TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS records(user_id TEXT NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, version INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(user_id,kind,id));
@@ -15,6 +17,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY, user_id TEXT, method TEXT NOT NULL, path TEXT NOT NULL, status INTEGER NOT NULL, response_hash TEXT NOT NULL, created_at TEXT NOT NULL);`);
   }
   close() { this.db.close(); }
+  reopen() { this.open(); }
   addToken(token, user, scopes = ['read','write']) {
     this.db.prepare('INSERT INTO tokens(hash,user_id,scopes) VALUES(?,?,?)').run(digest(token), user, JSON.stringify(scopes));
   }
@@ -110,12 +113,8 @@ export class Store {
     const fingerprint=digest(JSON.stringify({method,path,body}));
     this.db.exec('BEGIN IMMEDIATE');
     try {
-      const previous=this.db.prepare('SELECT * FROM receipts WHERE user_id=? AND idem=?').get(user,key);
-      if (previous) {
-        if (previous.fingerprint!==fingerprint) throw new ApiError(409,'idempotency_conflict','This idempotency key was used for a different request.');
-        this.db.exec('COMMIT');
-        return {...JSON.parse(previous.result),replayed:true};
-      }
+      const previous=this.replay(user,method,path,body,key);
+      if (previous) { this.db.exec('COMMIT'); return previous; }
       const record=fn();
       const result={receipt_id:randomUUID(),saved:true,record,record_version:record.version,saved_at:new Date().toISOString(),replayed:false};
       this.db.prepare('INSERT INTO receipts VALUES(?,?,?,?,?,?)').run(result.receipt_id,user,key,fingerprint,JSON.stringify(result),result.saved_at);

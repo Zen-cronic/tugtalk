@@ -1,7 +1,9 @@
 """Minimal ASGI bridge. A response is released only after storage commits.
 
 No framework dependency. Node executes the same tested API handler as local HTTP.
-The Modal function must have max_containers=1; the lock serializes requests within it.
+The Modal function must have max_containers=1; the lock serializes database access within it.
+A recording worker releases the lock during its slow model calls (see scripts/handle-request.mjs),
+so reads are not queued behind inference.
 """
 import asyncio
 import base64
@@ -62,28 +64,54 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         selected = {k: headers[k] for k in FORWARDED if k in headers}
         envelope = {'method': scope['method'], 'path': scope['path'], 'headers': selected,
                     'base_url': 'https://' + host, 'body_b64': base64.b64encode(body).decode()}
-        async with lock:
-            process = None
-            try:
-                await volume.reload.aio()
-                process = await asyncio.create_subprocess_exec(
-                    'node', worker_path,
-                    stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                    env={**os.environ, 'DB_PATH': database_path})
-                output, _ = await asyncio.wait_for(process.communicate(json.dumps(envelope).encode()), timeout=150 if recording else 20)
-                if process.returncode:
-                    raise RuntimeError('Node handler failed')
-                response = json.loads(output)
-                # Node has checkpointed WAL and closed every DB handle. Commit before acknowledging writes.
-                await volume.commit.aio()
-            except (Exception, asyncio.CancelledError) as exc:
-                if process is not None and process.returncode is None:
-                    process.kill()
-                    await process.wait()
-                if isinstance(exc, asyncio.CancelledError):
-                    raise
-                return await respond(send, 503, {'error': 'storage_or_worker_unavailable',
-                                               'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'})
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + (150 if recording else 20)
+        remaining = lambda: max(0.1, deadline - loop.time())
+        await asyncio.wait_for(lock.acquire(), timeout=remaining())
+        held = True
+        process = None
+        try:
+            await volume.reload.aio()
+            process = await asyncio.create_subprocess_exec(
+                'node', worker_path,
+                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                env={**os.environ, 'DB_PATH': database_path}, limit=32 * 1024 * 1024)
+            process.stdin.write(json.dumps(envelope).encode() + b'\n')
+            await process.stdin.drain()
+            response = None
+            while response is None:
+                line = await asyncio.wait_for(process.stdout.readline(), timeout=remaining())
+                if not line:
+                    raise RuntimeError('Node handler exited without a response')
+                message = json.loads(line)
+                if message.get('phase') == 'release':
+                    # Worker closed the database; persist startup writes, then let other requests in.
+                    await volume.commit.aio()
+                    lock.release(); held = False
+                elif message.get('phase') == 'acquire':
+                    await asyncio.wait_for(lock.acquire(), timeout=remaining())
+                    held = True
+                    await volume.reload.aio()
+                    process.stdin.write(b'go\n')
+                    await process.stdin.drain()
+                elif 'response' in message:
+                    response = message['response']
+            await asyncio.wait_for(process.wait(), timeout=remaining())
+            if process.returncode:
+                raise RuntimeError('Node handler failed')
+            # Node has checkpointed WAL and closed every DB handle. Commit before acknowledging writes.
+            await volume.commit.aio()
+        except (Exception, asyncio.CancelledError) as exc:
+            if process is not None and process.returncode is None:
+                process.kill()
+                await process.wait()
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+            return await respond(send, 503, {'error': 'storage_or_worker_unavailable',
+                                           'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'})
+        finally:
+            if held:
+                lock.release()
         await send({'type': 'http.response.start', 'status': response['status'],
                     'headers': [(k.lower().encode(), str(v).encode()) for k, v in response['headers'].items()]})
         await send({'type': 'http.response.body', 'body': base64.b64decode(response['body_b64'])})

@@ -114,4 +114,37 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         status, body = await self.raw('/v1/goals', b'x' * 20000, [(b'content-type', b'application/json'), (b'idempotency-key', b'too-large-json')])
         self.assertEqual(status, 413)
 
+    async def test_reads_are_served_while_a_recording_is_in_model_calls(self):
+        # A fake worker that follows the release/acquire protocol with a slow "inference" step.
+        fake = Path(self.temp.name) / 'fake-worker.mjs'
+        fake.write_text("""
+import { createInterface } from 'node:readline';
+const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
+const env = JSON.parse((await lines.next()).value);
+const out = m => process.stdout.write(JSON.stringify(m) + '\\n');
+if (env.path === '/v1/recordings') {
+  out({ phase: 'release' });
+  await new Promise(r => setTimeout(r, 1500));
+  out({ phase: 'acquire' });
+  if ((await lines.next()).value !== 'go') process.exit(1);
+}
+out({ response: { status: 200, headers: { 'content-type': 'application/json' }, body_b64: Buffer.from(JSON.stringify({ path: env.path })).toString('base64') } });
+process.exit(0);
+""")
+        app = create_bridge(self.volume, worker_path=str(fake), database_path=self.temp.name + '/fake.sqlite')
+        finished = []
+        async def request(path, method):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': b''}
+            async def send(event): sent.append(event)
+            headers = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer x')]
+            await app({'type': 'http', 'method': method, 'path': path, 'headers': headers}, receive, send)
+            finished.append((path, sent[0]['status']))
+        recording = asyncio.create_task(request('/v1/recordings', 'POST'))
+        await asyncio.sleep(0.5)
+        await request('/v1/overview', 'GET')
+        self.assertEqual(finished, [('/v1/overview', 200)], 'read completed while the recording was still in model calls')
+        await recording
+        self.assertEqual(finished[-1], ('/v1/recordings', 200))
+
 if __name__ == '__main__': unittest.main()

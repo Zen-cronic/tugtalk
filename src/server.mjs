@@ -50,7 +50,13 @@ function captureParams(headers) {
   if (occurredAt!==null&&(!/^\d{4}-\d{2}-\d{2}T/.test(occurredAt)||Number.isNaN(Date.parse(occurredAt)))) throw new ApiError(400,'invalid_value','X-Occurred-At must be an ISO 8601 timestamp.');
   return {language,device,goalId,occurredAt:occurredAt&&new Date(occurredAt).toISOString()};
 }
-async function handleRecording(store,models,user,req,key,requestId) {
+function requireIdempotencyKey(headers) {
+  const key=headers['idempotency-key'];
+  if(typeof key!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(key)) throw new ApiError(400,'idempotency_required','Provide an Idempotency-Key header: 8–128 letters, digits, underscores or hyphens.');
+  return key;
+}
+const NO_PHASES={async release(){},async acquire(){}};
+async function handleRecording(store,models,user,req,key,requestId,phases) {
   const params=captureParams(req.headers);
   const audio=await audioOf(req);
   const fingerprintBody={audio_sha256:digest(audio),goal_id:params.goalId,language:params.language,capture_device:params.device,occurred_at:params.occurredAt};
@@ -59,10 +65,17 @@ async function handleRecording(store,models,user,req,key,requestId) {
   if (previous) return previous;
   const goal=params.goalId?store.get(user,'goals',params.goalId):null;
   const wav=inspectWav(audio);
-  const transcription=await models.transcribe(audio,{language:params.language,sessionId:requestId});
-  const durationMs=transcription.audio_duration_ms??wav.durationMs;
-  const metrics=measure(transcription.transcript,durationMs,params.language);
-  const analysis=await models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language});
+  // Model calls take seconds; the hosting adapter may release the shared database meanwhile.
+  // Everything below re-validates inside the write transaction (receipt replay, goal ownership).
+  let transcription,metrics,analysis;
+  await phases.release();
+  try {
+    transcription=await models.transcribe(audio,{language:params.language,sessionId:requestId});
+    metrics=measure(transcription.transcript,transcription.audio_duration_ms??wav.durationMs,params.language);
+    analysis=await models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language});
+  } finally {
+    await phases.acquire();
+  }
   return store.mutate(user,'POST','/v1/recordings',fingerprintBody,key,()=>{
     if (params.goalId) store.get(user,'goals',params.goalId);
     const timestamp=new Date().toISOString();
@@ -74,7 +87,7 @@ async function handleRecording(store,models,user,req,key,requestId) {
     store.put(user,'sessions',record); return record;
   });
 }
-export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models=createModelClients()}={}) {
+export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models=createModelClients(),phases=NO_PHASES}={}) {
   return async(req,res)=>{
     const requestId=randomUUID(); let user;
     const path=new URL(req.url,'http://local').pathname;
@@ -99,16 +112,13 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models=crea
         ?`${s.id} version ${s.version} (${s.capture_device}, ${s.language}${s.goal_id?`, goal ${s.goal_id}`:''}): ${s.transcript}\nMeasured: ${s.metrics.word_count} words, ${s.metrics.words_per_minute} wpm, ${s.metrics.filler_count} fillers, ${s.metrics.hedge_count} hedges, ${s.metrics.restart_count} restarts`
         :`${s.id} version ${s.version}: ${s.transcript}\nSimulated pause: ${s.pause_before_answer_ms}ms`).join('\n\n'),'text/plain');
       if(req.method==='POST'&&path==='/v1/recordings') {
-        const key=req.headers['idempotency-key'];
-        if(typeof key!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(key)) throw new ApiError(400,'idempotency_required','Provide an Idempotency-Key header: 8–128 letters, digits, underscores or hyphens.');
-        return send(200,await handleRecording(store,models,user,req,key,requestId));
+        return send(200,await handleRecording(store,models,user,req,requireIdempotencyKey(req.headers),requestId,phases));
       }
       const parts=path.split('/').filter(Boolean); const kind=parts[1]; const id=parts[2];
       const isCreate=req.method==='POST'&&parts.length===2&&['goals','exercises','check-ins'].includes(kind);
       const isPatch=req.method==='PATCH'&&parts.length===3&&['goals','sessions'].includes(kind);
       if(!isCreate&&!isPatch) throw new ApiError(404,'not_found','Route not found.');
-      const key=req.headers['idempotency-key'];
-      if(typeof key!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(key)) throw new ApiError(400,'idempotency_required','Provide an Idempotency-Key header: 8–128 letters, digits, underscores or hyphens.');
+      const key=requireIdempotencyKey(req.headers);
       const body=await bodyOf(req);
       const schema=isPatch&&kind==='goals'?{required:['expected_version'],properties:{...schemas.goals.properties,expected_version:{type:'integer',minimum:1}}}:schemas[kind];
       validate(body,schema);
