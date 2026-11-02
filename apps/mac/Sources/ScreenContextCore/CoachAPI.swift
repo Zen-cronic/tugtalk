@@ -133,7 +133,7 @@ public struct CoachAPI: Sendable {
 
     public static let defaultBaseURL = URL(string: "https://kaungzinhein113--synthetic-coaching-connector-web.us-east.modal.run")!
 
-    private func request(_ path: String, method: String = "GET", timeout: TimeInterval = 45) -> URLRequest {
+    func request(_ path: String, method: String = "GET", timeout: TimeInterval = 45) -> URLRequest {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
         request.timeoutInterval = timeout
@@ -142,7 +142,7 @@ public struct CoachAPI: Sendable {
         return request
     }
 
-    private func send<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
+    func send<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
         let data: Data, response: URLResponse
         do { (data, response) = try await session.data(for: request) } catch {
             let code = (error as? URLError)?.code
