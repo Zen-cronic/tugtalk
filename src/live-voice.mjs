@@ -234,7 +234,7 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       })();
       await acquire();
       const receipt = saveVoiceRound(store, user, { params, fingerprintBody: voiceFingerprint(params, audio), key, roundId, transcription, metrics: answer.metrics,
-        result: answer.result, checked: answer.checked, live: true, latency: { asr: asrMs, model: answer.modelMs, total: replyMs } });
+        result: answer.result, checked: answer.checked, live: true, audio, latency: { asr: asrMs, model: answer.modelMs, total: replyMs } });
       audit(VOICE_ROUNDS_PATH, 200, 'live saved');
       return { status: 200, body: voiceResponse(receipt), dirty: true, speechDone };
     } catch (error) {

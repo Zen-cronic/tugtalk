@@ -9,7 +9,7 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
-from bridge import create_bridge, FORWARDED
+from bridge import create_bridge, FORWARDED, REMEASURE_ROUTE, route_label
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,6 +41,34 @@ createInterface({ input: process.stdin }).on('line', line => {
   handle(m.id, m.envelope, m).catch(() => process.exit(1));
 });
 out({ ready: true, dirty: false });
+"""
+
+# The real API handler with stub models behind the adapter's line protocol, for "Keep my recordings": no model call,
+# but every file and row is written by the code that runs in production.
+KEEP_WORKER = """
+import { createInterface } from 'node:readline';
+import { Readable } from 'node:stream';
+import { Store } from 'ROOT/src/store.mjs';
+import { createHandler } from 'ROOT/src/server.mjs';
+const out = m => process.stdout.write(JSON.stringify(m) + '\\n');
+const store = new Store(process.env.DB_PATH);
+store.db.prepare('INSERT OR IGNORE INTO tokens(hash,user_id,scopes) VALUES(?,?,?)').run(process.env.CONNECTOR_TOKEN_HASH, 'synthetic-operator', JSON.stringify(['read', 'write']));
+const models = { async transcribe() { return { transcript: 'Um, we ship it today.', turns: [], audio_duration_ms: 2000, model: 'stub', provider_session_id: 'stub' }; },
+  async analyze() { return { status: 'unavailable', reason: 'stub' }; } };
+const granted = new Map();
+createInterface({ input: process.stdin }).on('line', async line => {
+  const m = JSON.parse(line);
+  if (m.go) { const r = granted.get(m.id); granted.delete(m.id); r?.(); return; }
+  const env = m.envelope, chunks = [];
+  const phases = { async release() { out({ id: m.id, phase: 'release' }); },
+    async acquire() { await new Promise(r => { granted.set(m.id, r); out({ id: m.id, phase: 'acquire' }); }); } };
+  const req = Object.assign(Readable.from([Buffer.from(env.body_b64, 'base64')]), { method: env.method, url: env.path, headers: env.headers });
+  const res = { writeHead(status, headers) { this.status = status; this.headers = headers; }, write(c) { chunks.push(Buffer.from(c)); }, on() {},
+    end(last) { if (last !== undefined) chunks.push(Buffer.from(last));
+      out({ id: m.id, dirty: env.method !== 'GET', response: { status: this.status, headers: this.headers, body_b64: Buffer.concat(chunks).toString('base64') } }); } };
+  await createHandler(store, { baseUrl: env.base_url, models, phases })(req, res);
+});
+out({ ready: true, dirty: true });
 """
 
 
@@ -454,6 +482,62 @@ respond(id, 200, { ok: true }, false);
         self.assertEqual(sent, ['lifespan.startup.complete', 'lifespan.shutdown.complete'])
         self.assertEqual(self.app.worker.starts, 1)
         self.assertEqual(self.volume.events, ['commit'], 'the bootstrap rows were committed once, at startup')
+
+    async def test_a_kept_recording_is_on_the_volume_before_the_commit_that_precedes_its_answer(self):
+        media = Path(self.temp.name) / 'media'
+        volume, files_at_commit = Volume(), []
+        commit = volume.commit
+        class Snapshot:
+            async def aio(_):
+                files_at_commit.append(sorted(p.name for p in media.rglob('*.wav')))
+                await commit.aio()
+        volume.commit = Snapshot()
+        worker = Path(self.temp.name) / 'keep-worker.mjs'
+        worker.write_text(KEEP_WORKER.replace('ROOT', str(ROOT)))
+        app = self.bridge(volume, worker_path=str(worker), database_path=self.temp.name + '/keep.sqlite')
+        async def request(method, path, body=b'', headers=()):
+            sent = []
+            async def receive(): return {'type': 'http.request', 'body': body}
+            async def send(event):
+                if event['type'] == 'http.response.start': volume.events.append('response')
+                sent.append(event)
+            base = [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer local-test-only')]
+            await app({'type': 'http', 'method': method, 'path': path, 'headers': base + list(headers)}, receive, send)
+            raw = b''.join(e.get('body', b'') for e in sent[1:])
+            return sent[0]['status'], raw
+        status, _ = await request('PATCH', '/v1/settings', json.dumps({'expected_version': 1, 'keep_recordings': True}).encode(),
+                                  [(b'content-type', b'application/json'), (b'idempotency-key', b'keep-on-1')])
+        self.assertEqual(status, 200)
+        data = bytes(range(256)) * 250
+        wav = (b'RIFF' + (36 + len(data)).to_bytes(4, 'little') + b'WAVEfmt ' + (16).to_bytes(4, 'little')
+               + (1).to_bytes(2, 'little') + (1).to_bytes(2, 'little') + (16000).to_bytes(4, 'little')
+               + (32000).to_bytes(4, 'little') + (2).to_bytes(2, 'little') + (16).to_bytes(2, 'little')
+               + b'data' + len(data).to_bytes(4, 'little') + data)
+        volume.events.clear()
+        status, body = await request('POST', '/v1/recordings', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', b'keep-capture-1')])
+        self.assertEqual(status, 200)
+        record = json.loads(body)['record']
+        self.assertTrue(record['media']['kept']); self.assertEqual(record['media']['sha256'], hashlib.sha256(wav).hexdigest())
+        self.assertEqual(volume.events, ['commit', 'response'], 'the kept recording is committed before it is answered')
+        self.assertIn(record['id'] + '.wav', files_at_commit[-1], 'the file was on the volume when the commit ran')
+        self.assertEqual((media / 'synthetic-operator' / (record['id'] + '.wav')).read_bytes(), wav)
+        # The owner downloads it through the adapter as audio, a read: no commit.
+        volume.events.clear()
+        status, body = await request('GET', '/v1/media/' + record['id'])
+        self.assertEqual(status, 200); self.assertEqual(body, wav); self.assertEqual(volume.events, ['response'])
+        # Deleting it is a write: the file is gone by the commit, and the commit precedes the answer.
+        volume.events.clear()
+        sent = []
+        async def receive(): return {'type': 'http.request', 'body': b''}
+        async def send(event):
+            if event['type'] == 'http.response.start': volume.events.append('response')
+            sent.append(event)
+        await app({'type': 'http', 'method': 'DELETE', 'path': '/v1/media/' + record['id'], 'headers': [(b'host', b'example--web.us-east.modal.run'), (b'authorization', b'Bearer local-test-only'), (b'idempotency-key', b'keep-delete-1')]}, receive, send)
+        self.assertEqual(sent[0]['status'], 200)
+        self.assertEqual(volume.events, ['commit', 'response']); self.assertEqual(files_at_commit[-1], [])
+        # Re-measuring may re-transcribe a kept recording, so it is a model route; media ids never reach the timing log.
+        self.assertIsNotNone(REMEASURE_ROUTE.fullmatch('/v1/sessions/' + record['id'] + '/remeasure'))
+        self.assertEqual(route_label('GET', '/v1/media/' + record['id']), 'GET /v1/media/{id}')
 
 if __name__ == '__main__': unittest.main()
 

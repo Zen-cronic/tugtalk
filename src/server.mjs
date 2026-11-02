@@ -14,6 +14,8 @@ import { createSpeechModel, handleSpeech, SPEECH_PATH } from './speech.mjs';
 import { createBudget, MODEL_BUDGET_MS, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
 import { createLiveRound, createRealtimeModel, LIVE_PATH } from './live-voice.mjs';
 import { acceptWebSocket } from './ws-server.mjs';
+import { attachMedia } from './media.mjs';
+import { handleKeepRoutes } from './media-routes.mjs';
 
 export const RECORDINGS_PATH = '/v1/recordings';
 // Guards paid calls against a stuck capture button or a leaked key. Counts saved and model-failed recordings in the last hour.
@@ -123,6 +125,7 @@ export async function handleRecording(store,models,user,req,key,requestId,phases
       transcription:{model:transcription.model,provider_session_id:transcription.provider_session_id},
       audio_retained:false,audio_sha256:fingerprintBody.audio_sha256,deleted:false,updated_at:timestamp};
     const saved=hooks.extendRecord?hooks.extendRecord(record,{...ctx,transcription,metrics,analysis,adjudication,timestamp}):record;
+    attachMedia(store,user,'sessions',saved,audio); // Keep my recordings (src/media.mjs): no-op unless the person turned it on
     store.put(user,'sessions',saved); return saved;
   });
 }
@@ -133,21 +136,22 @@ export function connectorDocument(baseUrl) {
     `# Synthetic Coaching Connector`,
     ``,
     `Private test service. `
-      + `Seeded fixtures are synthetic; captured sessions hold transcripts of audio a capture device uploaded (audio not retained).`,
+      + `Seeded fixtures are synthetic; captured sessions hold transcripts of audio a capture device uploaded. `
+      + `Audio is deleted after transcription unless the person turned on Keep my recordings (off by default).`,
     `OpenAPI: ${baseUrl}/openapi.json`,
     `Authentication: `
       + `Bearer API key in Authorization header, stored in Muse Secure Credentials Store. `
       + `Never put it in chat, URLs or files.`,
     `API host: ${new URL(baseUrl).host}`,
     `Allowed paths: `
-      + `GET /v1/overview, GET /v1/goals/{id}/context, GET /v1/context, GET /v1/receipts, GET /v1/files/evidence.txt; `
+      + `GET /v1/overview, GET /v1/goals/{id}/context, GET /v1/context, GET /v1/receipts, GET /v1/files/evidence.txt, GET /v1/settings, GET /v1/media; `
       + `POST /v1/goals, /v1/exercises, /v1/check-ins; `
       + `PATCH /v1/goals/{id}, /v1/sessions/{id}. `
       + `No other hosts or endpoints.`,
     `All writes need a fresh Idempotency-Key header (8–128 characters); reuse only to retry the exact request. `
       + `Patches need expected_version from a fresh read. `
       + `A 409 means re-read and explain the conflict; do not blindly overwrite.`,
-    `Contract version 0.5.0: `
+    `Contract version 0.6.0: `
       + `At the start of EVERY goal-related turn fetch GET /v1/overview, even in an existing chat. `
       + `For a goal-specific chat bind to the explicitly selected goal ID and then GET /v1/goals/{id}/context. `
       + `Never infer a goal ID from the most recently used chat. `
@@ -178,7 +182,12 @@ export function connectorDocument(baseUrl) {
       + `In each, the person answered out loud and a model playing the other person in the conversation replied with one move and one question. `
       + `The transcript is automatic and the metrics are code-measured; the reply is model-written. `
       + `reply.quote is the person's own words only when quote_verified is true; code checked it word for word against the transcript. `
-      + `onset_ms_approx is approximate. Audio is not stored.`,
+      + `onset_ms_approx is approximate. Audio is not stored unless Keep my recordings is on.`,
+    `Keep my recordings (settings in the overview, and GET /v1/settings) is off by default. `
+      + `Off, audio is deleted after transcription. `
+      + `On, the original audio of each capture and voice round stays in the person's account (media.kept true on the record), and they can see, download or delete it from their devices, or turn the setting off and delete what is kept. `
+      + `Read it; never change it or delete recordings yourself, and never describe audio you cannot hear. `
+      + `A re-measured session keeps its earlier metrics in measurements, with remeasured.method naming the current lexicon; say which version you cite.`,
     `Setup verification must be GET /v1/context only. Do not create schedules or modify user memories.`,
     `This prototype has no webhook, no general file upload (only the WAV capture route used by capture devices), no billing, and no access to personal Muse history. `
       + `Revoke access in Muse and with the local token revocation command when finished.`,
@@ -228,6 +237,7 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
       }
       const speech=req.method==='POST'&&path.match(SPEECH_PATH);
       if(speech) return await handleSpeech(store,models,user,speech[1],{res,requestId,phases,audit:(status,label)=>store.audit(requestId,user,req.method,path,status,label)});
+      if(await handleKeepRoutes(store,models,user,req,path,{res,send,requestId,phases,budget:budget(),bodyOf,requireIdempotencyKey,audit:(status,label)=>store.audit(requestId,user,req.method,path,status,label)})) return;
       const parts=path.split('/').filter(Boolean); const kind=parts[1]; const id=parts[2];
       const isCreate=req.method==='POST'&&parts.length===2&&['goals','exercises','check-ins'].includes(kind);
       const isPatch=req.method==='PATCH'&&parts.length===3&&['goals','sessions','screen-contexts'].includes(kind);

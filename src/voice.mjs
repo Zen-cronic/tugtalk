@@ -2,13 +2,14 @@
 // Meta transcribes it (file ASR, ENDPOINTING), code measures the answer, and one Muse Spark Open call plays the
 // other person in the conversation and picks the next move. Code then checks the reply: the quote must be the
 // person's own words, word for word, or it is dropped, and any quoted words in the question that the person did
-// not say are removed before the question is returned to be spoken. Audio is never stored.
+// not say are removed before the question is returned to be spoken. Audio is not stored unless the person turned on Keep my recordings (src/media.mjs).
 import { randomUUID } from 'node:crypto';
 import { ApiError, digest } from './store.mjs';
 import { inspectWav, measure, habitHits, tokenize, parseObject, shapeOf, LANGUAGES } from './capture.mjs';
 import { scrub } from './screen-context.mjs';
 import { sparkCall, jsonClosed, SPARK_STREAM_MODEL, DEFAULT_MAX_TOKENS } from './spark-stream.mjs';
 import { createBudget, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
+import { attachMedia } from './media.mjs';
 
 const NO_PHASES = { async release() {}, async acquire() {} };
 export const VOICE_ROUNDS_PATH = '/v1/voice-rounds';
@@ -176,7 +177,7 @@ const newest = list => list.slice().sort((a, b) => b.occurred_at.localeCompare(a
 export function voiceResponse(receipt) {
   const r = receipt.record;
   return { round_id: r.id, receipt_id: receipt.receipt_id, replayed: receipt.replayed, transcript: r.transcript, metrics: r.metrics, reply: r.reply,
-    model: r.model, provider_request_id: r.provider_request_id, latency_ms: r.latency_ms };
+    model: r.model, provider_request_id: r.provider_request_id, latency_ms: r.latency_ms, ...(r.media ? { media: r.media } : {}) };
 }
 
 // The checks and context a round needs before any paid call: the goal, the screen card, the hourly limit, the reply
@@ -219,7 +220,7 @@ export const voiceFingerprint = (params, audio) => ({ audio_sha256: digest(audio
 
 // Writes the round and its receipt in one transaction. roundId is chosen before the write, so the spoken reply can be
 // started (and found by the speech route) before the round is saved.
-export function saveVoiceRound(store, user, { params, fingerprintBody, key, roundId, transcription, metrics, result, checked, latency, live = false }) {
+export function saveVoiceRound(store, user, { params, fingerprintBody, key, roundId, transcription, metrics, result, checked, latency, live = false, audio }) {
   return store.mutate(user, 'POST', VOICE_ROUNDS_PATH, fingerprintBody, key, () => {
     if (params.goalId) store.get(user, 'goals', params.goalId);
     const timestamp = new Date().toISOString();
@@ -229,6 +230,7 @@ export function saveVoiceRound(store, user, { params, fingerprintBody, key, roun
       model: result.model, provider_request_id: result.provider_request_id, attempts: result.attempts,
       transcription: { model: transcription.model, provider_session_id: transcription.provider_session_id, ...(live ? { mode: transcription.mode ?? 'realtime' } : {}) },
       latency_ms: latency, audio_retained: false, deleted: false, created_at: timestamp, updated_at: timestamp };
+    attachMedia(store, user, 'voice-rounds', record, audio); // Keep my recordings: no-op unless the person turned it on
     store.put(user, 'voice-rounds', record); return record;
   });
 }
@@ -260,7 +262,7 @@ export async function handleVoiceRound(store, models, user, { params, audio, sta
   if (!answer.checked) throw new ApiError(502, 'reply_failed', answer.result?.reason ?? 'Reply failed.');
   const roundId = randomUUID();
   models.prefetchSpeech?.(roundId, user, answer.checked.reply.question, params.language);
-  const receipt = saveVoiceRound(store, user, { params, fingerprintBody, key, roundId, transcription, metrics: answer.metrics, result: answer.result, checked: answer.checked,
+  const receipt = saveVoiceRound(store, user, { params, fingerprintBody, key, roundId, transcription, metrics: answer.metrics, result: answer.result, checked: answer.checked, audio,
     latency: { asr: asrMs, model: answer.modelMs, total: Math.round(performance.now() - startedAt) } });
   // A replayed receipt (a retry that raced the first attempt) keeps its own round; the prefetch above is unused.
   if (receipt.record.id !== roundId) models.dropSpeech?.(roundId);

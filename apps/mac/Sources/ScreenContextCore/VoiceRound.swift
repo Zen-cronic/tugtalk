@@ -80,6 +80,8 @@ public struct VoiceRoundReceipt: Decodable, Sendable, Equatable {
     public let model: String
     public let provider_request_id: String?
     public let latency_ms: VoiceLatency?
+    /// Present only when the person turned on Keep my recordings.
+    public let media: KeptMedia?
 }
 
 extension CoachAPI {

@@ -25,6 +25,9 @@ final class CaptureModel: ObservableObject {
     @Published var goals: [GoalSummary] = []
     @Published var selectedGoal: GoalSummary?
     @Published var language = "en"
+    /// Keep my recordings, as the coach server has it. Nil until read.
+    @Published var settings: CoachSettings?
+    @Published var settingsNote: String?
     let recorder = Recorder()
     private var pending: PendingCapture?
     private(set) var isPreview = false
@@ -54,13 +57,17 @@ final class CaptureModel: ObservableObject {
             scrollToActions = arguments.contains("-scrollToActions") // the result's buttons, at the end of the screen
             scrollToTry = arguments.contains("-scrollToTry") // the short exercise line and its More button
             // `-previewObservation "<text>"` swaps in another observation, to check the verdict line on the wrist.
-            phase = .done(.preview(observation: UserDefaults.standard.string(forKey: "previewObservation")))
+            phase = .done(.preview(observation: UserDefaults.standard.string(forKey: "previewObservation"), kept: arguments.contains("-previewRecordingKept")))
             return
         }
         #endif
         phase = .loading
         do {
-            goals = try await CoachAPI.fromBundle().goals()
+            let api = try CoachAPI.fromBundle()
+            async let setting = try? api.settings() // a failed read leaves the row saying it is checking
+            goals = try await api.goals()
+            settings = await setting
+            settingsNote = settings == nil ? "Not available on this coach yet." : nil
             if selectedGoal == nil { selectedGoal = goals.first }
             phase = .ready
         } catch {
@@ -126,6 +133,19 @@ final class CaptureModel: ObservableObject {
     }
 
     var canRetryUpload: Bool { pending != nil }
+
+    /// Turns Keep my recordings on or off on the server; on a conflict or failure it reads the setting again.
+    func setKeepRecordings(_ keep: Bool, deleteKept: Bool = false) async {
+        guard let current = settings else { return }
+        do {
+            let api = try CoachAPI.fromBundle()
+            settings = try await api.setKeepRecordings(keep, deleteKept: deleteKept, expectedVersion: current.version)
+            settingsNote = deleteKept ? "Kept recordings deleted." : nil
+        } catch {
+            settingsNote = Self.plain(error)
+            settings = try? await CoachAPI.fromBundle().settings()
+        }
+    }
 
     /// Network failures in plain words; any other error keeps its own message.
     static func plain(_ error: Error) -> String {

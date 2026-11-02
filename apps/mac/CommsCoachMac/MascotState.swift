@@ -59,6 +59,8 @@ struct VoiceCard: Equatable {
     var summary: RoundSummary?
     /// The source line a preview shows instead of a receipt.
     var sampleSource: String?
+    /// "Recording kept" when Keep my recordings is on and the server kept this answer's audio.
+    var recordingNote: String?
 
     init(roundID: String, receiptID: String, question: String, move: VoiceReply.Move?, transcript: String, quote: String?,
          metrics: VoiceMetrics?, latency: VoiceLatency?, replayed: Bool, modelLabel: String = "Muse Spark Open", isPreview: Bool = false) {
@@ -78,6 +80,7 @@ struct VoiceCard: Equatable {
         self.init(roundID: receipt.round_id, receiptID: receipt.receipt_id, question: receipt.reply.question.trimmingCharacters(in: .whitespacesAndNewlines),
                   move: receipt.reply.kind, transcript: receipt.transcript, quote: receipt.reply.verifiedQuote, metrics: receipt.metrics,
                   latency: receipt.latency_ms, replayed: receipt.replayed, modelLabel: ModelLabel.display(receipt.model))
+        recordingNote = receipt.media?.note
     }
 
     var endsRound: Bool { move == .wrap_up }
@@ -319,6 +322,8 @@ enum PreviewSamples {
         card.round = 1
         card.finished = finished
         card.sampleSource = source
+        // `-previewRecordingKept YES`: the card as it looks with Keep my recordings on.
+        if UserDefaults.standard.bool(forKey: "previewRecordingKept") { card.recordingNote = KeepRecordingsCopy.kept }
         return card
     }
 

@@ -1,4 +1,4 @@
-# Voice rounds (contract 0.5.0)
+# Voice rounds (contract 0.6.0)
 
 A voice round is one spoken exchange of practice. The person holds a key on the Mac and answers out loud. While the key is held, the Mac streams the answer to `WS /v1/voice-rounds/live` and Meta transcribes it as it arrives (below); if that fails, or with `-liveVoice NO`, the Mac posts the clip to `POST /v1/voice-rounds` on release. Meta transcribes it and code measures it. Then Muse Spark Open, playing the other person in the conversation, picks the next move and asks one question, and the Mac speaks it. Code checks the reply before it is returned. The round joins the same record as watch captures and screen cards, so a Muse chat can read it.
 
@@ -117,6 +117,7 @@ The usual JSON error shape, `{error, message, request_id}`:
 
 - **Stored** in the `voice-rounds` record: the transcript, the metrics, the checked reply, `reply_checks`, `goal_id`, `screen_context_id`, `language`, `occurred_at`, `prompt_ended_at`, provider ids, attempts, and `latency_ms`. `audio_retained` is `false`.
 - **Not stored:** the audio, or any hash of it in the record. The receipt keeps a digest of the request for retry matching, as every write does.
+- **Unless you turn on Keep my recordings** (off by default; `docs/keep-recordings.md`). Then the uploaded WAV is kept in your account in the same write, the record gets `media` (`kept`, `bytes`, `sha256`) and `audio_retained: true`, and the reply carries the same `media` block so the Mac can say "Recording kept". You can delete it any time.
 - **Not logged:** the hosting adapter discards the worker's stderr, and the API logs only error names.
 - **The audio goes to Meta only,** for transcription. Spark Open on Baseten receives text: the transcript, the numbers, the goal, and the screen card summary. Baseten documents zero data retention for synchronous Model API calls. We have not checked Meta's retention for transcription requests.
 - **Spoken names are not redacted.** Whatever the person says is in the transcript and is stored and sent to Baseten as said. Screen text is redacted on the Mac before it leaves it, but speech is not.
