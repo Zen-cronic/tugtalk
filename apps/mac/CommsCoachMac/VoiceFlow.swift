@@ -49,6 +49,11 @@ final class VoiceFlow {
     private var tally = RoundTally()
     /// The other person's need for this round, from its first reply. In memory only; dropped when the round ends.
     private var roundNeed = RoundNeed()
+    /// The server counts the round's answers; a round ended here without a wrap-up is ended there too (`RoundEnd`).
+    private var roundEnd = RoundEnd()
+    /// The last round end sent, and how many are still on their way. An answer waits for them.
+    private var endTask: Task<Void, Never>?
+    private var endsInFlight = 0
     /// DEBUG `-replyMode code`: ask for the code-only reply (no model call), for side-by-side checks.
     private let replyMode: String?
 
@@ -158,6 +163,7 @@ final class VoiceFlow {
     /// The bubble was closed, by its button or a click on the character. The round ends with it.
     func dismissed() {
         tally.reset(); roundNeed.reset()
+        endServerRound("bubble closed")
         ReplayCheck.shared.roundAbandoned()
         perform(machine.dismiss())
     }
@@ -165,7 +171,7 @@ final class VoiceFlow {
     /// Another state took the bubble (a screen capture, a nudge): the round ends. A reply card that only
     /// collapsed to idle keeps the round, and a long silence ends it by itself (`RoundTally.idleGap`).
     private func leftVoice() {
-        if model.phase != .idle { tally.reset(); roundNeed.reset() }
+        if model.phase != .idle { tally.reset(); roundNeed.reset(); endServerRound("another state took the bubble") }
         switch machine.phase {
         case .speaking, .failed, .listening: perform(machine.dismiss())
         default: break
@@ -206,6 +212,8 @@ final class VoiceFlow {
     private func startRecording(_ key: String) {
         holdStarted = Date()
         occurredAt = (key, holdStarted!)
+        // An end the server has not confirmed, or a round gone quiet for five minutes, is sent before this answer.
+        if let end = roundEnd.beforeAnswer(at: holdStarted!, newKey: Self.newEndKey) { sendRoundEnd(end, why: "before the next answer") }
         let session = openLive(key)
         if fixture == nil {
             let recorder = MicRecorder()
@@ -304,7 +312,10 @@ final class VoiceFlow {
         if let started = liveRound, started.idempotencyKey == key { round = started; round.wav = wav }
         round.camera = CameraSession.shared.metrics(for: key)
         voiceLog.notice("sending \(wav.count, privacy: .public) bytes; prompt end \(promptEndedAt == nil ? "not sent" : "sent", privacy: .public)")
+        let ending = endTask
         uploadTask = Task { [weak self] in
+            // A round end on its way goes first, so the server counts this answer in the right round.
+            await ending?.value
             do {
                 let receipt = try await VoiceRoundUploader(api: api).send(round) { attempt in
                     if attempt > 1 { voiceLog.notice("retry \(attempt, privacy: .public) with the same idempotency key") }
@@ -335,7 +346,10 @@ final class VoiceFlow {
             return
         }
         var next = shown
+        // The server's answer number decides where a round starts (another device may have ended the last one).
+        if next.counterpart?.answer == 1 { tally.reset() }
         let counted = tally.record(metrics, endsRound: next.endsRound, at: Date())
+        roundEnd.replied(endsRound: next.endsRound, at: Date())
         next.round = counted.round
         next.summary = counted.summary
         // The server's answer number decides where the round starts; the need is dropped at the wrap-up.
@@ -343,6 +357,7 @@ final class VoiceFlow {
         card = next
         if case .failed = machine.phase {
             tally.reset(); roundNeed.reset()
+            endServerRound("the reply had no question")
             perform(effects)
             model.set(.voiceError("The reply had no question to speak.", retryable: false))
             return
@@ -357,6 +372,9 @@ final class VoiceFlow {
     private func openLive(_ key: String) -> LiveVoiceSession? {
         closeLive()
         guard Settings.liveVoice, let api = Connection.api()?.api else { return nil }
+        // The live round reads the server's round at key-down. With a round end still on its way, this hold is
+        // uploaded on release instead, after the end.
+        guard endsInFlight == 0 else { voiceLog.notice("a round end is on its way; this hold is uploaded on release"); return nil }
         let prompt: Date? = if case .listening(_, _, let ended) = machine.phase { ended } else { nil }
         var round = VoiceRoundRequest(wav: Data(), idempotencyKey: key, goalID: Settings.goalID, screenContextID: model.lastCard?.recordID,
                                       language: Settings.voiceLanguage, promptEndedAt: prompt, occurredAt: occurredAt?.key == key ? occurredAt?.at : nil)
@@ -483,6 +501,7 @@ final class VoiceFlow {
         }
         if liveKey == key { closeLive() }
         tally.reset(); roundNeed.reset()
+        endServerRound("the hold failed")
         if case .thinking = machine.phase {
             perform(machine.uploadFailed(key: key, retryable: retryable))
         } else {
@@ -525,6 +544,36 @@ final class VoiceFlow {
     }
 
     private func markCardFinished() { card?.finished = true }
+
+    // Round end
+
+    private static func newEndKey() -> String { CoachAPI.newIdempotencyKey(prefix: "mac-round-end") }
+
+    /// The round ended on this Mac without a wrap-up: the server is told, so the next answer from any device is answer 1.
+    private func endServerRound(_ why: String) {
+        guard let key = roundEnd.ended(newKey: Self.newEndKey) else { return }
+        sendRoundEnd(key, why: why)
+    }
+
+    /// `POST /v1/voice-rounds/end`, after any end already on its way. Unconfirmed, it is resent with the same key
+    /// before the next answer (`RoundEnd.beforeAnswer`).
+    private func sendRoundEnd(_ key: String, why: String) {
+        guard let api = Connection.api()?.api else { return }
+        voiceLog.notice("round ended without a wrap-up (\(why, privacy: .public)); telling the coach")
+        let previous = endTask
+        endsInFlight += 1
+        endTask = Task { [weak self] in
+            await previous?.value
+            do {
+                _ = try await api.endVoiceRound(idempotencyKey: key)
+                self?.roundEnd.sent(key)
+                voiceLog.notice("round end saved")
+            } catch {
+                voiceLog.error("round end not saved; it is sent again before the next answer")
+            }
+            self?.endsInFlight -= 1
+        }
+    }
 
     private static func ms(since date: Date?) -> Int { date.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1 }
 

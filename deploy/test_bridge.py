@@ -155,6 +155,17 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.volume.events, ['commit', 'response'], 'a write is committed before it is answered')
         self.assertEqual(self.app.worker.starts, 1)
 
+    async def test_a_round_end_is_a_quick_committed_write_and_a_retry_replays_it(self):
+        await self.call('GET', '/health')
+        self.volume.events.clear()
+        status, first = await self.call('POST', '/v1/voice-rounds/end', {}, key='round-end-once')
+        self.assertEqual(status, 200); self.assertFalse(first['replayed'])
+        self.assertEqual(self.volume.events, ['commit', 'response'], 'committed before it is answered')
+        status, retry = await self.call('POST', '/v1/voice-rounds/end', {}, key='round-end-once')
+        self.assertTrue(retry['replayed']); self.assertEqual(retry['record']['ended_at'], first['record']['ended_at'])
+        self.assertEqual(route_label('POST', '/v1/voice-rounds/end'), 'POST /v1/voice-rounds/end', 'a route name, not an id')
+        self.assertEqual(route_label('WS', '/v1/voice-rounds/live'), 'WS /v1/voice-rounds/live')
+
     async def test_commit_failure_never_reports_success_and_retry_is_idempotent(self):
         self.volume.fail = True
         body = {'title':'Retry safely','target':'A single goal'}

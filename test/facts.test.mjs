@@ -735,7 +735,12 @@ function counterpartChecks(base, store, calls) {
       // The fake transcript always has a hedge, so the round runs to the cap and code ends it there.
       assert.deepEqual(answers.map(a => [a.counterpart.answer, a.reply.move]), [[1, 'challenge'], [2, 'challenge'], [3, 'challenge'], [4, 'wrap_up']]);
       assert.equal(after.counterpart.answer, 1);
-      return 'after the newest wrap-up in the last 15 minutes';
+      assert.equal((await send('facts-round-ffffff')).counterpart.answer, 2);
+      // A device ends the round without a wrap-up (the watch's End round, the Mac's bubble closed).
+      const end = await fetch(base + '/v1/voice-rounds/end', { method: 'POST', body: '{}', headers: { Authorization: 'Bearer facts-need-5', 'Content-Type': 'application/json', 'Idempotency-Key': 'facts-round-end-1' } });
+      assert.equal(end.status, 200);
+      assert.equal((await send('facts-round-ggggggg')).counterpart.answer, 1);
+      return 'after the newest wrap-up or round end in the last 15 minutes';
     },
     'counterpart-eval': async () => {
       const r = await runCounterpartEval();

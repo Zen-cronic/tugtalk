@@ -64,6 +64,9 @@ public struct SparringMachine: Sendable {
         /// The watch voice says this, in this language.
         case speakOnDevice(String, VoiceLanguage)
         case stopSpeech
+        /// Tell the server this round ended without a wrap-up (`POST /v1/voice-rounds/end`), so the next answer from any
+        /// device is answer 1. Resent with the same key until `roundEndSent(key:)`.
+        case endRoundOnServer(key: String)
     }
 
     public let goalID: String?
@@ -74,10 +77,17 @@ public struct SparringMachine: Sendable {
     private var promptEndedAt: Date?
     /// The other person's need for this round, from the first reply that named one. Never stored on the watch beyond the round.
     public private(set) var need: String?
+    /// The server holds this round open: it replied to an answer, and not with a wrap-up. The server counts the round's
+    /// answers itself, so a round that ends here any other way must be ended there too.
+    private var serverOpen = false
+    /// The key of a round end the server has not confirmed yet.
+    public private(set) var pendingEndKey: String?
     private let newKey: @Sendable () -> String
+    private let newEndKey: @Sendable () -> String
 
-    public init(goalID: String?, language: VoiceLanguage, newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() }) {
-        self.goalID = goalID; self.language = language; self.newKey = newKey
+    public init(goalID: String?, language: VoiceLanguage, newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() },
+                newEndKey: @escaping @Sendable () -> String = { RoundRequests.newRoundEndKey() }) {
+        self.goalID = goalID; self.language = language; self.newKey = newKey; self.newEndKey = newEndKey
     }
 
     /// Answers the server has replied to.
@@ -150,6 +160,7 @@ public struct SparringMachine: Sendable {
             return [.discard(key: key)]
         }
         if let m = receipt.metrics { metrics.append(m) }
+        serverOpen = !receipt.reply.wrapsUp
         if need == nil, let named = receipt.counterpart?.need { need = named }
         let ends = receipt.reply.wrapsUp || answer >= Self.maxAnswers
         let reason = receipt.counterpart?.reason.flatMap { $0 == "open" ? nil : $0 } ?? (receipt.reply.wrapsUp ? nil : (ends ? "answer_cap" : nil))
@@ -229,17 +240,30 @@ public struct SparringMachine: Sendable {
         }
         if metrics.isEmpty {
             phase = .ready(answer: 1); promptEndedAt = nil; need = nil
-            return effects
+            return effects + owedEnd()
         }
         return effects + finish()
     }
+
+    /// The screen closed. A round the server still holds open is ended there, so the next round starts at answer 1.
+    public mutating func leave() -> [Effect] { owedEnd() }
+
+    /// The server saved (or replayed) the round end sent with this key.
+    public mutating func roundEndSent(key: String) { if pendingEndKey == key { pendingEndKey = nil } }
 
     private mutating func finish() -> [Effect] {
         var lastQuestion: String?, note: String?, closedBy: String?
         if case .replying(let shown) = phase { lastQuestion = shown.question; note = shown.mediaNote; closedBy = shown.closedBy }
         phase = .done(RoundSummary.make(metrics), lastQuestion: lastQuestion, mediaNote: note, closedBy: closedBy)
         promptEndedAt = nil; need = nil
-        return []
+        // A wrap-up ended the round on the server already; End round, or the watch's own fourth-answer stop, did not.
+        return owedEnd()
+    }
+
+    /// The round end the server is owed: a new one when it holds this round open, or the one not yet confirmed.
+    private mutating func owedEnd() -> [Effect] {
+        if serverOpen { serverOpen = false; pendingEndKey = pendingEndKey ?? newEndKey() }
+        return pendingEndKey.map { [.endRoundOnServer(key: $0)] } ?? []
     }
 
     private func currentPrompt(at now: Date) -> Date? {
@@ -251,6 +275,8 @@ public struct SparringMachine: Sendable {
         let upload = AnswerUpload(idempotencyKey: newKey(), goalID: goalID, language: language, occurredAt: now, promptEndedAt: prompt, need: need)
         promptEndedAt = nil
         phase = .recording(answer: answer, upload: upload)
-        return [.startRecording(key: upload.idempotencyKey)]
+        // A round end still unconfirmed is sent again (same key) before the first answer of the next round.
+        let resend: [Effect] = answer == 1 ? pendingEndKey.map { [.endRoundOnServer(key: $0)] } ?? [] : []
+        return resend + [.startRecording(key: upload.idempotencyKey)]
     }
 }

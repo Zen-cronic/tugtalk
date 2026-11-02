@@ -151,5 +151,20 @@ public struct RoundRequests: Sendable {
         return request
     }
 
+    /// `POST /v1/voice-rounds/end` with the body `{}`: this round ended on the watch without a wrap-up (End round), so
+    /// the next answer from any device is answer 1. No model call; a retry with the same key replays the first end.
+    public func endRound(idempotencyKey: String) -> URLRequest {
+        var request = URLRequest(url: baseURL.appending(path: "v1/voice-rounds/end"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key")
+        request.httpBody = Data("{}".utf8)
+        return request
+    }
+
     public static func newIdempotencyKey() -> String { "watch-voice-\(UUID().uuidString.lowercased())" }
+    public static func newRoundEndKey() -> String { "watch-round-end-\(UUID().uuidString.lowercased())" }
 }

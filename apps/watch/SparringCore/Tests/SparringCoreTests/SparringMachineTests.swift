@@ -58,7 +58,7 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
     }
 
     @Test func noFifthAnswerAfterTheLastQuestion() {
-        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next)
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
         var at = t0
         for n in 1...4 {
             let up = answer(&m, at: at)
@@ -68,7 +68,8 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         }
         // The last question is still being spoken: Record does nothing, only See result.
         #expect(m.record(at: at) == [])
-        #expect(m.skipToResult() == [.stopSpeech])
+        // This server never wrapped up (no move gate), so the watch's own stop ends the round there too.
+        #expect(m.skipToResult() == [.stopSpeech, .endRoundOnServer(key: "end-1")])
         guard case .done = m.phase else { Issue.record("not done"); return }
     }
 
@@ -277,5 +278,66 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         _ = m.replied(key: up.idempotencyKey, receipt("r1"))
         #expect(m.refuse(.micOff) == [.stopSpeech])
         #expect(m.phase == .failed(answer: 2, failure: .micOff, upload: nil))
+    }
+}
+
+@Suite struct RoundEndOnServer {
+    private func threeAnswers(_ m: inout SparringMachine) {
+        var at = t0
+        for n in 1...3 {
+            let up = answer(&m, at: at)
+            _ = m.replied(key: up.idempotencyKey, receipt("r\(n)", counterpart: Counterpart(reason: "open", answer: n)))
+            at = at.addingTimeInterval(10)
+            _ = m.speechFinished(roundID: "r\(n)", at: at)
+            at = at.addingTimeInterval(1)
+        }
+    }
+
+    @Test func endRoundAfterThreeAnswersTellsTheServerAndRecordAgainStartsAtOne() {
+        let ends = Keys()
+        var m = SparringMachine(goalID: "g1", language: .en, newKey: Keys().next, newEndKey: { "end-" + ends.next() })
+        threeAnswers(&m)
+        #expect(m.endRound() == [.endRoundOnServer(key: "end-key-1")])
+        guard case .done = m.phase else { Issue.record("not done: \(m.phase.name)"); return }
+        #expect(m.pendingEndKey == "end-key-1")
+        // Not confirmed yet: Record again sends the same end first, then answer 1 of the new round.
+        let again = m.record(at: t0.addingTimeInterval(60))
+        guard case .recording(let n, let upload) = m.phase else { Issue.record("not recording"); return }
+        #expect(n == 1)
+        #expect(again == [.endRoundOnServer(key: "end-key-1"), .startRecording(key: upload.idempotencyKey)])
+        #expect(upload.need == nil, "the need is chosen again for the new round")
+        m.roundEndSent(key: "end-key-1")
+        #expect(m.pendingEndKey == nil)
+    }
+
+    @Test func aConfirmedEndIsNotSentAgain() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        threeAnswers(&m)
+        _ = m.endRound()
+        m.roundEndSent(key: "end-1")
+        let again = m.record(at: t0.addingTimeInterval(60))
+        #expect(again.count == 1)
+        guard case .startRecording = again.first else { Issue.record("expected only startRecording: \(again)"); return }
+    }
+
+    @Test func aWrapUpEndsTheRoundOnTheServerByItself() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up1 = answer(&m, at: t0)
+        _ = m.replied(key: up1.idempotencyKey, receipt("r1"))
+        _ = m.speechFinished(roundID: "r1", at: t0.addingTimeInterval(8))
+        let up2 = answer(&m, at: t0.addingTimeInterval(9))
+        _ = m.replied(key: up2.idempotencyKey, receipt("r2", move: "wrap_up", counterpart: Counterpart(reason: "measured_close", answer: 2)))
+        #expect(m.speechFinished(roundID: "r2", at: t0.addingTimeInterval(20)) == [], "no end owed after a wrap-up")
+        #expect(m.pendingEndKey == nil)
+        #expect(m.record(at: t0.addingTimeInterval(30)).count == 1)
+    }
+
+    @Test func leavingMidRoundEndsItOnTheServerAndLeavingBeforeAnyReplyDoesNot() {
+        var fresh = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        #expect(fresh.leave() == [])
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up = answer(&m, at: t0)
+        _ = m.replied(key: up.idempotencyKey, receipt("r1"))
+        #expect(m.leave() == [.endRoundOnServer(key: "end-1")])
     }
 }

@@ -59,7 +59,7 @@ REMEASURE_ROUTE = re.compile(r'/v1/sessions/[A-Za-z0-9-]{1,64}/remeasure')
 REPLAY_ROUTE = re.compile(r'/v1/voice-rounds/[A-Za-z0-9-]{1,64}/replay')
 # Timing log: one line per request with the route shape (ids replaced), the status and each phase in ms.
 # Never the body, headers, query or ids.
-ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds|media))/(?!live$)[^/]+')
+ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds|media))/(?!(?:live|end)$)[^/]+')
 # Live voice rounds over a WebSocket.
 LIVE_ROUTE = '/v1/voice-rounds/live'
 LIVE_START_TIMEOUT = 10   # the start frame must arrive this soon after the socket opens

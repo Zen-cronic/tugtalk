@@ -365,3 +365,56 @@ private func sine(seconds: Double, rate: Int) -> [Int16] {
     (0..<Int(seconds * Double(rate))).map { Int16(12_000 * sin(Double($0) * 2 * .pi * 440 / Double(rate))) }
 }
 
+
+final class RoundEndTests: XCTestCase {
+    private let t0 = Date(timeIntervalSince1970: 2_000)
+    private func keys() -> () -> String { let counter = Counter(); return { "end-\(counter.next())" } }
+
+    func testABubbleClosedMidRoundOwesOneEndAndKeepsItsKeyUntilConfirmed() {
+        var end = RoundEnd(); let key = keys()
+        XCTAssertNil(end.ended(newKey: key), "nothing open before any reply")
+        end.replied(endsRound: false, at: t0)
+        end.replied(endsRound: false, at: t0.addingTimeInterval(20))
+        let first = end.ended(newKey: key)
+        XCTAssertNotNil(first)
+        XCTAssertEqual(end.ended(newKey: key), first, "closing again resends the same end")
+        XCTAssertEqual(end.beforeAnswer(at: t0.addingTimeInterval(30), newKey: key), first, "the next hold sends it first if it is still unconfirmed")
+        end.sent(first!)
+        XCTAssertNil(end.beforeAnswer(at: t0.addingTimeInterval(31), newKey: key), "confirmed: nothing owed")
+        XCTAssertNil(end.ended(newKey: key))
+    }
+
+    func testAWrapUpEndsTheRoundOnTheServerByItself() {
+        var end = RoundEnd(); let key = keys()
+        end.replied(endsRound: false, at: t0)
+        end.replied(endsRound: true, at: t0.addingTimeInterval(10))
+        XCTAssertNil(end.ended(newKey: key))
+        XCTAssertNil(end.beforeAnswer(at: t0.addingTimeInterval(1_000), newKey: key))
+    }
+
+    func testFiveQuietMinutesEndTheRoundBeforeTheNextHold() {
+        var end = RoundEnd(); let key = keys()
+        end.replied(endsRound: false, at: t0)
+        XCTAssertNil(end.beforeAnswer(at: t0.addingTimeInterval(RoundEnd.idleGap - 1), newKey: key), "still the same round")
+        let late = end.beforeAnswer(at: t0.addingTimeInterval(RoundEnd.idleGap + 1), newKey: key)
+        XCTAssertEqual(late, "end-1")
+        XCTAssertFalse(end.open)
+    }
+
+    func testTheRequestIsAnEmptyJSONBodyWithItsKeyAndRetriesKeepTheKey() async throws {
+        SequenceProtocol.requests = []; SequenceProtocol.bodies = []
+        SequenceProtocol.answers = [.networkLost, .status(200, #"{"receipt_id":"rc-end","saved":true,"replayed":false,"record":{"id":"latest","version":1,"ended_at":"2026-11-02T20:00:00.000Z"}}"#)]
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SequenceProtocol.self]
+        let api = CoachAPI(baseURL: URL(string: "http://127.0.0.1:4319")!, token: "local-test-token", session: URLSession(configuration: configuration))
+        let receipt = try await api.endVoiceRound(idempotencyKey: "mac-round-end-1", backoff: { _ in .zero })
+        XCTAssertEqual(receipt, RoundEndReceipt(receipt_id: "rc-end", replayed: false))
+        XCTAssertEqual(SequenceProtocol.requests.count, 2)
+        for request in SequenceProtocol.requests {
+            XCTAssertEqual(request.url?.path, "/v1/voice-rounds/end"); XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Idempotency-Key"), "mac-round-end-1")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+        }
+        XCTAssertEqual(Set(SequenceProtocol.bodies), [Data("{}".utf8)])
+    }
+}

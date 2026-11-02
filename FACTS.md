@@ -37,8 +37,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 184 | A `node --test` run of the other test files (all must pass), plus this one |
-| `python-tests` | Python hosting-adapter tests | 26 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
+| `node-tests` | Node test cases, as `npm test` reports them | 188 | A `node --test` run of the other test files (all must pass), plus this one |
+| `python-tests` | Python hosting-adapter tests | 27 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `hosting-worker` | How the hosting adapter runs requests | one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload | deploy/bridge.py and its tests in deploy/test_bridge.py |
@@ -108,7 +108,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `counterpart-move-gate` | Who ends a practice round | code: from answer 2, once the answer meets the need with no hedges (no hedges, when there is no need); at answer 4 at the latest | `allowedMoves` over every need state, hedge count and answer 1–6; HTTP: a model wrap-up on answer 1 is replaced (`gate.coerced`) |
 | `counterpart-code-only` | Model calls in a code-only round (`X-Reply-Mode: code`) | 0 | HTTP with a counting fake model: the reply quotes the first hedge, `model` is null |
 | `counterpart-need-stored` | The need is stored on the round | no; the round keeps gate (allowed, reason, hedges, coerced) | HTTP: the record's fields after a round with `X-Counterpart-Need` |
-| `voice-practice-round` | Where a practice round starts | after the newest wrap-up in the last 15 minutes | HTTP: the answer after a wrap-up is answer 1, with no last question |
+| `voice-practice-round` | Where a practice round starts | after the newest wrap-up or round end in the last 15 minutes | HTTP: the answer after a wrap-up is answer 1, and so is the answer after `POST /v1/voice-rounds/end` (a device ended the round without a wrap-up) |
 | `counterpart-eval` | Offline move-gate eval on scripted replies, not live model runs: replies outside the gate, and how many reach the speaker without and with it | 8 of 20; 8 without the gate, 0 with it | `eval/counterpart-results.json`, regenerated |
 
 ## Faced the camera (Mac, optional)

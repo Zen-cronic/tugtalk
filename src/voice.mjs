@@ -26,6 +26,11 @@ export const VOICE_TIMEOUT_MS = 8_000;
 export const VOICE_ATTEMPTS = 2;
 // Rounds this close together are one practice round: the model sees its last question and the round number.
 export const ROUND_WINDOW_MS = 15 * 60 * 1000;
+// A device that ends a practice round without a wrap-up (the watch's End round, the Mac's bubble closed) says so here,
+// so the next answer from any device is answer 1 of a new round. One record per account holds the newest end.
+export const VOICE_ROUND_END_PATH = '/v1/voice-rounds/end';
+export const ROUND_END_KIND = 'voice-round-ends';
+const ROUND_END_ID = 'latest';
 export const ONSET_MAX_MS = 120_000;
 const ID = /^[A-Za-z0-9-]{1,64}$/;
 const isIso = v => /^\d{4}-\d{2}-\d{2}T/.test(v) && !Number.isNaN(Date.parse(v));
@@ -224,16 +229,37 @@ export function prepareVoiceRound(store, models, user, params) {
   if (params.replyMode !== 'code' && (typeof models.voiceReply !== 'function' || (models.voiceReady && !models.voiceReady())))
     throw new ApiError(503, 'reply_unconfigured', 'Voice replies are not configured on this deployment.');
   const watch = newest(store.list(user, 'sessions').filter(s => !s.deleted && s.measurement_status === 'measured' && s.capture_device === 'watch'));
-  // The practice round: the rounds of the last 15 minutes after the newest wrap-up. A wrap-up ends a practice round,
-  // so the answer after it is answer 1 of the next one, with no last question.
+  // The practice round: the rounds of the last 15 minutes after the newest wrap-up or round end (POST
+  // /v1/voice-rounds/end), whichever is later. Either ends a practice round, so the answer after it is answer 1 of the
+  // next one, with no last question.
   const since = new Date(Date.now() - ROUND_WINDOW_MS).toISOString();
   const recent = store.list(user, 'voice-rounds').filter(r => !r.deleted && r.created_at >= since)
     .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
-  const wrap = recent.findIndex(r => r.reply?.move === 'wrap_up');
-  const round = wrap === -1 ? recent : recent.slice(0, wrap);
+  const ended = roundEndedAt(store, user) ?? '';
+  const before = recent.findIndex(r => r.reply?.move === 'wrap_up' || r.created_at <= ended);
+  const round = before === -1 ? recent : recent.slice(0, before);
   return { goal, screen, watch, last: round[0] ?? null, roundNumber: round.length + 1 };
 }
 export const VOICE_COUNTED_STATUSES = [200, 502, 499];
+
+// When the newest round end was saved (ISO), or null.
+export const roundEndedAt = (store, user) => store.list(user, ROUND_END_KIND).find(r => r.id === ROUND_END_ID)?.ended_at ?? null;
+
+// POST /v1/voice-rounds/end with an Idempotency-Key and the body {}. No model is called. The end is stamped with the
+// server's clock when it is first saved; an exact retry replays its receipt, so a late retry never moves the end past
+// answers given after it.
+export function endVoiceRound(store, user, body, key) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ApiError(400, 'invalid_body', 'Expected a JSON object.');
+  const extra = Object.keys(body)[0];
+  if (extra !== undefined) throw new ApiError(400, 'unknown_field', `Unsupported field: ${extra}`);
+  return store.mutate(user, 'POST', VOICE_ROUND_END_PATH, body, key, () => {
+    const timestamp = new Date().toISOString();
+    const current = store.list(user, ROUND_END_KIND).find(r => r.id === ROUND_END_ID);
+    const record = { id: ROUND_END_ID, version: (current?.version ?? 0) + 1, ended_at: timestamp, updated_at: timestamp };
+    store.put(user, ROUND_END_KIND, record);
+    return record;
+  });
+}
 
 // Measures the answer, runs the move gate, and asks for the reply; then code checks it. Never touches the database.
 // With params.replyMode 'code' no model is called: the reply is codeOnlyReply. Returns gate (stored on the round) and

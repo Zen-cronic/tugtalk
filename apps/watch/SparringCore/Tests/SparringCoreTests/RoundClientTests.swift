@@ -135,3 +135,29 @@ private let upload = AnswerUpload(idempotencyKey: "watch-voice-abc12345", goalID
         #expect(SpeechVoice.coach(provider: clip.provider).label == "Wit.ai voice, through the coach")
     }
 }
+
+// The round end shares the scripted protocol, so its tests join the serialized suite above.
+extension Requests {
+    @Test func theRoundEndIsAnEmptyJSONBodyWithItsKey() throws {
+        let request = RoundRequests(baseURL: base, token: "tok").endRound(idempotencyKey: "watch-round-end-1")
+        #expect(request.url?.path == "/v1/voice-rounds/end")
+        #expect(request.httpMethod == "POST")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(request.value(forHTTPHeaderField: "Idempotency-Key") == "watch-round-end-1")
+        #expect(request.httpBody == Data("{}".utf8))
+        #expect(RoundRequests.newRoundEndKey().hasPrefix("watch-round-end-"))
+    }
+
+    @Test func aRoundEndOfflineIsResentWithTheSameKeyAndA4xxIsNot() async throws {
+        let client = RoundClient(requests: RoundRequests(baseURL: base, token: "tok"), session: session(), maxAttempts: 3, backoff: { _ in .zero })
+        let ok = Data(#"{"receipt_id":"rc","saved":true,"replayed":false,"record":{"id":"latest","version":1,"ended_at":"2026-11-02T20:00:00.000Z"}}"#.utf8)
+        ScriptedProtocol.reset([ScriptedProtocol.Reply(status: 0, headers: [:], body: Data(), offline: true), ScriptedProtocol.Reply(status: 200, headers: json, body: ok)])
+        try await client.endRound(idempotencyKey: "watch-round-end-2")
+        #expect(ScriptedProtocol.seen.count == 2)
+        #expect(Set(ScriptedProtocol.seen.compactMap { $0.value(forHTTPHeaderField: "Idempotency-Key") }) == ["watch-round-end-2"])
+        ScriptedProtocol.reset([ScriptedProtocol.Reply(status: 400, headers: json, body: Data(#"{"error":"unknown_field","message":"m"}"#.utf8))])
+        await #expect(throws: RoundFailure.self) { try await client.endRound(idempotencyKey: "watch-round-end-3") }
+        #expect(ScriptedProtocol.seen.count == 1)
+    }
+}

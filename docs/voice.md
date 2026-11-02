@@ -42,7 +42,9 @@ An exact retry (same key, same audio and the same headers) returns the stored ro
 
 ## Who ends the round
 
-The model chooses the words; code decides when the round ends. A practice round is the rounds of the last 15 minutes after the newest wrap-up, so the answer after a wrap-up is answer 1 of a new practice round, with no last question.
+The model chooses the words; code decides when the round ends. A practice round is the rounds of the last 15 minutes after the newest wrap-up or round end, whichever is later, so the answer after either is answer 1 of a new practice round, with no last question. The server counts the answers itself, so one round can move between the Mac and the watch.
+
+**Ending a round without a wrap-up: `POST /v1/voice-rounds/end`.** A device that ends its round early (the watch's **End round**, the Mac's bubble closed, or the Mac's round dropped after a failure or five quiet minutes) sends this with an `Idempotency-Key` and the JSON body `{}`. No model is called. The server keeps one record per account with the time of the newest end, stamped with its own clock when first saved; an exact retry replays the receipt, so a retry that arrives late never moves the end past answers given after it. The response is a receipt: `{receipt_id, saved, record: {id, version, ended_at}, record_version, saved_at, replayed}`. A device sends it before its next answer and waits for it (the Mac uploads that answer instead of streaming it while the end is on its way), so the next answer from any device is answer 1 and the model chooses the need again.
 
 **The need.** On your first answer, the model picks what the other person needs from you (a number, a date, a decision, an owner or an example) from the card's summary. It stays on your Mac for that round and isn't saved to your record. The Mac holds it in memory, sends it back as `X-Counterpart-Need` with each answer of the round, and drops it at the wrap-up. A need the model offers after the first answer, or one outside the list, is ignored.
 

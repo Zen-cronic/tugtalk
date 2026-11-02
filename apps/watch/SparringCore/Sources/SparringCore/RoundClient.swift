@@ -107,6 +107,30 @@ public struct RoundClient: Sendable {
         do { return try JSONDecoder().decode(VoiceRoundReceipt.self, from: data) } catch { throw RoundFailure.unreadable }
     }
 
+    /// Ends the round on the server (`RoundRequests.endRound`). Network failures and 5xx are retried with the same key.
+    public func endRound(idempotencyKey: String) async throws {
+        var attempt = 1
+        while true {
+            do {
+                let data: Data, response: URLResponse
+                do { (data, response) = try await session.data(for: requests.endRound(idempotencyKey: idempotencyKey)) } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    throw RoundFailure.offline
+                }
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                guard (200..<300).contains(status) else {
+                    let body = try? JSONDecoder().decode(ErrorBody.self, from: data)
+                    throw RoundFailure.from(status: status, code: body?.error, message: body?.message)
+                }
+                return
+            } catch let failure as RoundFailure where failure.retryable && failure.kind != .unreadable && attempt < maxAttempts {
+                try await Task.sleep(for: backoff(attempt))
+                attempt += 1
+            }
+        }
+    }
+
     /// The whole clip, for `AVAudioPlayer`. A clip that is not MP3 or WAV audio is a failure, so the watch voice speaks instead.
     public func speech(roundID: String) async throws -> SpeechClip {
         let data: Data, response: URLResponse
