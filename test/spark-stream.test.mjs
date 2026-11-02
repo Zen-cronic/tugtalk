@@ -123,3 +123,21 @@ test('sparkCall with stopWhen: leaves the stream once the JSON closes, without w
   assert.equal(jsonClosed('{"a":"}"'), false, 'a brace inside a string does not close it');
   assert.equal(jsonClosed('{"a":"x\\"}"}'), true);
 });
+
+test('voice reply stream: braces in prose before the JSON do not stop it; the reply parses on the first attempt', async () => {
+  const { createVoiceModel, replyClosed } = await import('../src/voice.mjs');
+  const { jsonClosed } = await import('../src/spark-stream.mjs');
+  const prose = 'Sure, pressing on {the ask}: ';
+  assert.equal(jsonClosed(prose), true, 'the cheap check alone would stop here');
+  assert.equal(replyClosed(prose), false);
+  const json = '{"move":"challenge","quote":"","question":"What exactly is the ask?"}';
+  assert.equal(replyClosed(prose + json.slice(0, -1)), false, 'not before the reply object closes');
+  assert.equal(replyClosed(prose + json), true);
+  // Then the provider would keep the stream open for another 3 s: the reply is read without waiting for it.
+  const s = streaming([reasoning('thinking'), delta(prose), delta(json.slice(0, 30)), delta(json.slice(30)), 3000, delta(' '), 'data: [DONE]\n\n']);
+  const started = performance.now();
+  const r = await createVoiceModel({ env, fetchImpl: s.fetchImpl }).voiceReply({ system: 's', user: 'u' });
+  assert.equal(r.status, 'model_reply'); assert.equal(r.attempts, 1); assert.equal(s.requests.length, 1);
+  assert.deepEqual(r.reply, { move: 'challenge', question: 'What exactly is the ask?', quote: '' });
+  assert.ok(performance.now() - started < 1000, 'stopped once the reply closed');
+});

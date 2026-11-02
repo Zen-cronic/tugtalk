@@ -148,6 +148,11 @@ export function voiceUserMessage({ goal, screen, watch, previous, roundNumber, t
   });
 }
 
+// When the streamed reply may stop: once the text so far holds a usable reply object, read by the same parseObject and
+// shape check as the full reply. jsonClosed is only the cheap first test, so braces in prose before the JSON
+// ("pressing on {the ask}: {...}") do not end the stream early.
+export const replyClosed = text => jsonClosed(text) && acceptReply(parseObject(text, shapeOf(acceptReply))) !== null;
+
 // One live reply call (two only after an unusable reply). With the request's time budget, an attempt starts only
 // with at least MIN_START_MS.reply left and is cut off when the budget runs out. Never throws.
 export function createVoiceModel({ env = process.env, fetchImpl = fetch } = {}) {
@@ -161,8 +166,8 @@ export function createVoiceModel({ env = process.env, fetchImpl = fetch } = {}) 
         if (budget && !budget.allows(MIN_START_MS.reply)) { reason = SKIPPED_FOR_TIME; break; }
         attempts = attempt;
         const timeoutMs = budget ? Math.min(VOICE_TIMEOUT_MS, Math.floor(budget.remaining())) : VOICE_TIMEOUT_MS;
-        // The reply is one JSON object: reading stops the moment it closes.
-        const r = await sparkCall({ env, fetchImpl, system, user, stream: true, reasoningEffort: VOICE_EFFORT, maxTokens: VOICE_MAX_TOKENS, timeoutMs, stopWhen: jsonClosed });
+        // The reply is one JSON object: reading stops the moment a usable one has closed.
+        const r = await sparkCall({ env, fetchImpl, system, user, stream: true, reasoningEffort: VOICE_EFFORT, maxTokens: VOICE_MAX_TOKENS, timeoutMs, stopWhen: replyClosed });
         modelMs += r.timing_ms.total ?? 0;
         if (r.ok) {
           const reply = acceptReply(parseObject(r.content, shapeOf(acceptReply)));

@@ -38,7 +38,8 @@ async function* sseEvents(body) {
   }
 }
 
-// True once text holds one complete JSON object (braces balanced outside strings), so a reader can stop there.
+// True once the first '{' in text has its matching '}' (braces balanced outside strings). A cheap first test only: the
+// balanced span may be prose ("{the ask}"), so a caller that stops on it should also check what it parsed (replyClosed, src/voice.mjs).
 export function jsonClosed(text) {
   const start = text.indexOf('{');
   if (start < 0) return false;
