@@ -132,7 +132,7 @@ final class PointingController {
     private func fadeOut() {
         guard let panel else { return }
         watch?.invalidate(); watch = nil
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let reduce = Motion.reduceInAppKit
         NSAnimationContext.runAnimationGroup({ $0.duration = reduce ? 0.15 : 0.3; panel.animator().alphaValue = 0 }) { [weak self] in
             MainActor.assumeIsolated { self?.dismiss() }
         }
@@ -176,7 +176,7 @@ struct PointingView: View {
     let labelRect: CGRect
     let label: String
     let placement: Placement
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.reduceMotionOn) private var reduceMotion
     @State private var drawn: CGFloat = 0
     @State private var labelShown = false
 

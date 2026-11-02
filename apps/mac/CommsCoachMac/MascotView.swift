@@ -29,7 +29,7 @@ struct MascotRoot: View {
     @State private var hovering = false
     /// A finished voice reply folds away about 1 s after it is spoken, unless the pointer is over Tug.
     @State private var folded: String?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.reduceMotionOn) private var reduceMotion
 
     var body: some View {
         ZStack(alignment: model.bubbleLeading ? .bottomTrailing : .bottomLeading) {
@@ -134,14 +134,15 @@ struct StatusPill: View {
 
 /// The record dot: ink, lit while the microphone is open. A slow pulse; still with Reduce Motion.
 struct RecordDot: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var color: NSColor = Tok.ink
+    @Environment(\.reduceMotionOn) private var reduceMotion
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             let pulse = reduceMotion ? 0.5 : 0.5 + 0.5 * sin(t * 2 * .pi / 1.2)
             ZStack {
-                Circle().stroke(Color(Tok.ink).opacity(0.25 + 0.35 * pulse), lineWidth: 2).frame(width: 14, height: 14)
-                Circle().fill(Color(Tok.ink)).frame(width: 8, height: 8)
+                Circle().stroke(Color(color).opacity(0.25 + 0.35 * pulse), lineWidth: 2).frame(width: 14, height: 14)
+                Circle().fill(Color(color)).frame(width: 8, height: 8)
             }
         }
         .frame(width: 14, height: 14)
@@ -162,6 +163,8 @@ extension View {
 /// Buttons are at least 32 pt tall. The primary one is ink with white text; the rest are outlined.
 struct CartButtonStyle: ButtonStyle {
     var primary = true
+    /// Stretch to the row's width, for a grid of equal buttons.
+    var fill = false
     @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
@@ -169,7 +172,7 @@ struct CartButtonStyle: ButtonStyle {
         configuration.label
             .font(TypeFace.body(14, weight: 650))
             .foregroundStyle(Color(primary ? Tok.onAction : Tok.ink))
-            .padding(.horizontal, 14).frame(minHeight: 34)
+            .padding(.horizontal, 14).frame(maxWidth: fill ? .infinity : nil, minHeight: 34)
             .background(shape.fill(Color(primary ? Tok.action : Tok.surface)))
             .overlay(shape.strokeBorder(Color(Tok.action), lineWidth: primary ? 0 : 1.5))
             .offset(y: configuration.isPressed ? 1 : 0)

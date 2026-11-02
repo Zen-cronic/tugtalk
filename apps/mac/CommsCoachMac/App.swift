@@ -27,6 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var voice: VoiceFlow!
     private var poller: Poller!
     private var pointing: PointingController!
+    private var dock: DockController!
+    /// The app that was in front before ours, so "Read This Window" in the docked panel reads that one.
+    private var lastOtherApp: NSRunningApplication?
     private var phaseWatch: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -37,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         voice = VoiceFlow(model: model)
         poller = Poller(model: model)
         pointing = PointingController(model: model)
+        dock = DockController(model: model)
         wireActions()
         registerHotkeys()
         watchFrontmostApp()
@@ -61,6 +65,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         flow.afterSave = { [weak self] in self?.poller.pollSoon() }
         flow.onPoint = { [weak self] request in self?.pointing.show(request) }
+        dock.floatingTugCenter = { [weak self] in self?.panel.tugCenter ?? .zero }
+        dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown() }
+        dock.onTalkUp = { [weak self] in self?.voice.keyUp() }
+        dock.onReadWindow = { [weak self] in
+            guard let self else { return }
+            // Our panel was in front; give the front back to the window the person was using, then read it.
+            self.lastOtherApp?.activate()
+            Task { try? await Task.sleep(for: .seconds(0.35)); self.capture(trigger: "dock") }
+        }
+        menu.onDockMode = { [weak self] on in self?.dock.setEnabled(on) }
         voice.afterSave = { [weak self] in self?.poller.pollSoon() }
         model.onVoiceRetry = { [weak self] in self?.voice.retry() }
         model.onVoiceDismiss = { [weak self] in self?.voice.dismissed() }
@@ -108,13 +122,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// public way to know whether the screen is being shared.
     private func watchFrontmostApp() {
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
-            let bundleID = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier ?? ""
+            let running = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            let bundleID = running?.bundleIdentifier ?? ""
+            let pid = running?.processIdentifier
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if bundleID == Bundle.main.bundleIdentifier { return }
+                self.lastOtherApp = pid.flatMap { NSRunningApplication(processIdentifier: $0) }
                 self.model.inMeetingApp = Settings.autoHideInMeetings && Settings.meetingApps.contains(bundleID)
             }
         }
+    }
+
+    /// Clicking the Dock icon opens or closes the docked panel.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        dock.dockIconClicked()
+        return false
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        if dock.state.panelOpen { dock.closePanel(animated: true) }
     }
 
     func capture(trigger: String) {
@@ -179,6 +206,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { try? await Task.sleep(for: .seconds(1)); previewPointing() }
         }
         if defaults.bool(forKey: "glyphSheet") { GlyphSheet.show() }
+        if defaults.bool(forKey: "dockPanel") { Task { try? await Task.sleep(for: .seconds(1.2)); dock.openPanel() } }
+        if let dir = defaults.string(forKey: "dockTileSnapshots") { DockSnapshots.write(to: URL(fileURLWithPath: dir)) }
         #endif
         if let name = defaults.string(forKey: "previewState"), let phase = PreviewSamples.named.first(where: { $0.name == name })?.phase {
             preview(phase)

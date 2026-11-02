@@ -42,6 +42,12 @@ enum Settings {
         set { defaults.set(Array(newValue).sorted(), forKey: "denyList") }
     }
 
+    /// "Show in Dock": a Dock icon and the docked panel. Off by default (menu bar only). `-dockMode YES` also works.
+    static var dockMode: Bool {
+        get { defaults.bool(forKey: "dockMode") }
+        set { defaults.set(newValue, forKey: "dockMode") }
+    }
+
     static var autoHideInMeetings: Bool {
         get { defaults.object(forKey: "autoHideInMeetings") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "autoHideInMeetings") }

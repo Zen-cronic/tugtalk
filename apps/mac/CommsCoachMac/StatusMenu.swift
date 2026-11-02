@@ -14,6 +14,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     var onPreview: (MascotPhase?) -> Void = { _ in }
     var onPreviewPointing: () -> Void = {}
     var onGlyphSheet: () -> Void = {}
+    var onDockMode: (Bool) -> Void = { _ in }
     var onDemoMode: (Bool) -> Void = { _ in }
     var onSelectGoal: (String?) -> Void = { _ in }
     var goals: () -> [(id: String, title: String)] = { [] }
@@ -56,6 +57,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(toggle("Presenting (Hide Companion)", key: "h", on: model.presenting) { [model] in model.presenting.toggle() })
         menu.addItem(toggle("Ghost Mode (Clicks Pass Through)", key: "g", on: model.ghost) { [model] in model.ghost.toggle() })
+        menu.addItem(toggle("Show in Dock", on: Settings.dockMode) { [weak self] in self?.onDockMode(!Settings.dockMode) })
         menu.addItem(toggle("Hide While a Meeting App Is in Front", on: Settings.autoHideInMeetings) { [model] in
             Settings.autoHideInMeetings.toggle()
             if !Settings.autoHideInMeetings { model.inMeetingApp = false }

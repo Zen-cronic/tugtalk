@@ -316,7 +316,7 @@ struct TugView: View {
     let phase: MascotPhase
     var talking = false
     var facesRight = true
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.reduceMotionOn) private var reduceMotion
     @State private var previous: TugPose?
     @State private var changedAt = Date.distantPast
     @State private var shown: MascotPhase?

@@ -44,6 +44,7 @@ final class PanelController {
             .sink { [weak self] _ in DispatchQueue.main.async { self?.refresh() } }
             .store(in: &observers)
         model.onLayoutNeeded = { [weak self] in self?.refresh() }
+        model.$dockedPanelOpen.receive(on: RunLoop.main).sink { [weak self] _ in DispatchQueue.main.async { self?.refresh() } }.store(in: &observers)
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .sink { [weak self] _ in self?.refresh() }.store(in: &observers)
     }
@@ -92,6 +93,9 @@ final class PanelController {
         anchor = CGPoint(x: mouse.x - offset.x, y: mouse.y - offset.y)
         layout()
     }
+
+    /// The floating Tug's centre on screen, where its trip to the docked panel starts and ends.
+    var tugCenter: CGPoint { anchor }
 
     /// The panel's window number, for screenshots of the companion alone.
     var windowNumber: Int { panel.windowNumber }

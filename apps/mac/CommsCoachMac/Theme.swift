@@ -134,3 +134,21 @@ private struct SlotIn: ViewModifier {
         content.offset(y: shown ? 0 : rise).opacity(shown ? 1 : 0)
     }
 }
+
+extension Motion {
+    /// DEBUG `-reduceMotion YES` shows the Reduce Motion stills without changing the system setting.
+    static var forced: Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: "reduceMotion")
+        #else
+        false
+        #endif
+    }
+    /// For AppKit animations (the ring's fade, Tug's trip to the docked panel).
+    @MainActor static var reduceInAppKit: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || forced }
+}
+
+extension EnvironmentValues {
+    /// The system's Reduce Motion, or the DEBUG override.
+    var reduceMotionOn: Bool { accessibilityReduceMotion || Motion.forced }
+}

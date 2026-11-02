@@ -352,6 +352,12 @@ final class CompanionModel: ObservableObject {
     @Published var talking = false
     /// A ring is drawn on the captured window for the current card.
     @Published var pointing = false
+    /// Docked mode: the docked panel is open, so the floating Tug is in it instead.
+    @Published var dockedPanelOpen = false
+    /// Tug has arrived in the docked panel (after its trip there).
+    @Published var tugInPanel = false
+    /// The latest spoken round's card, for the docked panel.
+    @Published var latestVoiceCard: VoiceCard?
 
     /// Set by the app delegate: the actions the view and menu trigger.
     var onCapture: () -> Void = {}
@@ -367,12 +373,13 @@ final class CompanionModel: ObservableObject {
 
     private var collapseTask: Task<Void, Never>?
 
-    var isHidden: Bool { presenting || inMeetingApp || phase == .hidden }
+    var isHidden: Bool { presenting || inMeetingApp || phase == .hidden || dockedPanelOpen }
 
     func set(_ new: MascotPhase, collapseAfter seconds: Double? = nil) {
         collapseTask?.cancel()
         phase = new
         if case .speaking(let card) = new, !card.isPreview { lastCard = card }
+        if case .voiceSpeaking(let card) = new { latestVoiceCard = card }
         if let message = new.announcement { announce(message) }
         if let seconds {
             collapseTask = Task { [weak self] in
