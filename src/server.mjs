@@ -88,7 +88,7 @@ export async function handleRecording(store,models,user,req,key,requestId,phases
   await phases.release();
   try {
     transcription=await models.transcribe(audio,{language:params.language,sessionId:requestId});
-    metrics=measure(transcription.transcript,transcription.audio_duration_ms??wav.durationMs,params.language);
+    metrics=measure(transcription.transcript,transcription.audio_duration_ms??wav.durationMs,params.language,transcription.turns);
     analysis=await models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language,...(hooks.system?{system:hooks.system(ctx)}:{})});
     if (hooks.afterAnalyze) ctx.after=await hooks.afterAnalyze({...ctx,transcription,metrics,analysis});
   } finally {

@@ -1,6 +1,7 @@
 // Domain-neutral capture pipeline: WAV -> Meta transcription -> code-measured metrics -> model observation.
 // Code owns every number; the model only words one observation and one optional exercise.
 import { ApiError } from './store.mjs';
+import { measurePauses } from './pauses.mjs';
 
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024; // about 170 s of 24 kHz mono 16-bit PCM
 export const MAX_AUDIO_MS = 180_000;
@@ -77,7 +78,8 @@ export function habitHits(transcript, language) {
   return { text, tokens, hits, counts };
 }
 
-export function measure(transcript, durationMs, language) {
+// turns: the transcription's speech segments ({start_ms, end_ms}); optional, adds pause metrics (src/pauses.mjs).
+export function measure(transcript, durationMs, language, turns) {
   const words = norm(transcript).split(' ').filter(Boolean);
   const { counts: { restarts, fillers, hedges } } = habitHits(transcript, language);
   const repeats = words.filter((w, i) => i > 0 && w === words[i - 1]).length;
@@ -91,7 +93,8 @@ export function measure(transcript, durationMs, language) {
     restart_count: total(restarts), restarts, immediate_repeats: repeats,
     fillers_per_100_words: words.length ? Math.round(total(fillers) / words.length * 1000) / 10 : null,
     method: `lexicon-${language}-v1`,
-    caveats: ['Counts come from an automatic transcript and can miss or invent words.', 'Speakers are not separated; all speech in the clip is counted.', 'Immediate repeats are reported separately because some are grammatical ("vous vous").']
+    caveats: ['Counts come from an automatic transcript and can miss or invent words.', 'Speakers are not separated; all speech in the clip is counted.', 'Immediate repeats are reported separately because some are grammatical ("vous vous").'],
+    pauses: measurePauses(turns, durationMs, words.length)
   };
 }
 
