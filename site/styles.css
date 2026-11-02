@@ -116,6 +116,11 @@ section[id] { scroll-margin-top: 72px; }
 .hero h1 { font-size: clamp(2.4rem, 4.2vw, 3.75rem); font-weight: 700; letter-spacing: -0.025em; max-width: 17ch; }
 .lead { font-size: var(--t-lg); line-height: 1.55; color: var(--ink-2); margin-top: var(--s-5); max-width: 36rem; }
 .actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-6); }
+.lead-problem { color: var(--ink); }
+.lead-problem ~ .lead { margin-top: var(--s-3); }
+/* Where an example's numbers come from */
+.source { font-family: var(--f-tape); font-size: var(--t-xs); color: var(--muted); margin-top: var(--s-2); }
+.measured-copy h2 + .source { margin: var(--s-2) 0 var(--s-4); }
 
 .hero-stage { position: relative; }
 .stage-ground { display: flex; justify-content: center; align-items: center; padding: 0 0 var(--s-6); }
@@ -201,7 +206,7 @@ section[id] { scroll-margin-top: 72px; }
 .task-why { font-size: var(--t-xs); color: var(--muted); margin-top: var(--s-3); }
 
 .planned { margin-top: var(--s-5); font-size: var(--t-sm); color: var(--ink-2); display: flex; align-items: center; gap: var(--s-3); }
-.planned-tag { font-size: var(--t-xs); font-weight: 600; border: 1px solid var(--ink-2); border-radius: 4px; padding: 2px 8px; }
+.planned-tag { white-space: nowrap; font-size: var(--t-xs); font-weight: 600; border: 1px solid var(--ink-2); border-radius: 4px; padding: 2px 8px; }
 
 /* Statement */
 .statement { background: var(--ink); color: var(--on-dark); padding: var(--s-9) 0; }
@@ -271,6 +276,8 @@ section[id] { scroll-margin-top: 72px; }
   .hero h1 { order: 2; font-size: 2.25rem; }
   .hero-stage { order: 3; margin: var(--s-6) 0 var(--s-6); }
   .lead { order: 4; font-size: var(--t-md); }
+  .lead-problem { order: 2; margin-top: var(--s-4); }
+  .planned { flex-direction: column; align-items: flex-start; gap: var(--s-2); }
   .actions { order: 5; }
   .watch-hero .watch-case { width: 220px; border-width: 10px; }
   .watch-hero .watch-crown { right: -13px; width: 8px; height: 40px; }
