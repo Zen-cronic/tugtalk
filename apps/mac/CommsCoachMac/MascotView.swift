@@ -480,6 +480,7 @@ struct VoiceCardView: View {
                 else if card.finished { ShortcutLine(text: "Hold ⌃⌥T to start again", font: TypeFace.body(13, weight: 600), ink: Tok.muted) }
                 SampleTag(isPreview: card.isPreview, text: card.summary == nil ? "Sample answer" : "Sample numbers")
                 Spacer(minLength: 0)
+                if let note = card.recordingNote { RecordingKeptTag(text: note) }
                 if !card.isPreview { InfoButton(text: provenance) }
             }
         }
@@ -488,6 +489,16 @@ struct VoiceCardView: View {
     private var provenance: String {
         [card.voiceNote, card.shortLatency, "\(card.modelLabel) · receipt \(card.receiptID.prefix(8))\(card.replayed ? " · already saved" : "")"]
             .compactMap { $0 }.joined(separator: "\n")
+    }
+}
+
+/// "Recording kept": the server kept this answer's audio because Keep my recordings is on.
+struct RecordingKeptTag: View {
+    let text: String
+    var body: some View {
+        Text(text).font(TypeFace.body(12, weight: 600)).foregroundStyle(Color(Tok.muted))
+            .lineLimit(1)
+            .accessibilityLabel(text)
     }
 }
 

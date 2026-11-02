@@ -38,6 +38,8 @@ final class Hotkeys {
     /// Returns false when another app already owns the combination.
     @discardableResult
     func register(_ combo: Combo, onRelease: (@MainActor () -> Void)? = nil, action: @escaping @MainActor () -> Void) -> Bool {
+        // `-disableHotkeys YES`: a test copy registers none, so it never takes the keys from a copy that is already running.
+        if UserDefaults.standard.bool(forKey: "disableHotkeys") { return false }
         let number = UInt32(Self.actions.count + 1)
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(combo.keyCode, Self.modifiers, EventHotKeyID(signature: OSType(0x4343_4D43), id: number), GetApplicationEventTarget(), 0, &ref)

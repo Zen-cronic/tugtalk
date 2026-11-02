@@ -7,6 +7,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let model: CompanionModel
     private let menu = NSMenu()
+    /// Keep My Recordings: the coach server's setting. Each opening shows the last answer and asks again.
+    private let keep = KeepRecordingsMenu()
 
     var onCapture: () -> Void = {}
     var onUndo: () -> Void = {}
@@ -32,6 +34,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.autoenablesItems = false
         item.menu = menu
         #if DEBUG
+        // `-menuOnLaunch YES`: opens this menu near the top left of the main screen after launch, for a screenshot of its items.
+        if UserDefaults.standard.bool(forKey: "menuOnLaunch") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                let top = NSScreen.main?.visibleFrame ?? .zero
+                self?.menu.popUp(positioning: nil, at: NSPoint(x: top.minX + 120, y: top.maxY - 10), in: nil)
+            }
+        }
         // Where the menu-bar item is, for screenshots of the small Tug in the menu bar.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [item] in
             if let frame = item.button?.window?.frame { captureLog.notice("menu-bar item at \(Int(frame.minX), privacy: .public) \(Int(frame.minY), privacy: .public) \(Int(frame.width), privacy: .public) \(Int(frame.height), privacy: .public)") }
@@ -65,6 +74,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(toggle("Demo Mode (Check Every 15 s)", on: model.demoMode) { [weak self, model] in
             model.demoMode.toggle(); self?.onDemoMode(model.demoMode)
         })
+        menu.addItem(.separator())
+        keep.items().forEach(menu.addItem)
+        keep.refresh()
         menu.addItem(.separator())
         menu.addItem(submenu("Goal", goalItems()))
         menu.addItem(submenu("Purpose", ScreenContextPayload.Purpose.allCases.map { purpose in
