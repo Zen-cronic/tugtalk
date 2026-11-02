@@ -4,7 +4,7 @@ import OSLog
 import ScreenContextCore
 
 /// Records timings and status codes for each hold. Never audio, transcripts, questions or the key.
-let voiceLog = Logger(subsystem: "com.zencronic.commscoach.mac", category: "voice")
+let voiceLog = Logger(subsystem: "com.kaungzinhein.commscoach.mac", category: "voice")
 
 /// Hold ⌃⌥T to talk: the microphone opens on press and closes on release, the clip goes to
 /// `POST /v1/voice-rounds`, and the whole reply is spoken once it has arrived. Pressing ⌃⌥T while

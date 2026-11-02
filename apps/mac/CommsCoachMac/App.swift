@@ -4,7 +4,7 @@ import OSLog
 import ScreenContextCore
 
 /// Records what started each capture. Never the text, the image or the key.
-let captureLog = Logger(subsystem: "com.zencronic.commscoach.mac", category: "capture")
+let captureLog = Logger(subsystem: "com.kaungzinhein.commscoach.mac", category: "capture")
 
 /// Menu-bar accessory app (LSUIElement): no Dock icon, one floating companion panel.
 @main

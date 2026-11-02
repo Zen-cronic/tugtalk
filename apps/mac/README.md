@@ -79,7 +79,7 @@ For voice without a microphone (Debug builds only), add `-voiceFixtureWAV <path 
 ## Run it against the shared record
 
 1. Store the connector key in the login Keychain. The command prompts for it, so it never appears in shell history:
-   `security add-generic-password -s com.zencronic.commscoach.mac -a connector -w`
+   `security add-generic-password -s com.kaungzinhein.commscoach.mac -a connector -w`
    On first use macOS asks whether Comms Coach may read it; choose **Always Allow**. The signature is stable, so the answer survives rebuilds.
 2. Open the app. In the menu, choose the goal under **Goal** (goals load after the first check) and the purpose under **Purpose**.
 3. Press ⌃⌥Space with the window you want read in front. The first time, the companion explains Screen Recording; **Continue** shows the macOS prompt once, and **Open Settings** goes to Privacy & Security › Screen Recording. Turn on Comms Coach, then quit and reopen it.
