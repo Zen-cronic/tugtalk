@@ -1,0 +1,344 @@
+{
+  "name": "scripted-adjudication-v1",
+  "provenance": "Scripted adjudication outputs, not live model runs. Written by the comms-coach authors on 2026-11-02 with knowledge of the gold labels, as replies a chat model could return for the candidates code proposes on eval/corpus.json. Replies without a fault give the gold answer; 14 of 42 carry one deliberate fault, named in \"fault\". They show what the checking code does with good and bad replies; they say nothing about how often Muse Spark Open is right.",
+  "items": [
+    {
+      "id": "en-plain-02",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"I think\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"the budget is\\\"; removable without losing meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "en-plain-03",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"you know\",\"label\":\"habit\",\"reason\":\"Filler before \\\"test it with\\\"; the sentence works without it.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "en-plain-04",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"sort of\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"ready but the\\\"; removable without losing meaning.\"},{\"id\":\"c2\",\"quote\":\"kind of\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"rough\\\"; removable without losing meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "en-plain-05",
+      "fault": "wrong_label",
+      "note": "Labels the hedge \"probably\" as content.",
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"Maybe\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"we start on\\\"; removable without losing meaning.\"},{\"id\":\"c2\",\"quote\":\"probably\",\"label\":\"content\",\"reason\":\"States the likely finish day; carries meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "en-plain-06",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Basically\",\"label\":\"habit\",\"reason\":\"Filler before \\\"the server stores\\\"; the sentence works without it.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "en-plain-07",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"I guess\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"the numbers are\\\"; removable without losing meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "en-plain-08",
+      "fault": "quote_mismatch",
+      "note": "Quotes \"I think\" in lower case; the transcript says \"I THINK\".",
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"I think\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"SO WE CAN\\\"; removable without losing meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "en-mixed-01",
+      "fault": "missing",
+      "note": "Leaves out c3 (\"Sorry\").",
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"I think\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"uh the main\\\"; removable without losing meaning.\"},{\"id\":\"c2\",\"quote\":\"you know\",\"label\":\"habit\",\"reason\":\"Filler before \\\"speed Sorry the\\\"; the sentence works without it.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "en-restart-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Sorry\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}"
+      ]
+    },
+    {
+      "id": "en-restart-02",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"let me start again\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}"
+      ]
+    },
+    {
+      "id": "en-restart-03",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Sorry\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"},{\"id\":\"c2\",\"quote\":\"let me restart\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "en-overlap-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"What I mean is\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}"
+      ]
+    },
+    {
+      "id": "en-overlap-02",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"what I mean is\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}"
+      ]
+    },
+    {
+      "id": "en-overlap-03",
+      "fault": "invented_candidate",
+      "note": "Adds a c3 that code never proposed.",
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"I mean\",\"label\":\"habit\",\"reason\":\"Filler before \\\"the demo works\\\"; the sentence works without it.\"},{\"id\":\"c2\",\"quote\":\"What I mean is\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"},{\"id\":\"c3\",\"quote\":\"the demo\",\"label\":\"content\",\"reason\":\"Names the product.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "en-dash-02",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"I guess\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"- next week\\\"; removable without losing meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "en-trap-kindof-01",
+      "fault": "quote_mismatch",
+      "note": "Quotes \"kind of report\", longer than the candidate.",
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"kind of report\",\"label\":\"content\",\"reason\":\"Asks which type of report; \\\"kind\\\" is the noun here.\"}]}"
+      ]
+    },
+    {
+      "id": "en-trap-youknow-01",
+      "fault": "wrong_label",
+      "note": "Labels the content use \"Do you know\" as a habit.",
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"you know\",\"label\":\"habit\",\"reason\":\"Filler phrase before \\\"where\\\".\"}]}\n```"
+      ]
+    },
+    {
+      "id": "en-trap-sorry-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"sorry\",\"label\":\"content\",\"reason\":\"A real apology for the meeting running late.\"}]}"
+      ]
+    },
+    {
+      "id": "en-trap-imean-01",
+      "fault": "invalid_label",
+      "note": "Returns the label \"Content\" with a capital letter.",
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"I mean\",\"label\":\"Content\",\"reason\":\"Says what the speaker means by quality.\"}]}"
+      ]
+    },
+    {
+      "id": "en-repeat-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"I think\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"the the plan\\\"; removable without losing meaning.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "fr-plain-02",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Je pense\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"qu'on peut lancer\\\"; removable without losing meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-plain-03",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"tu vois\",\"label\":\"habit\",\"reason\":\"Filler before \\\"tester avec cinq\\\"; the sentence works without it.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-plain-04",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"un peu\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"lent mais ça\\\"; removable without losing meaning.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "fr-plain-05",
+      "fault": "quote_mismatch",
+      "note": "Drops the accent: \"Peut-etre\".",
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Peut-etre\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"qu'on finit vendredi\\\"; removable without losing meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-plain-06",
+      "fault": "wrong_label",
+      "note": "Takes the filler \"Ben\" for a person's name.",
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"Ben\",\"label\":\"content\",\"reason\":\"Ben is the name of a person.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-plain-08",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Du coup\",\"label\":\"habit\",\"reason\":\"Filler before \\\"on change le\\\"; the sentence works without it.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "fr-plain-09",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"En fait\",\"label\":\"habit\",\"reason\":\"Filler before \\\"le serveur garde\\\"; the sentence works without it.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-plain-10",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"Disons\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"qu'on a deux\\\"; removable without losing meaning.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-plain-11",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Je crois\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"qu’on l’a déjà\\\"; removable without losing meaning.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "fr-mixed-01",
+      "fault": "duplicate_id",
+      "note": "Labels c2 twice, once habit and once content.",
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"je crois\",\"label\":\"habit\",\"reason\":\"Hedge before \\\"que du coup\\\"; removable without losing meaning.\"},{\"id\":\"c2\",\"quote\":\"du coup\",\"label\":\"habit\",\"reason\":\"Filler before \\\"euh on peut\\\"; the sentence works without it.\"},{\"id\":\"c2\",\"quote\":\"du coup\",\"label\":\"content\",\"reason\":\"Used as \\\"as a result\\\".\"},{\"id\":\"c3\",\"quote\":\"Pardon\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-restart-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"Pardon\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-restart-02",
+      "fault": "missing_reason",
+      "note": "Gives an empty reason.",
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"je recommence\",\"label\":\"habit\",\"reason\":\"\"}]}\n```"
+      ]
+    },
+    {
+      "id": "fr-restart-03",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Je veux dire\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-restart-04",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"Pardon\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"},{\"id\":\"c2\",\"quote\":\"je recommence\",\"label\":\"habit\",\"reason\":\"The speaker corrects what came before.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-trap-ducoup-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"du coup\",\"label\":\"content\",\"reason\":\"Part of \\\"coup de fil\\\", a phone call.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "fr-trap-enfait-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"en fait\",\"label\":\"content\",\"reason\":\"\\\"en\\\" plus the verb \\\"fait\\\": he makes three a week.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-trap-ben-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"Ben\",\"label\":\"content\",\"reason\":\"Ben is a person arriving tomorrow.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-trap-jeveuxdire-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"Je veux dire\",\"label\":\"content\",\"reason\":\"The speaker wants to say thank you.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "fr-trap-pardon-01",
+      "fault": "truncated_then_recovered",
+      "note": "First reply is cut off mid-JSON; the larger-budget retry answers correctly.",
+      "replies": [
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"pardon\"",
+        "{\"labels\":[{\"id\":\"c1\",\"quote\":\"pardon\",\"label\":\"content\",\"reason\":\"He asked his sister for forgiveness.\"}]}"
+      ]
+    },
+    {
+      "id": "fr-trap-disons-01",
+      "fault": "no_json",
+      "note": "Both attempts answer in prose with no JSON.",
+      "replies": [
+        "\"Disons\" here is just the verb \"to say\", so it is content, not a hedge.",
+        "This is content: \"nous disons\" means \"we say\"."
+      ]
+    },
+    {
+      "id": "fr-trap-unpeu-01",
+      "fault": null,
+      "note": null,
+      "replies": [
+        "```json\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"un peu\",\"label\":\"content\",\"reason\":\"A small quantity of salt.\"}]}\n```"
+      ]
+    },
+    {
+      "id": "fr-trap-tuvois-01",
+      "fault": "quote_mismatch",
+      "note": "Quotes \"tu vois\" in lower case; the transcript says \"Tu vois\".",
+      "replies": [
+        "Here are the labels:\n{\"labels\":[{\"id\":\"c1\",\"quote\":\"tu vois\",\"label\":\"content\",\"reason\":\"Asks whether the listener sees the tower.\"}]}"
+      ]
+    }
+  ]
+}
