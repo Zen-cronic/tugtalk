@@ -29,7 +29,7 @@ export function inspectWav(buffer) {
 }
 
 // Per-language habit lexicons. Multi-word phrases are matched before single words.
-const LEXICON = {
+export const LEXICON = {
   // Deliberately conservative: ambiguous words such as "like" or "quoi" are excluded to avoid false positives.
   en: { fillers: ['um', 'uh', 'erm', 'you know', 'i mean', 'basically'],
         hedges: ['i think', 'i guess', 'sort of', 'kind of', 'maybe', 'probably'],

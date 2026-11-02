@@ -8,6 +8,7 @@ app = modal.App('synthetic-coaching-connector')
 volume = modal.Volume.from_name('synthetic-coaching-connector-state', create_if_missing=True, version=2)
 image = (modal.Image.from_registry('node:24-bookworm-slim', add_python='3.12')
          .add_local_dir(ROOT / 'src', '/app/src')
+         .add_local_dir(ROOT / 'eval', '/app/eval')
          .add_local_file(ROOT / 'scripts' / 'handle-request.mjs', '/app/scripts/handle-request.mjs')
          .add_local_file(ROOT / 'deploy' / 'bridge.py', '/app/deploy/bridge.py'))
 # Deploy with the digest of the synthetic test token, never the plaintext key or provider credentials.

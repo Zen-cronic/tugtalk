@@ -1,3 +1,5 @@
+**Measured habit counts: precision 0.788, recall 0.852 on 70 synthetic, self-labelled en/fr transcripts (flat word-list baseline 0.754 / 0.852); 0 false counts on 12 clean controls. Recompute with `npm run eval` or `GET /v1/eval`; method and limits in [eval/README.md](eval/README.md).**
+
 # Comms Coach
 
 Cross-device communication practice. Tap to capture a short answer on Apple Watch; Meta `muse-voice-transcribe-1.0` transcribes it, code measures speaking habits (fillers, hedges, restarts, pace), Muse Spark Open writes one observation, and the result becomes one shared record that Muse reads fresh in any chat, on any device, including scheduled practice suggestions. Goals, exercises and check-ins live in the same authenticated API.
@@ -38,9 +40,10 @@ Setup creates `.data/connector.sqlite` and a private `.data/operator-token.txt`.
 | POST | `/v1/check-ins` | Record one self-reported completion/skipped result for an assigned exercise |
 | PATCH | `/v1/goals/{id}` | Revise a goal with optimistic version checking |
 | PATCH | `/v1/sessions/{id}` | Correct or hide synthetic evidence with a reason and version check |
+| GET | `/v1/eval` | Public, read-only. Recomputes the measurement eval over the bundled synthetic corpus (no user data). See `eval/README.md`. |
 | POST | `/v1/recordings` | Capture devices (watch, Mac, phone) upload a mono 16-bit WAV (16/24 kHz, ≤180 s, ≤8 MiB). Meta `muse-voice-transcribe-1.0` transcribes it, code measures habits (en/fr lexicons), Muse Spark Open words one observation, and a measured session is saved. See `docs/capture.md`. |
 
-All `/v1/` paths require `Authorization: Bearer <key>`. Writes additionally require `Idempotency-Key`. An exact retry returns the original receipt; changed content with the same key returns 409. New keys cannot duplicate an exercise's check-in. Use a new assigned exercise for a new attempt. Updates require `expected_version`; stale versions return 409. JSON bodies are limited to 16 KiB. These are this service's limits, not Muse platform limits.
+All `/v1/` paths except `GET /v1/eval` require `Authorization: Bearer <key>`. Writes additionally require `Idempotency-Key`. An exact retry returns the original receipt; changed content with the same key returns 409. New keys cannot duplicate an exercise's check-in. Use a new assigned exercise for a new attempt. Updates require `expected_version`; stale versions return 409. JSON bodies are limited to 16 KiB. These are this service's limits, not Muse platform limits.
 
 The authenticated identity comes only from the token. Clients cannot choose another user in the request. Record IDs and receipts are scoped by account. Tokens are stored hashed in SQLite; the bootstrap file holds the only local plaintext copy.
 

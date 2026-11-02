@@ -1,0 +1,534 @@
+{
+  "eval": "habit-count-measurement",
+  "corpus": "habit-counts-synthetic-v1",
+  "corpus_sha256": "4a75b9d62d61eb484cb7df166de5e7117c9dbbc2f5d6ed5833af061cbd86b293",
+  "provenance": "Synthetic transcripts written and labelled by the comms-coach authors on 2026-11-01, after lexicon-en-v1 and lexicon-fr-v1 were written. The lexicons were not changed after the corpus was written. Not real speech, not an independent benchmark.",
+  "methods": [
+    "lexicon-en-v1",
+    "lexicon-fr-v1"
+  ],
+  "counts": {
+    "items": 70,
+    "negative_controls": 12,
+    "by_language": {
+      "en": 34,
+      "fr": 36
+    },
+    "gold_labels": {
+      "fillers": 30,
+      "hedges": 18,
+      "restarts": 13
+    }
+  },
+  "scoring": "Per item and category, tp = min(predicted, gold), fp = excess predicted, fn = missed gold. Micro-averaged. Negative controls carry no gold labels, so every count on them is a false positive.",
+  "headline": "measure(): precision 0.788, recall 0.852 vs flat word list 0.754 / 0.852 on 70 synthetic labelled en/fr transcripts; 0 false counts on 12 clean controls.",
+  "systems": {
+    "measure": {
+      "describe": "measure() in src/capture.mjs: normalization, longest phrase first, each span counted once in one category.",
+      "overall": {
+        "tp": 52,
+        "fp": 14,
+        "fn": 9,
+        "precision": 0.788,
+        "recall": 0.852,
+        "f1": 0.819
+      },
+      "by_category": {
+        "fillers": {
+          "tp": 24,
+          "fp": 6,
+          "fn": 6,
+          "precision": 0.8,
+          "recall": 0.8,
+          "f1": 0.8
+        },
+        "hedges": {
+          "tp": 16,
+          "fp": 3,
+          "fn": 2,
+          "precision": 0.842,
+          "recall": 0.889,
+          "f1": 0.865
+        },
+        "restarts": {
+          "tp": 12,
+          "fp": 5,
+          "fn": 1,
+          "precision": 0.706,
+          "recall": 0.923,
+          "f1": 0.8
+        }
+      },
+      "by_language": {
+        "en": {
+          "tp": 30,
+          "fp": 5,
+          "fn": 5,
+          "precision": 0.857,
+          "recall": 0.857,
+          "f1": 0.857
+        },
+        "fr": {
+          "tp": 22,
+          "fp": 9,
+          "fn": 4,
+          "precision": 0.71,
+          "recall": 0.846,
+          "f1": 0.772
+        }
+      },
+      "by_tag": {
+        "apostrophe": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "asr_variant": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "case": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "content_trap": {
+          "tp": 0,
+          "fp": 12,
+          "fn": 0,
+          "precision": 0,
+          "recall": null,
+          "f1": null
+        },
+        "dash": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "mixed": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "multi_phrase_event": {
+          "tp": 2,
+          "fp": 2,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1,
+          "f1": 0.667
+        },
+        "negative_control": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        },
+        "out_of_lexicon": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 6,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "overlap": {
+          "tp": 6,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "plain": {
+          "tp": 34,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "repeat": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "restart": {
+          "tp": 13,
+          "fp": 2,
+          "fn": 1,
+          "precision": 0.867,
+          "recall": 0.929,
+          "f1": 0.897
+        }
+      },
+      "negative_control": {
+        "items": 12,
+        "false_counts": 0
+      }
+    },
+    "flat_list_baseline": {
+      "describe": "The same lexicon phrases as one flat list, every occurrence counted with Unicode word boundaries, overlaps counted.",
+      "overall": {
+        "tp": 52,
+        "fp": 17,
+        "fn": 9,
+        "precision": 0.754,
+        "recall": 0.852,
+        "f1": 0.8
+      },
+      "by_category": {
+        "fillers": {
+          "tp": 24,
+          "fp": 9,
+          "fn": 6,
+          "precision": 0.727,
+          "recall": 0.8,
+          "f1": 0.762
+        },
+        "hedges": {
+          "tp": 16,
+          "fp": 3,
+          "fn": 2,
+          "precision": 0.842,
+          "recall": 0.889,
+          "f1": 0.865
+        },
+        "restarts": {
+          "tp": 12,
+          "fp": 5,
+          "fn": 1,
+          "precision": 0.706,
+          "recall": 0.923,
+          "f1": 0.8
+        }
+      },
+      "by_language": {
+        "en": {
+          "tp": 30,
+          "fp": 8,
+          "fn": 5,
+          "precision": 0.789,
+          "recall": 0.857,
+          "f1": 0.822
+        },
+        "fr": {
+          "tp": 22,
+          "fp": 9,
+          "fn": 4,
+          "precision": 0.71,
+          "recall": 0.846,
+          "f1": 0.772
+        }
+      },
+      "by_tag": {
+        "apostrophe": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "asr_variant": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "case": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "content_trap": {
+          "tp": 0,
+          "fp": 12,
+          "fn": 0,
+          "precision": 0,
+          "recall": null,
+          "f1": null
+        },
+        "dash": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "mixed": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "multi_phrase_event": {
+          "tp": 2,
+          "fp": 2,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1,
+          "f1": 0.667
+        },
+        "negative_control": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        },
+        "out_of_lexicon": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 6,
+          "precision": null,
+          "recall": 0,
+          "f1": null
+        },
+        "overlap": {
+          "tp": 6,
+          "fp": 3,
+          "fn": 0,
+          "precision": 0.667,
+          "recall": 1,
+          "f1": 0.8
+        },
+        "plain": {
+          "tp": 34,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "repeat": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        },
+        "restart": {
+          "tp": 13,
+          "fp": 5,
+          "fn": 1,
+          "precision": 0.722,
+          "recall": 0.929,
+          "f1": 0.813
+        }
+      },
+      "negative_control": {
+        "items": 12,
+        "false_counts": 0
+      }
+    }
+  },
+  "disagreements": [
+    {
+      "id": "en-restart-03",
+      "category": "restarts",
+      "gold": 1,
+      "measure": 2,
+      "flat_list_baseline": 2
+    },
+    {
+      "id": "en-overlap-01",
+      "category": "fillers",
+      "gold": 0,
+      "measure": 0,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "en-overlap-02",
+      "category": "fillers",
+      "gold": 2,
+      "measure": 2,
+      "flat_list_baseline": 3
+    },
+    {
+      "id": "en-overlap-03",
+      "category": "fillers",
+      "gold": 1,
+      "measure": 1,
+      "flat_list_baseline": 2
+    },
+    {
+      "id": "en-trap-kindof-01",
+      "category": "hedges",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "en-trap-youknow-01",
+      "category": "fillers",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "en-trap-sorry-01",
+      "category": "restarts",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "en-trap-imean-01",
+      "category": "fillers",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "en-oov-like-01",
+      "category": "fillers",
+      "gold": 2,
+      "measure": 0,
+      "flat_list_baseline": 0
+    },
+    {
+      "id": "en-oov-hedge-01",
+      "category": "hedges",
+      "gold": 1,
+      "measure": 0,
+      "flat_list_baseline": 0
+    },
+    {
+      "id": "en-oov-restart-01",
+      "category": "restarts",
+      "gold": 1,
+      "measure": 0,
+      "flat_list_baseline": 0
+    },
+    {
+      "id": "en-asr-01",
+      "category": "fillers",
+      "gold": 1,
+      "measure": 0,
+      "flat_list_baseline": 0
+    },
+    {
+      "id": "fr-restart-04",
+      "category": "restarts",
+      "gold": 1,
+      "measure": 2,
+      "flat_list_baseline": 2
+    },
+    {
+      "id": "fr-trap-ducoup-01",
+      "category": "fillers",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "fr-trap-enfait-01",
+      "category": "fillers",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "fr-trap-ben-01",
+      "category": "fillers",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "fr-trap-jeveuxdire-01",
+      "category": "restarts",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "fr-trap-pardon-01",
+      "category": "restarts",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "fr-trap-disons-01",
+      "category": "hedges",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "fr-trap-unpeu-01",
+      "category": "hedges",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "fr-trap-tuvois-01",
+      "category": "fillers",
+      "gold": 0,
+      "measure": 1,
+      "flat_list_baseline": 1
+    },
+    {
+      "id": "fr-oov-quoi-01",
+      "category": "fillers",
+      "gold": 1,
+      "measure": 0,
+      "flat_list_baseline": 0
+    },
+    {
+      "id": "fr-oov-genre-01",
+      "category": "fillers",
+      "gold": 1,
+      "measure": 0,
+      "flat_list_baseline": 0
+    },
+    {
+      "id": "fr-asr-01",
+      "category": "hedges",
+      "gold": 1,
+      "measure": 0,
+      "flat_list_baseline": 0
+    },
+    {
+      "id": "fr-asr-02",
+      "category": "fillers",
+      "gold": 1,
+      "measure": 0,
+      "flat_list_baseline": 0
+    }
+  ]
+}
