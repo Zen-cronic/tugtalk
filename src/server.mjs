@@ -8,7 +8,7 @@ import { schemas, specification } from './schema.mjs';
 import { createModelClients, inspectWav, measure, MAX_AUDIO_BYTES, LANGUAGES, DEVICES } from './capture.mjs';
 import { runEval } from './evaluate.mjs';
 
-function validate(body,schema) {
+export function validate(body,schema) {
   if (!body || Array.isArray(body) || typeof body!=='object') throw new ApiError(400,'invalid_body','Expected a JSON object.');
   for (const k of Object.keys(body)) if (!(k in schema.properties)) throw new ApiError(400,'unknown_field',`Unsupported field: ${k}`);
   for (const k of schema.required) if (!(k in body)) throw new ApiError(400,'missing_field',`Missing ${k}`);
@@ -20,7 +20,7 @@ function validate(body,schema) {
     if (p.minimum!==undefined&&v<p.minimum || p.maximum!==undefined&&v>p.maximum) throw new ApiError(400,'invalid_value',`Invalid ${k}`);
   }
 }
-async function bodyOf(req) {
+export async function bodyOf(req) {
   if (!(req.headers['content-type']??'').startsWith('application/json')) throw new ApiError(415,'content_type','Use application/json.');
   let bytes=0; const chunks=[];
   for await (const chunk of req) {
@@ -30,7 +30,7 @@ async function bodyOf(req) {
   }
   try { return JSON.parse(Buffer.concat(chunks).toString()); } catch { throw new ApiError(400,'invalid_json','Malformed JSON.'); }
 }
-async function audioOf(req) {
+export async function audioOf(req) {
   const type=(req.headers['content-type']??'').split(';')[0].trim();
   if (!['audio/wav','audio/x-wav','audio/wave'].includes(type)) throw new ApiError(415,'content_type','Use audio/wav.');
   let bytes=0; const chunks=[];
@@ -42,7 +42,7 @@ async function audioOf(req) {
   return Buffer.concat(chunks);
 }
 // Capture parameters travel in headers so a watch or Mac client can send a raw WAV body.
-function captureParams(headers) {
+export function captureParams(headers) {
   const language=headers['x-language']??'en', device=headers['x-capture-device']??'api';
   const goalId=headers['x-goal-id']??null, occurredAt=headers['x-occurred-at']??null;
   if (!Object.hasOwn(LANGUAGES,language)) throw new ApiError(400,'invalid_value',`X-Language must be one of: ${Object.keys(LANGUAGES).join(', ')}.`);
@@ -51,20 +51,35 @@ function captureParams(headers) {
   if (occurredAt!==null&&(!/^\d{4}-\d{2}-\d{2}T/.test(occurredAt)||Number.isNaN(Date.parse(occurredAt)))) throw new ApiError(400,'invalid_value','X-Occurred-At must be an ISO 8601 timestamp.');
   return {language,device,goalId,occurredAt:occurredAt&&new Date(occurredAt).toISOString()};
 }
-function requireIdempotencyKey(headers) {
+export function requireIdempotencyKey(headers) {
   const key=headers['idempotency-key'];
   if(typeof key!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(key)) throw new ApiError(400,'idempotency_required','Provide an Idempotency-Key header: 8–128 letters, digits, underscores or hyphens.');
   return key;
 }
-const NO_PHASES={async release(){},async acquire(){}};
-async function handleRecording(store,models,user,req,key,requestId,phases) {
-  const params=captureParams(req.headers);
+export const NO_PHASES={async release(){},async acquire(){}};
+const CORE_FINGERPRINT=['audio_sha256','goal_id','language','capture_device','occurred_at'];
+// Optional hooks let another product reuse this route without copying it. With no hooks the behavior is unchanged.
+//   params(headers)             replaces captureParams; must return {language, device, goalId, occurredAt, ...extra}.
+//                               Extra fields are added to the idempotency fingerprint, so a retry must repeat them.
+//   prepare(ctx)                runs before any model call; may throw an ApiError (for example an ownership check).
+//   system(ctx)                 a coaching prompt passed to models.analyze instead of the default.
+//   afterAnalyze(ctx)           async step after analysis, still outside the database lock (for example extraction).
+//   extendRecord(record, ctx)   runs inside the write transaction; returns the session record to save and may put others.
+export async function handleRecording(store,models,user,req,key,requestId,phases=NO_PHASES,hooks={}) {
+  const {language,device,goalId,occurredAt,...extra}=hooks.params?hooks.params(req.headers):captureParams(req.headers);
+  const params={language,device,goalId,occurredAt};
   const audio=await audioOf(req);
   const fingerprintBody={audio_sha256:digest(audio),goal_id:params.goalId,language:params.language,capture_device:params.device,occurred_at:params.occurredAt};
+  for (const [k,v] of Object.entries(extra)) {
+    if (CORE_FINGERPRINT.includes(k)) throw new Error(`Recording hook param ${k} collides with a core field`);
+    fingerprintBody[k]=v;
+  }
   // An exact retry returns the original receipt without paying for inference again.
   const previous=store.replay(user,'POST','/v1/recordings',fingerprintBody,key);
   if (previous) return previous;
   const goal=params.goalId?store.get(user,'goals',params.goalId):null;
+  const ctx={store,user,params,extra,goal,requestId};
+  ctx.prepared=hooks.prepare?hooks.prepare(ctx):undefined;
   const wav=inspectWav(audio);
   // Model calls take seconds; the hosting adapter may release the shared database meanwhile.
   // Everything below re-validates inside the write transaction (receipt replay, goal ownership).
@@ -73,7 +88,8 @@ async function handleRecording(store,models,user,req,key,requestId,phases) {
   try {
     transcription=await models.transcribe(audio,{language:params.language,sessionId:requestId});
     metrics=measure(transcription.transcript,transcription.audio_duration_ms??wav.durationMs,params.language);
-    analysis=await models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language});
+    analysis=await models.analyze({goal,transcript:transcription.transcript,metrics,language:params.language,...(hooks.system?{system:hooks.system(ctx)}:{})});
+    if (hooks.afterAnalyze) ctx.after=await hooks.afterAnalyze({...ctx,transcription,metrics,analysis});
   } finally {
     await phases.acquire();
   }
@@ -85,10 +101,11 @@ async function handleRecording(store,models,user,req,key,requestId,phases) {
       measurement_status:'measured',metrics,analysis,
       transcription:{model:transcription.model,provider_session_id:transcription.provider_session_id},
       audio_retained:false,audio_sha256:fingerprintBody.audio_sha256,deleted:false,updated_at:timestamp};
-    store.put(user,'sessions',record); return record;
+    const saved=hooks.extendRecord?hooks.extendRecord(record,{...ctx,transcription,metrics,analysis,timestamp}):record;
+    store.put(user,'sessions',saved); return saved;
   });
 }
-export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models=createModelClients(),phases=NO_PHASES}={}) {
+export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models=createModelClients(),phases=NO_PHASES,recordingHooks={}}={}) {
   return async(req,res)=>{
     const requestId=randomUUID(); let user;
     const path=new URL(req.url,'http://local').pathname;
@@ -115,7 +132,7 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models=crea
         ?`${s.id} version ${s.version} (${s.capture_device}, ${s.language}${s.goal_id?`, goal ${s.goal_id}`:''}): ${s.transcript}\nMeasured: ${s.metrics.word_count} words, ${s.metrics.words_per_minute} wpm, ${s.metrics.filler_count} fillers, ${s.metrics.hedge_count} hedges, ${s.metrics.restart_count} restarts`
         :`${s.id} version ${s.version}: ${s.transcript}\nSimulated pause: ${s.pause_before_answer_ms}ms`).join('\n\n'),'text/plain');
       if(req.method==='POST'&&path==='/v1/recordings') {
-        return send(200,await handleRecording(store,models,user,req,requireIdempotencyKey(req.headers),requestId,phases));
+        return send(200,await handleRecording(store,models,user,req,requireIdempotencyKey(req.headers),requestId,phases,recordingHooks));
       }
       const parts=path.split('/').filter(Boolean); const kind=parts[1]; const id=parts[2];
       const isCreate=req.method==='POST'&&parts.length===2&&['goals','exercises','check-ins'].includes(kind);

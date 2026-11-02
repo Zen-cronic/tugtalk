@@ -6,7 +6,10 @@ export class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 export class Store {
-  constructor(path) { this.path = path; this.open(); }
+  // extendFresh({user, goalId, context}) runs inside freshContext's read transaction and returns
+  // {fields, revision}: fields are merged into the response, revision is added to snapshot_revision.
+  // A subclass may define extendFresh as a method instead. Without it, fresh views are unchanged.
+  constructor(path, { extendFresh } = {}) { this.path = path; if (extendFresh) this.extendFresh = extendFresh; this.open(); }
   // Reopen after the hosting adapter released the database during slow model calls.
   open() {
     this.db = new DatabaseSync(this.path);
@@ -79,8 +82,11 @@ export class Store {
           latest_feedback:checkins.slice().sort((a,b)=>b.updated_at.localeCompare(a.updated_at)||b.id.localeCompare(a.id))[0]??null,
           latest_measurement:brief(linked[0])??null};
       });
+      const extension=this.extendFresh?this.extendFresh({user,goalId,context}):undefined;
+      const revised={goals:context.goals,exercises:context.exercises,check_ins:context.check_ins,sessions:context.sessions};
+      if(extension?.revision!==undefined) revised.extension=extension.revision;
       const common={synthetic:true,as_of:context.as_of,
-        snapshot_revision:digest(JSON.stringify({goals:context.goals,exercises:context.exercises,check_ins:context.check_ins,sessions:context.sessions})),
+        snapshot_revision:digest(JSON.stringify(revised)),
         freshness:{source:'committed_database',cache_policy:'no-store',require_new_read_each_turn:true},
         evidence_scope:'Captured sessions are linked to a goal only when the capturing device supplied goal_id. Fixture and unlinked sessions are account-wide. Measured metrics are code-computed from an automatic transcript; observations are model-written. measured_improvement stays null until a comparison method exists.',
         instructions:'Fetch a new overview at the start of every goal-related turn. For a focused chat bind to the explicit goal ID, then fetch its context. Re-read after writes and 409 conflicts. On retrieval failure say current state is unavailable; never present prior chat content as current. Completion is a self-report, not measured improvement.'};
@@ -98,6 +104,7 @@ export class Store {
           measured_improvement:null},
           latest_measurement:brief(measured[0])??null,
           shared_evidence_versions:context.sessions.map(s=>({id:s.id,version:s.version,goal_id:s.goal_id??null,measurement_status:s.measurement_status}))};
+      if(extension?.fields) Object.assign(result,extension.fields);
       this.db.exec('COMMIT');return result;
     } catch(error) { if(this.db.isTransaction)this.db.exec('ROLLBACK');throw error; }
   }
