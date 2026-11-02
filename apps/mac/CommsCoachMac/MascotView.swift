@@ -467,6 +467,7 @@ struct VoiceCardView: View {
             if card.summary == nil, let stat = LatestRoundNumber.make(summary: nil, latest: card.metrics) {
                 HabitChip(count: stat.value, habit: stat.habit, caption: "in this answer")
             }
+            if let camera = card.camera { CameraChip(metrics: camera) }
             if !card.transcript.isEmpty, card.summary == nil {
                 DisclosureGroup(isExpanded: $showTranscript) {
                     Transcript(text: card.transcriptSnippet, mark: card.quote).padding(.top, 4)

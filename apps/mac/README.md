@@ -8,6 +8,7 @@ A small floating companion for macOS. Hold ⌃⌥T and talk, and it answers with
 |---|---|
 | `Package.swift`, `Sources/ScreenContextCore/` | On-device core: one-window capture, Vision OCR, redaction, payload, API client, nudge diff |
 | `Sources/sc-capture/` | CLI that runs the core on an image file, with no permission needed |
+| `Sources/camera-eval/` | Offline checks of the "faced the camera" meter: synthetic head angles, and a hand-labelled clip |
 | `Tests/ScreenContextCoreTests/` | `swift test` |
 | `Fixtures/` | A synthetic meeting-prep note with planted personal data, and the script that renders it |
 | `project.yml`, `CommsCoachMac/` | The menu-bar app and the companion character (XcodeGen) |
@@ -57,6 +58,10 @@ A network failure or a 5xx is retried up to three times with the same idempotenc
 - **Where the audio goes.** Only to the coach host, which passes it to Meta's speech-to-text. Audio is deleted after transcription unless you turn on Keep my recordings (off by default). Kept audio stays in your account and you can delete it any time. The menu's Keep My Recordings item turns it on or off, shows what is kept, saves it to Downloads, or deletes it. Baseten serves Muse Spark Open with the transcript, not the audio, and keeps no data for synchronous Model API calls (zero data retention). We have not confirmed Meta's retention terms for speech-to-text input. The speech provider receives the question text, not your voice.
 - **Spoken names are not redacted.** Window text is redacted on the Mac, but a recording cannot be: anything you say, names included, reaches the transcript. Leave out names you would not type.
 - **The permission prompt appears once, and only when you ask.** The first hold shows an explainer. **Continue** shows the macOS prompt once; **Open Settings** goes to Privacy & Security › Microphone. The usage string is set in `project.yml`, because XcodeGen regenerates `Info.plist`.
+
+### Faced the camera (optional)
+
+Menu bar › **Use the Camera During Practice** (off by default). While ⌃⌥T is held, the camera (or the iPhone as a Continuity Camera) is open, Apple Vision reads head angles on this Mac about 10 times a second, and Tug looks back at you when your head faces the camera; a small dot under the camera shows the same. At release the camera closes and four numbers go with the clip as `X-Camera-Metrics`; the reply card shows "62% faced the camera · Looked away 3 times". No picture is saved or sent. The rule, the header and the accuracy check are in [docs/camera.md](../../docs/camera.md). `swift run camera-eval` runs the offline checks. Debug builds: `-cameraFixture <poses.json>` stands in for the camera, `-cameraPreview facing|away|card|explainer` shows each state, and `-disableHotkeys YES` leaves the global keys to a copy already running.
 
 ### Filming tips
 

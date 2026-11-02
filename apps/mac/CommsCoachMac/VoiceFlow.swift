@@ -183,6 +183,7 @@ final class VoiceFlow {
                 upload(key, promptEndedAt: promptEndedAt)
             case .discard(let key):
                 if let recorder { _ = recorder.stop(); self.recorder = nil }
+                CameraSession.shared.cancel(key: key)
                 capTask?.cancel()
                 store.remove(key)
                 // A hold dropped before release is dropped on the server too; after a reply, only its audio stops.
@@ -215,6 +216,7 @@ final class VoiceFlow {
                 return
             }
         }
+        CameraSession.shared.start(key: key, allowed: !model.isPresenting)
         if let session, let fixture { feedFixture(fixture, to: session) }
         voiceLog.notice("hold started\(self.fixture == nil ? "" : " (fixture WAV, microphone not used)", privacy: .public)\(session == nil ? "" : "; streaming live", privacy: .public)")
         model.set(.voiceListening(since: holdStarted ?? Date()))
@@ -235,6 +237,7 @@ final class VoiceFlow {
         // feel instant (about 100 ms). The clip is prepared on the next turn of the run loop.
         let recorded = recorder?.stop()
         recorder = nil
+        CameraSession.shared.stop()
         model.set(.voiceThinking(since: released))
         voiceLog.notice("thinking shown \(Self.ms(since: released), privacy: .public) ms after release")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
@@ -291,6 +294,7 @@ final class VoiceFlow {
                                       language: Settings.voiceLanguage, promptEndedAt: promptEndedAt,
                                       occurredAt: occurredAt?.key == key ? occurredAt?.at : nil)
         if let started = liveRound, started.idempotencyKey == key { round = started; round.wav = wav }
+        round.camera = CameraSession.shared.metrics(for: key)
         voiceLog.notice("sending \(wav.count, privacy: .public) bytes; prompt end \(promptEndedAt == nil ? "not sent" : "sent", privacy: .public)")
         uploadTask = Task { [weak self] in
             do {

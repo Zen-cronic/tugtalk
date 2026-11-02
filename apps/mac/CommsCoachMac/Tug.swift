@@ -377,6 +377,7 @@ struct TugView: View {
     @State private var shown: MascotPhase?
     @State private var settling = false
     @State private var onScreen = true
+    @ObservedObject private var camera = CameraSession.shared
 
     static let ease: TimeInterval = 0.28
     /// The still's moment: the same one the Reduce Motion stills use.
@@ -395,7 +396,7 @@ struct TugView: View {
             } else {
                 TimelineView(.animation(minimumInterval: 1 / 30, paused: !(moving || (settling && !reduceMotion)))) { context in
                     let t = moving ? context.date.timeIntervalSinceReferenceDate : Self.stillT
-                    let target = TugPose(phase: phase, t: t, talking: talking, animated: moving)
+                    let target = TugPose(phase: phase, t: t, talking: talking, animated: moving).lookingBack(camera.look, phase: phase, now: context.date, animated: moving)
                     let k = reduceMotion || !settling ? 1 : min(1, context.date.timeIntervalSince(changedAt) / Self.ease)
                     let eased = 1 - pow(1 - k, 3)
                     TugCanvas(pose: previous.map { TugPose.lerp($0, target, eased) } ?? target, facesRight: facesRight, t: t)

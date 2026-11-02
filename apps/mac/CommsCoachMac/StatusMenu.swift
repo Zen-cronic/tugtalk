@@ -71,6 +71,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             Settings.autoHideInMeetings.toggle()
             if !Settings.autoHideInMeetings { model.inMeetingApp = false }
         })
+        menu.addItem(toggle("Use the Camera During Practice", on: CameraSettings.enabled) { CameraSettings.menuToggled() })
         menu.addItem(toggle("Demo Mode (Check Every 15 s)", on: model.demoMode) { [weak self, model] in
             model.demoMode.toggle(); self?.onDemoMode(model.demoMode)
         })

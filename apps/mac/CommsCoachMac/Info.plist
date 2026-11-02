@@ -24,6 +24,10 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Only if you turn on Use the Camera During Practice: while you hold Control-Option-T, Comms Coach checks on this Mac which way your head points. No picture is saved or sent.</string>
+	<key>NSCameraUseContinuityCameraDeviceType</key>
+	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 	<key>NSMicrophoneUsageDescription</key>
