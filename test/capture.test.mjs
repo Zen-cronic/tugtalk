@@ -155,3 +155,35 @@ test('review regressions: inherited names, double counting, dashes, offsets, mea
     assert.equal(hide.status, 200);
   });
 });
+
+test('analysis retries once when the reasoning budget runs out, and parses wrapped JSON', async () => {
+  const { parseObject } = await import('../src/capture.mjs');
+  assert.deepEqual(parseObject('Here you go:\n```json\n{"a":1}\n```'), { a: 1 });
+  assert.equal(parseObject('{"observation": "cut off mid'), null);
+  const bodies = [];
+  const replies = [
+    { choices: [{ finish_reason: 'length', message: { content: '{"observation": "You asked' } }] },
+    { choices: [{ finish_reason: 'stop', message: { content: 'Sure. {"observation":"Grounded.","suggested_exercise":"Try once."}' } }] }
+  ];
+  const fetchImpl = async (url, init) => { bodies.push(JSON.parse(init.body)); return new Response(JSON.stringify(replies.shift()), { status: 200 }); };
+  const result = await createModelClients({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }).analyze({ goal: null, transcript: 't', metrics: measure('t', 1000, 'en'), language: 'en' });
+  assert.equal(result.status, 'model_observation'); assert.equal(result.attempts, 2);
+  assert.ok(bodies[1].max_tokens > bodies[0].max_tokens);
+});
+
+test('recording releases the database during model calls and reacquires it even when transcription fails', async () => {
+  for (const failTranscribe of [false, true]) {
+    const { models } = stubModels({ failTranscribe });
+    const events = [];
+    const wrapped = { transcribe: async (...a) => { events.push('transcribe'); return models.transcribe(...a); }, analyze: async (...a) => { events.push('analyze'); return models.analyze(...a); } };
+    const dir = mkdtempSync(join(tmpdir(), 'phases-test-'));
+    const store = new Store(join(dir, 't.sqlite')); store.addToken('alice-secret', 'alice'); store.seed('alice');
+    const phases = { async release() { events.push('release'); store.close(); }, async acquire() { events.push('acquire'); store.reopen(); } };
+    const server = createApp(store, { models: wrapped, phases }); await new Promise(r => server.listen(0, '127.0.0.1', r));
+    try {
+      const r = await fetch(`http://127.0.0.1:${server.address().port}/v1/recordings`, { method: 'POST', headers: { Authorization: 'Bearer alice-secret', 'Content-Type': 'audio/wav', 'Idempotency-Key': 'phase-test-1' }, body: wav() });
+      assert.equal(r.status, failTranscribe ? 502 : 200);
+      assert.deepEqual(events, failTranscribe ? ['release', 'transcribe', 'acquire'] : ['release', 'transcribe', 'analyze', 'acquire']);
+    } finally { await new Promise(r => server.close(r)); store.close(); rmSync(dir, { recursive: true, force: true }); }
+  }
+});
