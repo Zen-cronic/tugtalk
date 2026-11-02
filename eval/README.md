@@ -106,3 +106,61 @@ What it shows:
 - **Every label passed code's check.** All 51 labels named a proposed candidate once and copied its quote exactly, so no rejection kept a lexicon count. The span check cannot catch a wrong label that quotes correctly; on this run, those are the 11 removed habits.
 
 This run does not change which categories go to the model. Sending only fillers and restarts would raise the F1 on this corpus, but that choice would be tuned on the same 70 transcripts it is scored on. It is an open product decision, not a measured result.
+
+## Held-out check: model-only words and hedge adjudication
+
+The word list leaves out filler "like" and French "genre" and "quoi", because each is a filler in some sentences and content in others ("I like the plan" against "it's, like, mostly done"). With `ADJUDICATE_MODEL_ONLY=1` (off by default), code proposes every occurrence of them to Muse Spark Open in the same adjudication call, and the record gets a separate `model_only` block. It is `counted` only when every one of those words got a label that passed code's check; otherwise it is `not_counted` and has no counts. These words never enter `metrics`, `lexicon_count` or `adjudicated_count`, so the measured numbers, the watch number and remeasurement are unchanged. With the flag off, the request and the stored record are byte-identical to before (`test/adjudicate.test.mjs` pins their hashes).
+
+Whether the flag is ever turned on is decided by one live run on a set we did not write.
+
+### The set
+
+`heldout-v1.json`: **a synthetic held-out set: 60 transcripts written and labelled by a separate agent, not real speech.** That agent was given only the task and the five word families. It never saw the adjudication prompt, `corpus.json` or any past result. Its labelling rules are inside the file. 30 transcripts are English and 30 French.
+
+| Family | Filler | Content |
+|---|---:|---:|
+| like | 24 | 23 |
+| genre | 9 | 8 |
+| quoi | 11 | 11 |
+
+There are also 44 hedge-family spans: 31 hedge and 13 not hedge (a type, a quantity, "rather", "think about", "believe in", someone else's quoted words). 8 of the hedges and 2 of the non-hedges use phrases outside our word list ("I'm not sure", "Perhaps", "plutôt", "Je ne suis pas sûr", "Probablement"), so no system here can count them except the count-all baseline.
+
+We spot-checked 10 labels chosen at random against the file's rules: 10 of 10 agree. We did not change any label.
+
+### Scoring
+
+```sh
+npm run eval -- --heldout                    # stub replies (0 paid calls), plus the saved live run if there is one
+npm run eval -- --heldout --live             # prints what a live run would cost; makes no call
+npm run eval -- --heldout --live --approved  # the live run (paid; needs BASETEN_API_KEY)
+```
+
+Every labelled occurrence is scored once: counted or not. Precision, recall and F1 are micro-averaged.
+
+- **Model-only class:** every "like", "genre" and "quoi"; a positive is one labelled filler. All 86 are pooled for the decision, and each word is also shown on its own.
+  - *model-only*: counted when its transcript's `model_only.status` is `counted` and its label is `habit`. A `not_counted` transcript counts none of its words, because that is what a person would see.
+  - *count-all*: every occurrence counted, which is what adding the words to the list would do. Precision 0.512, recall 1, F1 0.677.
+  - *count-none*: nothing counted, which is what the lexicon and adjudication do today. F1 0.
+- **Hedge class:** the 44 labelled hedge-family spans; a positive is one labelled hedge.
+  - *lexicon*: counted when a word-list hedge hit has exactly that span. Precision 0.676, recall 0.742.
+  - *adjudication*: counted when the lexicon counts it and a verified "content" label did not remove it.
+  - *count-all* and *count-none*: every labelled span counted, or none. Count-all knows where the labelled spans are, so it is an upper reference, not a real system.
+  - A word-list hedge hit outside any labelled span would count as a false count. There are none in v1.
+
+`npm run eval -- --heldout` first runs a stub that labels every candidate "habit" through the real request, parser and label check. Adjudication then equals the lexicon and model-only equals count-all. It checks the pipeline and the scoring, not the model.
+
+### Pre-registered rules
+
+Committed before the live run, and not changed after it.
+
+1. **The model-only class ships** (`ADJUDICATE_MODEL_ONLY=1` on the hosted app) only if, on the live run, its F1 on the 86 model-only occurrences beats both count-all (0.677) and count-none (0), **and** its precision is at least 0.8. A tie does not ship. Otherwise the flag stays off and the README keeps "like", "genre" and "quoi" as a known limit.
+2. **Hedges leave adjudication** if adjudicated hedge recall on the live run is more than 0.2 below the lexicon's (that is, below 0.542). Then hedges are never adjudication candidates. This changes `adjudicated_count` going forward, never `metrics` or the watch number.
+3. **Both results are reported** in the README whichever way they go, as "a synthetic held-out set: 60 transcripts written and labelled by a separate agent, not real speech".
+
+How the run is done:
+
+- **One run.** It uses the production adjudication client (`meta-models/muse-spark-open-1026`, `reasoning_effort: "low"`, temperature 0) with the model-only words on, so each transcript is one call, and both rules are read from that same run. There are 60 calls, or at most 120 if every first reply needs the larger-budget retry.
+- A failed call is part of the result: that transcript keeps the lexicon count and its model-only words are not counted.
+- **A completed run is final.** It is never repeated to improve a number, and the prompt, the label check and the scoring do not change between these rules and the run. Only a run that crashes before writing `heldout-live-results.json` may be started once more.
+- If the run does not complete, the flag stays off and the README is unchanged.
+- One caveat, stated in advance: hedges are scored with the model-only words in the same call. If rule 1 fails, the hosted app adjudicates without them, so its hedge labels come from a slightly different request than the one measured here.
