@@ -32,3 +32,4 @@ Every number or name we state about this project, and where it comes from. `test
 | `python-tests` | Python hosting-adapter tests | 5 | `def test_` in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `watch-target` | Watch app minimum OS | watchOS 11.0 | apps/watch/project.yml |
+| `mac-target` | Mac companion minimum OS | macOS 14.0 | apps/mac/project.yml |

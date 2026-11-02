@@ -146,7 +146,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         assert.match(modal, /max_containers=1\b/);
         return `1 container, ${modal.match(/memory=(\d+)/)[1]} MB, ${modal.match(/timeout=(\d+)/)[1]} s timeout`;
       },
-      'watch-target': () => `watchOS ${read('apps/watch/project.yml').match(/watchOS: "([\d.]+)"/)[1]}`
+      'watch-target': () => `watchOS ${read('apps/watch/project.yml').match(/watchOS: "([\d.]+)"/)[1]}`,
+      'mac-target': () => `macOS ${read('apps/mac/project.yml').match(/macOS: "([\d.]+)"/)[1]}`
     };
 
     const facts = parseFacts();
