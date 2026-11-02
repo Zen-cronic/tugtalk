@@ -28,7 +28,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 39 | `test(` and `t.test(` calls in test/*.test.mjs |
+| `node-tests` | Node test cases, as `npm test` reports them | 45 | `test(` and `t.test(` calls in test/*.test.mjs |
 | `python-tests` | Python hosting-adapter tests | 5 | `def test_` in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `watch-target` | Watch app minimum OS | watchOS 11.0 | apps/watch/project.yml |

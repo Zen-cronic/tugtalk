@@ -2,7 +2,7 @@
 // becomes a short model-written context card linked to a goal. Pixels and the text itself are never stored.
 import { randomUUID } from 'node:crypto';
 import { ApiError, digest } from './store.mjs';
-import { LANGUAGES, DEVICES, ANALYSIS_MODEL, ANALYSIS_BUDGETS, parseObject } from './capture.mjs';
+import { LANGUAGES, DEVICES, ANALYSIS_MODEL, sparkJSON } from './capture.mjs';
 
 const NO_PHASES = { async release() {}, async acquire() {} };
 export const SCREEN_CONTEXT_PATH = '/v1/screen-contexts';
@@ -58,32 +58,17 @@ export function validateScreenContext(body) {
     redaction: { method: redaction.method, counts: Object.fromEntries(REDACTION_KINDS.filter(k => k in redaction.counts).map(k => [k, redaction.counts[k]])) } };
 }
 
-// Context-card model call: Muse Spark Open on Baseten, same budgets and parser as the capture observation.
+// Context-card model call: Muse Spark Open on Baseten through sparkJSON (src/capture.mjs), the same budgets, retry and parser as the capture observation.
 export function createScreenModel({ env = process.env, fetchImpl = fetch } = {}) {
   return {
     async describeScreen({ goal, text, language, purpose, app_name, system = screenContextSystemPrompt(language) }) {
       if (!env.BASETEN_API_KEY) throw new ApiError(503, 'analysis_unconfigured', 'Analysis is not configured on this deployment.');
       const user = JSON.stringify({ goal: goal ? { title: goal.title, target: goal.target } : null, purpose, app_name, screen_text: text });
-      let reason = 'Analysis failed.';
-      for (const [attempt, maxTokens] of ANALYSIS_BUDGETS.entries()) {
-        try {
-          const response = await fetchImpl('https://inference.baseten.co/v1/chat/completions', {
-            method: 'POST', headers: { Authorization: `Api-Key ${env.BASETEN_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: ANALYSIS_MODEL, max_tokens: maxTokens, temperature: 0.2, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
-            signal: AbortSignal.timeout(50_000) });
-          if (!response.ok) { reason = `Analysis returned HTTP ${response.status}.`; if (response.status < 500 && response.status !== 429) break; continue; }
-          const data = await response.json();
-          const choice = data.choices?.[0];
-          const parsed = parseObject(choice?.message?.content);
-          if (!parsed) { reason = choice?.finish_reason === 'length' ? 'Analysis ran out of tokens before answering.' : 'Analysis returned no usable JSON.'; continue; }
-          if (!['summary', 'observation', 'next_step'].every(k => typeof parsed[k] === 'string' && parsed[k].trim())) { reason = 'Analysis did not match the expected shape.'; continue; }
-          return { status: 'model_observation', summary: parsed.summary, observation: parsed.observation, next_step: parsed.next_step,
-            model: ANALYSIS_MODEL, provider_request_id: response.headers.get('x-baseten-request-id') ?? data.id ?? null, attempts: attempt + 1 };
-        } catch (error) {
-          reason = error.name === 'TimeoutError' ? 'Analysis timed out.' : 'Analysis request failed.';
-        }
-      }
-      return { status: 'unavailable', reason, attempts: ANALYSIS_BUDGETS.length };
+      const result = await sparkJSON({ env, fetchImpl, system, user,
+        accept: parsed => ['summary', 'observation', 'next_step'].every(k => typeof parsed[k] === 'string' && parsed[k].trim()) ? parsed : null });
+      if (!result.ok) return { status: 'unavailable', reason: result.reason, attempts: result.attempts };
+      return { status: 'model_observation', summary: result.value.summary, observation: result.value.observation, next_step: result.value.next_step,
+        model: ANALYSIS_MODEL, provider_request_id: result.provider_request_id, attempts: result.attempts };
     }
   };
 }
