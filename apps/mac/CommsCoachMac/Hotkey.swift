@@ -21,6 +21,8 @@ final class Hotkeys {
     nonisolated(unsafe) private static var actions: [UInt32: @MainActor () -> Void] = [:]
     nonisolated(unsafe) private static var releaseActions: [UInt32: @MainActor () -> Void] = [:]
     private var refs: [EventHotKeyRef] = []
+    /// Called when a combination is already taken (another app, or another copy of this one), so it is shown, not silent.
+    var onRegistrationFailed: (Combo) -> Void = { _ in }
     private var handler: EventHandlerRef?
 
     init() {
@@ -48,6 +50,7 @@ final class Hotkeys {
         let status = RegisterEventHotKey(combo.keyCode, Self.modifiers, EventHotKeyID(signature: OSType(0x4343_4D43), id: number), GetApplicationEventTarget(), 0, &ref)
         guard status == noErr, let ref else {
             hotkeyLog.error("\(combo.label, privacy: .public) could not be registered (status \(status, privacy: .public)); another app may own it")
+            onRegistrationFailed(combo)
             return false
         }
         hotkeyLog.notice("\(combo.label, privacy: .public) registered as hotkey \(number, privacy: .public)")

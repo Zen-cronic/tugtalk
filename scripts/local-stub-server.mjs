@@ -27,13 +27,13 @@ const delay = Number(process.env.STUB_DELAY_MS ?? 1500);
 const wait = () => new Promise(r => setTimeout(r, delay));
 const models = {
   async transcribe() { await wait(); return { transcript: 'Um, the main point is we ship first.', turns: [{ turn_id: 0, start_ms: 400, end_ms: 2600, transcript: 'Um, the main point is we ship first.' }], audio_duration_ms: 3000, model: STUB, provider_session_id: 'stub' }; },
-  // Presses on the first habit it finds. STUB_BAD_QUOTE=1 returns a quote the speaker never said, to show the check dropping it.
+  // Presses on the first habit it finds (STUB_MOVE=wrap_up ends the round instead). STUB_BAD_QUOTE=1 returns a quote the speaker never said, to show the check dropping it.
   async voiceReply({ user }) {
     await wait();
     if (process.env.STUB_FAIL === '1') return { status: 'unavailable', reason: 'Stub failure requested.', attempts: 1 };
     const { transcript } = JSON.parse(user).answer, hit = habitHits(transcript, 'en').hits[0];
     const quote = process.env.STUB_BAD_QUOTE === '1' ? 'we will triple revenue' : hit?.quote ?? transcript.split(/\s+/).slice(0, 4).join(' ');
-    return { status: 'model_reply', reply: { move: hit ? 'challenge' : 'follow_up', quote, question: `You said "${quote}". Say it again without that.` },
+    return { status: 'model_reply', reply: { move: process.env.STUB_MOVE ?? (hit ? 'challenge' : 'follow_up'), quote, question: `You said "${quote}". Say it again without that.` },
       model: STUB, provider_request_id: `stub-${Date.now()}`, attempts: 1 };
   },
   async analyze() { await wait(); return { status: 'model_observation', observation: 'Stub observation.', suggested_exercise: 'Stub exercise.', model: STUB, provider_request_id: 'stub' }; },

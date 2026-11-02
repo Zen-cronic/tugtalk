@@ -268,6 +268,28 @@ final class VoiceTurnMachineTests: XCTestCase {
         XCTAssertEqual(m.phase, .listening(key: "k6", since: t0 + 36.5, promptEndedAt: nil))
     }
 
+    /// The screenshot case: a wrap-up ("Round done") plays to the end; the next press opens the microphone at once
+    /// and that answer is round 1 of a new round.
+    func testAWrapUpThatFinishedThenAPressStartsListeningForRoundOne() {
+        var m = machine()
+        var tally = RoundTally()
+        _ = m.keyDown(at: t0); _ = m.keyUp(at: t0 + 3)
+        XCTAssertEqual(tally.record(nil, endsRound: false, at: t0 + 5).round, 1)
+        _ = m.replyReady(key: "k1", question: "Why you?", endsRound: false); _ = m.speechFinished(at: t0 + 8)
+        _ = m.keyDown(at: t0 + 9); _ = m.keyUp(at: t0 + 12)
+        let wrap = tally.record(nil, endsRound: true, at: t0 + 14)
+        XCTAssertEqual(wrap.round, 2)
+        _ = m.replyReady(key: "k2", question: "Shall we wrap up?", endsRound: true)
+        XCTAssertEqual(m.phase, .speaking(key: "k2", question: "Shall we wrap up?", endsRound: true), "Speaking while the audio plays")
+        XCTAssertEqual(m.speechFinished(at: t0 + 20), [])
+        XCTAssertEqual(m.phase, .idle, "Round done: no longer speaking")
+        XCTAssertNil(m.promptEndedAt, "a finished round sends no prompt end")
+        XCTAssertEqual(m.keyDown(at: t0 + 22), [.startRecording(key: "k3")], "the press opens the microphone")
+        XCTAssertEqual(m.phase, .listening(key: "k3", since: t0 + 22, promptEndedAt: nil), "Listening shows at once")
+        _ = m.keyUp(at: t0 + 25)
+        XCTAssertEqual(tally.record(nil, endsRound: false, at: t0 + 27).round, 1, "a new round starts at 1")
+    }
+
     func testAFinishedQuestionsEndTimeGoesWithTheNextHoldOnce() {
         var m = machine()
         _ = m.keyDown(at: t0); _ = m.keyUp(at: t0 + 2); _ = m.replyReady(key: "k1", question: "Why you?", endsRound: false)
