@@ -55,6 +55,20 @@ struct CoachAPI {
     let token: String
 
     static func fromBundle() throws -> CoachAPI {
+        #if DEBUG
+        // Debug builds only: `-devBaseURL http://127.0.0.1:4319 -devTokenFile <path>` talks to the local stub
+        // server (scripts/local-stub-server.mjs) with its throwaway key. Any host but this machine is refused,
+        // and the bundled key is not used in this mode.
+        let defaults = UserDefaults.standard
+        if let raw = defaults.string(forKey: "devBaseURL") {
+            guard let base = URL(string: raw), ["http", "https"].contains(base.scheme?.lowercased() ?? ""),
+                  let host = base.host?.lowercased(), ["127.0.0.1", "localhost", "::1"].contains(host),
+                  let path = defaults.string(forKey: "devTokenFile"),
+                  let token = try? String(contentsOfFile: path, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty
+            else { throw CoachError.notConfigured }
+            return CoachAPI(baseURL: base, token: token)
+        }
+        #endif
         let info = Bundle.main.infoDictionary ?? [:]
         guard let base = (info["CoachAPIBaseURL"] as? String).flatMap(URL.init(string:)),
               let token = info["CoachAPIToken"] as? String, token.count >= 32 else { throw CoachError.notConfigured }
@@ -107,15 +121,17 @@ struct CoachAPI {
 
 #if DEBUG
 extension CaptureReceipt {
-    /// Fixed sample shown with the -previewResult launch argument. Not a real capture.
+    /// Shown with the -previewResult launch argument; not a watch capture. The values are copied from one
+    /// recorded run of the hosted pipeline: a synthetic voice clip uploaded with curl on Nov 1, 2026
+    /// (receipt 5aeff421, session 92a20be9), with its observation and exercise verbatim.
     static let preview = CaptureReceipt(
         receipt_id: "preview", replayed: false,
         record: CapturedSession(
-            id: "preview", transcript: "Um, so I think the main point is, uh, ship the smaller version first.",
-            metrics: Metrics(word_count: 58, words_per_minute: 128, filler_count: 3, hedge_count: 1, restart_count: 2),
+            id: "preview", transcript: "Um, so I think the main point is basically that we should ship the smaller version first. Sorry, let me restart. The main point is ship the smaller version first because it lets us test with real users this week",
+            metrics: Metrics(word_count: 40, words_per_minute: 166, filler_count: 2, hedge_count: 1, restart_count: 2),
             analysis: Analysis(status: "model_observation",
-                               observation: "You reached your main point after three fillers, then restarted twice to sharpen it.",
-                               suggested_exercise: "Answer again in one breath, starting with \"The main point is\".",
+                               observation: "You met the goal after restarting, stating 'The main point is ship the smaller version first' followed by one supporting detail 'it lets us test with real users this week'. In 40 words at 166 wpm you had 2 fillers, 1 hedge, and 2 restarts including 'Sorry, let me restart' and the initial 'Um, so I think'.",
+                               suggested_exercise: "60-second reset drill (under 2 minutes): Record yourself 3 times saying only 'The main point is ship the smaller version first because it lets us test with real users this week' — no fillers or hedges, pause 5 seconds between takes.",
                                reason: nil)))
 }
 #endif

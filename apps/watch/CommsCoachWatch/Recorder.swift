@@ -6,7 +6,19 @@ import Foundation
 /// started it in the foreground; there is no background or always-on capture.
 @MainActor
 final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
-    static let maxSeconds: TimeInterval = 170 // backend limit is 180 s
+    /// The recording stops itself here; the backend limit is 180 s.
+    static let maxSeconds: TimeInterval = {
+        #if DEBUG
+        // Debug builds only: `-captureCapSeconds 5` reaches the cap in seconds, to exercise the auto-stop path.
+        let override = UserDefaults.standard.double(forKey: "captureCapSeconds")
+        if override >= 1 { return min(override, 170) }
+        #endif
+        return 170
+    }()
+
+    /// Called when the recording stops by itself at `maxSeconds`, with the finished file.
+    /// A Stop tap never calls it: `stop()` hands its file back directly.
+    var onAutoStop: (@MainActor (URL) -> Void)?
 
     @Published private(set) var isRecording = false
     @Published private(set) var elapsed: TimeInterval = 0
@@ -66,6 +78,12 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
-        Task { @MainActor in if self.recorder === recorder { self.finish() } }
+        Task { @MainActor in
+            // After a Stop tap `self.recorder` is already nil, so only a stop the recorder made itself gets here.
+            guard self.recorder === recorder else { return }
+            let url = recorder.url
+            self.finish()
+            self.onAutoStop?(url)
+        }
     }
 }

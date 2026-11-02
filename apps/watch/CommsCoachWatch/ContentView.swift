@@ -23,6 +23,11 @@ struct ContentView: View {
         }
     }
 
+    static func clock(_ seconds: TimeInterval) -> String {
+        let t = Int(seconds)
+        return String(format: "%d:%02d", t / 60, t % 60)
+    }
+
     private var showingResult: Bool {
         if case .done = model.phase { return true }
         return false
@@ -41,6 +46,7 @@ struct ContentView: View {
         case .recording:
             ElapsedLabel(recorder: model.recorder)
             Text(model.selectedGoal?.title ?? "No goal").font(.footnote).foregroundStyle(.secondary)
+            Text("Stops at \(Self.clock(Recorder.maxSeconds))").font(.caption2).foregroundStyle(.secondary)
             Button { Task { await model.stopAndUpload() } } label: {
                 Label("Stop", systemImage: "stop.fill").frame(maxWidth: .infinity)
             }
@@ -152,8 +158,7 @@ private struct ElapsedLabel: View {
     @ObservedObject var recorder: Recorder
 
     var body: some View {
-        let t = Int(recorder.elapsed)
-        Text(String(format: "%d:%02d", t / 60, t % 60))
+        Text(ContentView.clock(recorder.elapsed))
             .font(.title2.monospacedDigit())
             .contentTransition(.numericText())
     }

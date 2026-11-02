@@ -30,6 +30,14 @@ final class CaptureModel: ObservableObject {
     private(set) var isPreview = false
     private(set) var scrollToObservation = false
 
+    init() {
+        // At the cap the recorder stops itself; the capture goes to upload exactly as a Stop tap would.
+        recorder.onAutoStop = { [weak self] file in
+            guard let self else { return }
+            if self.capture(file) { Task { await self.upload() } }
+        }
+    }
+
     func load() async {
         #if DEBUG
         // Debug builds only: show the result screen with fixed sample data, without recording or uploading.
@@ -49,6 +57,18 @@ final class CaptureModel: ObservableObject {
         } catch {
             phase = .failed(error.localizedDescription)
         }
+        #if DEBUG
+        // Debug builds only: start one recording without a tap, for simulator checks of the cap.
+        // `-stopAfterSeconds N` then calls the Stop button's action N seconds later (before, at or after the cap).
+        if case .ready = phase, ProcessInfo.processInfo.arguments.contains("-recordOnLaunch") {
+            await startRecording()
+            let stopAfter = UserDefaults.standard.double(forKey: "stopAfterSeconds")
+            if stopAfter > 0 {
+                try? await Task.sleep(for: .seconds(stopAfter))
+                await stopAndUpload()
+            }
+        }
+        #endif
     }
 
     func startRecording() async {
@@ -62,10 +82,24 @@ final class CaptureModel: ObservableObject {
     }
 
     func stopAndUpload() async {
-        guard let file = recorder.stop() else { return }
+        if let file = recorder.stop() {
+            if capture(file) { await upload() }
+        } else if case .recording = phase {
+            // The recorder is gone but the screen still says Recording: never leave Stop doing nothing.
+            if pending != nil { await upload() } else { phase = .failed("The recording stopped before it was saved. Record again.") }
+        }
+    }
+
+    /// Keeps a finished recording as the pending capture, with its idempotency key fixed now.
+    /// Synchronous on the main actor, so a Stop tap and an auto-stop can never both claim the file.
+    /// Returns false when this recording was already handed over.
+    @discardableResult
+    func capture(_ file: URL) -> Bool {
+        guard case .recording = phase else { return false }
         pending = PendingCapture(file: file, key: "watch-\(UUID().uuidString)", goalID: selectedGoal?.id,
                                  language: language, occurredAt: recorder.startedAt)
-        await upload()
+        phase = .uploading
+        return true
     }
 
     func upload() async {
