@@ -37,11 +37,12 @@ test('speech providers: none by default; wit and mms build their own requests', 
   assert.equal(createSpeechModel({ env: { SPEECH_PROVIDER: 'mms', MMS_TTS_URL: 'https://x' } }).speechReady(), false, 'mms needs its token');
   const wit = fakeFetch();
   const w = createSpeechModel({ env: { SPEECH_PROVIDER: 'wit', WIT_TTS_TOKEN: 'wit-test' }, fetchImpl: wit.fetchImpl });
-  assert.equal(w.speechReady(), true); assert.equal(w.speechProvider(), 'wit'); assert.equal(w.speechVoice('en'), 'Rebecca');
+  assert.equal(w.speechReady(), true); assert.equal(w.speechProvider(), 'wit'); assert.equal(w.speechVoice('en'), 'wit$Rebecca');
+  assert.deepEqual([w.speechSupports('en'), w.speechSupports('fr')], [true, false], 'Wit.ai has English voices only');
   await w.synthesize('Hello there?', { language: 'en' });
   assert.equal(wit.requests[0].url, 'https://api.wit.ai/synthesize?v=20240304');
-  assert.deepEqual(wit.requests[0].headers, { Authorization: 'Bearer wit-test', 'Content-Type': 'application/json', Accept: 'audio/wav' });
-  assert.deepEqual(wit.requests[0].body, { q: 'Hello there?', voice: 'Rebecca' });
+  assert.deepEqual(wit.requests[0].headers, { Authorization: 'Bearer wit-test', 'Content-Type': 'application/json', Accept: 'audio/mpeg' }, 'MP3 streams; WAV arrives in one burst');
+  assert.deepEqual(wit.requests[0].body, { q: 'Hello there?', voice: 'wit$Rebecca' });
   const mms = fakeFetch();
   const m = createSpeechModel({ env: { SPEECH_PROVIDER: 'mms', MMS_TTS_URL: 'https://tts.example/', MMS_TTS_TOKEN: 'mms-test' }, fetchImpl: mms.fetchImpl });
   assert.equal(m.speechVoice('fr'), 'facebook/mms-tts-fra'); assert.equal(m.speechVoice('en'), 'facebook/mms-tts-eng');
@@ -159,4 +160,16 @@ test('speech through the hosting worker: the database is released during synthes
     assert.deepEqual(Buffer.from(response.body_b64, 'base64'), Buffer.concat(AUDIO));
     assert.deepEqual(seen, [{ path: '/synthesize', auth: 'Bearer mms-worker', body: { text: 'Et ensuite ?', language: 'fr' } }]);
   } finally { child.kill(); await new Promise(r => tts.close(r)); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('speech: a French round under wit gets 503 speech_unconfigured, so the Mac uses its own voice', async () => {
+  const f = fakeFetch({ type: 'audio/mpeg' });
+  await withServer(createSpeechModel({ env: { SPEECH_PROVIDER: 'wit', WIT_TTS_TOKEN: 't' }, fetchImpl: f.fetchImpl }), async ({ speak, store }) => {
+    store.put('alice', 'voice-rounds', round('round-fr', { language: 'fr' }));
+    const r = await speak('round-fr');
+    assert.equal(r.status, 503); assert.equal((await r.json()).error, 'speech_unconfigured');
+    const en = await speak('round-1');
+    assert.equal(en.headers.get('content-type'), 'audio/mpeg'); await en.arrayBuffer();
+    assert.equal(f.requests.length, 1);
+  });
 });

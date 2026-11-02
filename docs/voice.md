@@ -55,7 +55,7 @@ An exact retry (same key, same audio and the same headers) returns the stored ro
 
 - `Authorization: Bearer <key>` with write scope. No body is read; any body is ignored.
 - It speaks the round's stored `reply.question` and nothing else, so only text this server produced and checked is ever synthesized.
-- 200 returns the audio (`audio/wav`), with `X-Speech-Provider` and `X-Speech-Voice` headers. The local server streams it chunked as the provider sends it. Through the hosting adapter on Modal it comes back as one whole file, because the adapter returns each response in one piece.
+- 200 returns the audio (`audio/mpeg` from wit, `audio/wav` from mms), with `X-Speech-Provider` and `X-Speech-Voice` headers. The local server streams it chunked as the provider sends it. Through the hosting adapter on Modal it comes back as one whole file, because the adapter returns each response in one piece.
 - 503 `speech_unconfigured` when no provider is set up: the Mac then speaks the question with an Apple voice. 404 for an unknown, hidden or other account's round, 429 over 60 spoken replies per hour, 502 `speech_failed` if the provider fails or returns something other than audio.
 - The audio is not stored or logged. The request log records the route and status, with a hash of a fixed label, not of the audio.
 
@@ -64,7 +64,7 @@ An exact retry (same key, same audio and the same headers) returns the stored ro
 | Value | Voice | Needs | Status |
 |---|---|---|---|
 | `mms` | Meta MMS-TTS, `facebook/mms-tts-eng` and `facebook/mms-tts-fra`, self-hosted on Modal as its own app (`deploy/mms_tts_app.py`, CPU). **Licence CC-BY-NC-4.0: non-commercial use, with attribution.** | `MMS_TTS_URL`, `MMS_TTS_TOKEN` (a shared secret only the backend holds) | Code and tests ready; not deployed |
-| `wit` | Wit.ai text-to-speech, the service behind Meta's Voice SDK | `WIT_TTS_TOKEN`, optional `WIT_TTS_VOICE` (default `Rebecca`) | Built to Wit.ai's documented `POST /synthesize`; not yet tried against the live API |
+| `wit` | Wit.ai text-to-speech, the service behind Meta's Voice SDK. English voices only (30, in en_US, en_CA and en_GB); a French round gets 503 and the Apple voice | `WIT_TTS_TOKEN`, optional `WIT_TTS_VOICE` (default `wit$Rebecca`) | Checked live on Nov 2 (5 calls): `POST /synthesize?v=20240304`, Bearer, `{q, voice}`. It asks for MP3, which streams (first byte 0.39 s for a 10 s clip); WAV came back in one burst after 2.8–3.6 s |
 
 ## Errors
 

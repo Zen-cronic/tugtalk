@@ -419,6 +419,12 @@ async function speechChecks() {
     const mms = read('deploy/mms_tts_app.py');
     return {
       'speech-providers': () => { assert.equal(createSpeechModel({ env: { SPEECH_PROVIDER: 'other' } }).speechReady(), false); return Object.keys(SPEECH_PROVIDERS).sort().join(', '); },
+      'speech-wit': async () => {
+        let seen;
+        const w = createSpeechModel({ env: { SPEECH_PROVIDER: 'wit', WIT_TTS_TOKEN: 't' }, fetchImpl: async (url, init) => { seen = init; return new Response('x'); } });
+        await w.synthesize('Hi?', { language: 'en' });
+        return `${JSON.parse(seen.body).voice}, ${seen.headers.Accept}, ${['en', 'fr'].filter(l => w.speechSupports(l)).join(', ')} only`;
+      },
       'speech-unconfigured': () => { assert.equal(sent.length, 1, 'only the configured request reached the provider'); return `${none.status} ${JSON.parse(none.body).error}, no provider call`; },
       'speech-text': () => sent[0].q === 'Stored question?' && !JSON.stringify(sent).includes('Client text') ? 'the stored reply.question only' : 'client text',
       'speech-stored': () => stored ? 'yes' : 'no',
