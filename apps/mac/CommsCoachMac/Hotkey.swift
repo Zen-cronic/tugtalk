@@ -35,12 +35,6 @@ final class Hotkeys {
         }, specs.count, &specs, nil, &handler)
     }
 
-    /// The id of the temporary Esc hotkey that closes a ring on the captured window.
-    static let escapeID: UInt32 = 900
-
-    /// Sets (or clears) what Esc does while it is registered.
-    static func setEscapeAction(_ action: (@MainActor () -> Void)?) { actions[escapeID] = action }
-
     /// Returns false when another app already owns the combination.
     @discardableResult
     func register(_ combo: Combo, onRelease: (@MainActor () -> Void)? = nil, action: @escaping @MainActor () -> Void) -> Bool {

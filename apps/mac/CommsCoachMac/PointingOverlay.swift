@@ -38,8 +38,9 @@ struct PointingRequest {
 
 /// A transparent, click-through window over the captured window that rings one line and labels it.
 /// Nothing is captured or sent for this; it draws boxes Vision already found on this Mac.
-/// It goes away after a few seconds (about 1 s after Tug finishes the sentence), on Esc, when the
-/// window moves or closes, or when the card is closed.
+/// It goes away after a few seconds (about 1 s after Tug finishes the sentence), on a click anywhere, when the
+/// window moves or closes, or when the card is closed. Esc closes it too, but only while one of our own windows
+/// has the keyboard: it never takes a key from another app.
 @MainActor
 final class PointingController {
     private var panel: NSPanel?
@@ -47,7 +48,10 @@ final class PointingController {
     private var shownAt = Date.distantPast
     private var spokenUntil: Date?
     private var watch: Timer?
-    private var escape: EventHotKeyRef?
+    /// Esc while one of our windows is key (a local monitor sees only our own events), and a click anywhere
+    /// (a global mouse monitor only watches; the click still reaches its app). Neither needs a permission.
+    private var keyMonitor: Any?
+    private var clickMonitor: Any?
     private let model: CompanionModel
     private let speaker = AppleSpeaker()
 
@@ -141,7 +145,7 @@ final class PointingController {
         model.pointing = true
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
                              userInfo: [.announcement: "\(request.label) on your window. \(request.sentence)", .priority: NSAccessibilityPriorityLevel.medium.rawValue])
-        registerEscape()
+        watchDismissInput()
         watch = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.tick() } }
         if speak { say(request.sentence) }
     }
@@ -195,8 +199,8 @@ final class PointingController {
 
     func dismiss() {
         watch?.invalidate(); watch = nil
-        if let escape { UnregisterEventHotKey(escape); self.escape = nil }
-        Hotkeys.setEscapeAction(nil)
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor); self.keyMonitor = nil }
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor); self.clickMonitor = nil }
         if model.talking { speaker.stop(); model.talking = false }
         panel?.orderOut(nil)
         panel = nil
@@ -204,12 +208,16 @@ final class PointingController {
         if model.pointing { model.pointing = false }
     }
 
-    /// Esc, with no modifiers, only while the ring is showing. A Carbon hotkey: no Accessibility permission.
-    private func registerEscape() {
-        Hotkeys.setEscapeAction { [weak self] in self?.dismiss() }
-        var ref: EventHotKeyRef?
-        if RegisterEventHotKey(UInt32(kVK_Escape), 0, EventHotKeyID(signature: OSType(0x4343_4D43), id: Hotkeys.escapeID), GetApplicationEventTarget(), 0, &ref) == noErr {
-            escape = ref
+    /// Only while the ring is showing. Esc is passed on, so our own windows still see it.
+    private func watchDismissInput() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == UInt16(kVK_Escape), event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
+                MainActor.assumeIsolated { self?.dismiss() }
+            }
+            return event
+        }
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.dismiss() }
         }
     }
 
