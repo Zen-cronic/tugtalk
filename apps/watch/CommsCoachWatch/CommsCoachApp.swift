@@ -141,6 +141,11 @@ final class CaptureModel: ObservableObject {
             self.pending = nil
             if receipt.record.drill?.status == "measured" { drill = nil } // this capture closed the drill
             phase = .done(receipt)
+        } catch CoachError.server(429, let message) {
+            // The hourly limit will not lift in seconds, so no Retry: the plain limit message, as the sparring path shows.
+            try? FileManager.default.removeItem(at: pending.file) // audio is not kept on the watch
+            self.pending = nil
+            phase = .failed("\(message) Try again later.")
         } catch {
             phase = .failed(Self.plain(error)) // file and key kept; Retry resends the same request
         }
