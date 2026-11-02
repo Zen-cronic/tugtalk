@@ -43,6 +43,12 @@ enum Settings {
         set { defaults.set(newValue.rawValue, forKey: "purpose") }
     }
 
+    /// The language the coach hears and replies in, sent as `X-Language`. `-voiceLanguage fr` also works.
+    static var voiceLanguage: VoiceLanguage {
+        get { defaults.string(forKey: "voiceLanguage").flatMap(VoiceLanguage.init(rawValue:)) ?? .en }
+        set { defaults.set(newValue.rawValue, forKey: "voiceLanguage") }
+    }
+
     static var denyList: Set<String> {
         get { (defaults.stringArray(forKey: "denyList")).map(Set.init) ?? CaptureGate.defaultDenyList }
         set { defaults.set(Array(newValue).sorted(), forKey: "denyList") }

@@ -34,7 +34,7 @@ struct MascotRoot: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(MascotName) companion")
             .accessibilityValue(model.phase.name)
-            .accessibilityHint("Reads the front window when you ask. Also on Control-Option-Space.")
+            .accessibilityHint("Reads the front window when you ask, also on Control-Option-Space. Hold Control-Option-T to talk.")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { model.clicked() }
     }
@@ -79,7 +79,7 @@ struct CharacterView: View {
             let t = context.date.timeIntervalSinceReferenceDate
             let pose = Pose(phase: phase, t: reduceMotion ? 0 : t)
             ZStack {
-                if case .thinking = phase {
+                if phase.glows {
                     Circle().fill(Color(nsColor: Palette.model).opacity(0.35 + 0.25 * pose.pulse))
                         .blur(radius: 10).scaleEffect(0.95 + 0.15 * pose.pulse)
                 }
@@ -89,10 +89,15 @@ struct CharacterView: View {
                     .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
                     .frame(width: 62, height: 58)
                 Face(pose: pose).frame(width: 62, height: 58).offset(y: -4)
-                if case .listening = phase {
+                if phase.showsRing {
                     Circle().trim(from: 0, to: reduceMotion ? 1 : 0.15 + 0.85 * pose.progress)
                         .stroke(Color(nsColor: Palette.capture), style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .rotationEffect(.degrees(-90)).frame(width: 74, height: 74)
+                }
+                if case .voiceListening = phase {
+                    // The microphone is open: a red badge for as long as ⌃⌥T is held.
+                    Circle().fill(Color(nsColor: Palette.capture)).overlay(Image(systemName: "mic.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(.white))
+                        .frame(width: 22, height: 22).overlay(Circle().stroke(Color(nsColor: Palette.ink), lineWidth: 2)).offset(x: 26, y: -26)
                 }
                 if case .nudging = phase {
                     Circle().fill(Color(nsColor: Palette.record)).overlay(Image(systemName: "bell.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(Color(nsColor: Palette.ink)))
@@ -103,6 +108,24 @@ struct CharacterView: View {
             .offset(x: pose.shake, y: pose.bounce)
         }
         .animation(reduceMotion ? .easeInOut(duration: 0.25) : .spring(duration: 0.35), value: phase.name)
+    }
+}
+
+extension MascotPhase {
+    /// The lavender glow: a model is working.
+    var glows: Bool {
+        switch self {
+        case .thinking, .voiceThinking: true
+        default: false
+        }
+    }
+
+    /// The red progress ring: reading a window, or the microphone is open.
+    var showsRing: Bool {
+        switch self {
+        case .listening, .voiceListening: true
+        default: false
+        }
     }
 }
 
@@ -121,15 +144,20 @@ struct Pose {
         switch phase {
         case .idle, .hidden:
             scale = animated ? 1 + 0.025 * CGFloat(sin(t * 2 * .pi / 4)) : 1
-        case .listening:
+        case .listening, .voiceListening:
             eyeOpen = 1.15; smile = 0.2
             progress = CGFloat(t.truncatingRemainder(dividingBy: 1.6) / 1.6)
-        case .thinking:
+        case .thinking, .voiceThinking:
             eyeLift = -4; smile = 0.1
             pulse = animated ? CGFloat(0.5 + 0.5 * sin(t * 2 * .pi / 1.4)) : 0.6
         case .speaking:
             smile = 0.7
             mouthOpen = animated ? CGFloat(abs(sin(t * 9)) * 0.8) : 0.4
+        case .voiceSpeaking(let card):
+            smile = 0.6
+            mouthOpen = card.finished ? 0 : (animated ? CGFloat(abs(sin(t * 11)) * 0.9) : 0.4)
+        case .voiceError:
+            eyeOpen = 0.35; smile = -0.1
         case .nudging(_, let opened):
             smile = 0.8
             if animated && !opened { bounce = -CGFloat(abs(sin(t * 2 * .pi / 1.1))) * 7 }
@@ -140,7 +168,7 @@ struct Pose {
             eyeOpen = 0.35; smile = -0.1; bodyColor = Palette.offline
         case .notice:
             smile = 0.5
-        case .permission:
+        case .permission, .micPermission:
             eyeOpen = 0.9; smile = 0
         }
     }
@@ -203,7 +231,7 @@ struct Mouth: Shape {
 /// The name System Settings shows for this app.
 let appDisplayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Comms Coach"
 
-/// The speech bubble: a saved card, a waiting nudge, an error with Retry, or the permission explainer.
+/// The speech bubble: a saved card, a voice reply, a waiting nudge, an error with Retry, or a permission explainer.
 struct BubbleView: View {
     @ObservedObject var model: CompanionModel
     @Environment(\.accessibilityReduceTransparency) private var opaque
@@ -267,8 +295,65 @@ struct BubbleView: View {
                     Spacer()
                 }.controlSize(.small)
             }
+        case .voiceSpeaking(let card):
+            VoiceCardView(card: card)
+        case .voiceError(_, let retryable):
+            HStack {
+                Text(retryable ? "The recording stays on this Mac until you retry or close this." : "Nothing was saved. The recording was deleted.")
+                    .font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                if retryable { Button("Retry") { model.onVoiceRetry() }.controlSize(.small) }
+            }
+        case .micPermission(let denied):
+            VStack(alignment: .leading, spacing: 8) {
+                Text(denied
+                     ? "Microphone access is off for \(appDisplayName). Turn it on in System Settings › Privacy & Security › Microphone, then hold ⌃⌥T again."
+                     : "To hear your answer, macOS needs to allow the Microphone for \(appDisplayName). It is open only while you hold ⌃⌥T. The recording is sent once for a voice reply, then deleted from this Mac.")
+                    .font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    if !denied { Button("Continue") { model.onMicContinue() } }
+                    Button("Open Settings") { model.onOpenMicSettings() }
+                    Spacer()
+                }.controlSize(.small)
+            }
         default:
             EmptyView()
+        }
+    }
+}
+
+/// A voice reply: the question, what was heard, the quote the coach pressed on, and the timings.
+struct VoiceCardView: View {
+    let card: VoiceCard
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(card.question).font(.system(size: 14, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("Question: \(card.question)")
+            if !card.transcriptSnippet.isEmpty {
+                Text("You said: “\(card.transcriptSnippet)”").font(.system(size: 12)).foregroundStyle(.secondary)
+                    .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+            }
+            if let quote = card.quote {
+                Label {
+                    Text("Pressed on “\(quote)”, checked against what you said").font(.system(size: 12, weight: .medium)).fixedSize(horizontal: false, vertical: true)
+                } icon: { Image(systemName: "quote.opening").foregroundStyle(Color(nsColor: Palette.model)) }
+            }
+            if let metrics = card.metricsLine {
+                Label { Text(metrics).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true) }
+                    icon: { Image(systemName: "ruler").foregroundStyle(Color(nsColor: Palette.record)) }
+                    .accessibilityLabel("Measured by code: \(metrics)")
+            }
+            if let note = card.voiceNote {
+                Label { Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+                    icon: { Image(systemName: { if case .fallback = card.voice { "speaker.badge.exclamationmark" } else { "waveform" } }()).foregroundStyle(.secondary) }
+            }
+            if let latency = card.latencyLine {
+                Label { Text(latency).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+                    icon: { Image(systemName: "timer").foregroundStyle(.secondary) }
+            }
+            Text(card.isPreview ? "Sample text for previewing the companion" : "\(card.moveTitle) · \(card.modelLabel) · receipt \(card.receiptID.prefix(8))\(card.replayed ? " · already saved" : "")")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 }

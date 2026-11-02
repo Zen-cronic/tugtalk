@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotkeys = Hotkeys()
     private var previewTask: Task<Void, Never>?
     private var flow: CaptureFlow!
+    private var voice: VoiceFlow!
     private var poller: Poller!
     private var phaseWatch: Any?
 
@@ -31,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel = PanelController(model: model)
         menu = StatusMenu(model: model)
         flow = CaptureFlow(model: model)
+        voice = VoiceFlow(model: model)
         poller = Poller(model: model)
         wireActions()
         registerHotkeys()
@@ -55,6 +57,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.model.set(.notice("Question copied. Paste it into Muse."), collapseAfter: 4)
         }
         flow.afterSave = { [weak self] in self?.poller.pollSoon() }
+        voice.afterSave = { [weak self] in self?.poller.pollSoon() }
+        model.onVoiceRetry = { [weak self] in self?.voice.retry() }
+        model.onVoiceDismiss = { [weak self] in self?.voice.dismissed() }
+        model.onOpenMicSettings = { MicPermission.openSettings() }
+        model.onMicContinue = { [weak self] in
+            // The macOS prompt appears only here, after the explainer, and at most once.
+            MicPermission.request { granted in
+                guard let self else { return }
+                if granted { self.model.set(.notice("Microphone on. Hold ⌃⌥T and talk."), collapseAfter: 4) } else { self.model.set(.micPermission(denied: true)) }
+            }
+        }
         menu.onCapture = { [weak self] in self?.capture(trigger: "menu") }
         menu.onUndo = { [weak self] in self?.flow.undo() }
         menu.onAskMuse = { [weak self] in self?.model.onAskMuse() }
@@ -77,6 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.register(Hotkeys.hide) { [weak self] in self?.model.presenting.toggle() }
         hotkeys.register(Hotkeys.ghost) { [weak self] in self?.model.ghost.toggle() }
         hotkeys.register(Hotkeys.undo) { [weak self] in self?.model.onUndo() }
+        hotkeys.register(Hotkeys.talk, onRelease: { [weak self] in self?.voice.keyUp() }) { [weak self] in
+            self?.previewTask?.cancel()
+            self?.voice.keyDown()
+        }
     }
 
     /// Hides the companion while a known meeting app is in front. A heuristic: macOS offers no
@@ -98,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         flow.capture()
     }
 
-    /// "Preview States": shows one state with sample content, or cycles all eight. Nothing is sent.
+    /// "Preview States": shows one state with sample content, or cycles them all. Nothing is sent.
     func preview(_ phase: MascotPhase?, interval: Double = 3) {
         previewTask?.cancel()
         model.presenting = false
@@ -114,7 +131,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func show(_ phase: MascotPhase) {
-        if case .thinking = phase { model.set(.thinking(since: Date().addingTimeInterval(-4))) } else { model.set(phase) }
+        switch phase {
+        case .thinking: model.set(.thinking(since: Date().addingTimeInterval(-4)))
+        case .voiceListening: model.set(.voiceListening(since: Date().addingTimeInterval(-4)))
+        case .voiceThinking: model.set(.voiceThinking(since: Date().addingTimeInterval(-2)))
+        default: model.set(phase)
+        }
     }
 
     /// `-previewState <name>` or `-previewCycle <seconds>`, for screenshots of each state.
@@ -132,6 +154,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if defaults.bool(forKey: "captureOnLaunch") {
             Task { try? await Task.sleep(for: .seconds(1.5)); capture(trigger: "launch argument") }
         }
+        #if DEBUG
+        if let script = defaults.string(forKey: "voiceScript") { voice.run(script: script) }
+        #endif
         if let name = defaults.string(forKey: "previewState"), let phase = PreviewSamples.all.first(where: { $0.name == name }) {
             preview(phase)
         } else if defaults.double(forKey: "previewCycle") > 0 {

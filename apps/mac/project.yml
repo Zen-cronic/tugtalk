@@ -36,6 +36,7 @@ targets:
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: ""
+        NSMicrophoneUsageDescription: "Comms Coach listens only while you hold Control-Option-T. That one recording is sent for a voice reply, then deleted from this Mac."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zencronic.commscoach.mac

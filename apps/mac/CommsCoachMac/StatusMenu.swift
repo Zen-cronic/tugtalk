@@ -42,6 +42,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(action("Read This Window", key: " ", run: onCapture))
         menu.addItem(action("Undo Last Card", key: "z", enabled: model.lastCard != nil, run: onUndo))
         menu.addItem(action("Ask Muse About Last Card", enabled: model.lastCard != nil, run: onAskMuse))
+        let talk = NSMenuItem(title: "Voice: Hold ⌃⌥T and Talk, Let Go to Send", action: nil, keyEquivalent: ""); talk.isEnabled = false
+        menu.addItem(talk)
         menu.addItem(.separator())
         menu.addItem(toggle("Presenting (Hide Companion)", key: "h", on: model.presenting) { [model] in model.presenting.toggle() })
         menu.addItem(toggle("Ghost Mode (Clicks Pass Through)", key: "g", on: model.ghost) { [model] in model.ghost.toggle() })
@@ -57,12 +59,16 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(submenu("Purpose", ScreenContextPayload.Purpose.allCases.map { purpose in
             toggle(purpose.title, on: Settings.purpose == purpose) { Settings.purpose = purpose }
         }))
+        menu.addItem(submenu("Voice Reply Language", VoiceLanguage.allCases.map { language in
+            toggle(language.title, on: Settings.voiceLanguage == language) { Settings.voiceLanguage = language }
+        }))
         var previews = PreviewSamples.all.map { phase in action(phase.name.capitalized) { [weak self] in self?.onPreview(phase) } }
         previews.append(.separator())
         previews.append(action("Cycle All States") { [weak self] in self?.onPreview(nil) })
         menu.addItem(submenu("Preview States", previews))
         menu.addItem(.separator())
         menu.addItem(action("Screen Recording Settings…") { PermissionGate.openSettings() })
+        menu.addItem(action("Microphone Settings…") { MicPermission.openSettings() })
         menu.addItem(action("Quit \(MascotName)", key: "q", modifiers: .command) { NSApp.terminate(nil) })
     }
 

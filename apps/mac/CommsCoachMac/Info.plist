@@ -26,5 +26,7 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Comms Coach listens only while you hold Control-Option-T. That one recording is sent for a voice reply, then deleted from this Mac.</string>
 </dict>
 </plist>
