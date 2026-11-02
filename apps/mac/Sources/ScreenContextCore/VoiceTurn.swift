@@ -11,6 +11,17 @@ public struct VoiceTurnMachine: Sendable {
         case thinking(key: String, since: Date, promptEndedAt: Date?)
         case speaking(key: String, question: String, endsRound: Bool)
         case failed(key: String, retryable: Bool, promptEndedAt: Date?)
+
+        /// A plain name for the logs: never a key or text.
+        public var name: String {
+            switch self {
+            case .idle: "idle"
+            case .listening: "listening"
+            case .thinking: "thinking"
+            case .speaking: "speaking"
+            case .failed(_, let retryable, _): retryable ? "failed (retryable)" : "failed"
+            }
+        }
     }
 
     public enum Effect: Equatable, Sendable {
@@ -30,6 +41,20 @@ public struct VoiceTurnMachine: Sendable {
     public static let promptExpiry: TimeInterval = 300
 
     public private(set) var phase: Phase = .idle
+
+    /// Whether a press now starts a hold. Always, except while one is already held (key repeat).
+    public var takesPress: Bool {
+        if case .listening = phase { return false }
+        return true
+    }
+
+    /// The hold whose reply or failure still matters; anything for another key is stale.
+    public var currentKey: String? {
+        switch phase {
+        case .idle: nil
+        case .listening(let key, _, _), .thinking(let key, _, _), .speaking(let key, _, _), .failed(let key, _, _): key
+        }
+    }
     /// When the last question finished playing in full. Cleared by barge-in, a dismissed reply or the end of a round.
     public private(set) var promptEndedAt: Date?
     private let newKey: @Sendable () -> String
@@ -49,8 +74,12 @@ public struct VoiceTurnMachine: Sendable {
             // The question was cut off, so it has no end to measure an onset from.
             promptEndedAt = nil
             return [.stopSpeaking] + startHold(at: now, prompt: nil)
-        case .listening, .thinking:
-            // Key repeat while held, or a press while a reply is on its way: one round at a time.
+        case .thinking(let old, _, _):
+            // A press while a reply is on its way means the person wants to talk now: the new hold starts and the
+            // pending reply, when it lands, is not shown or spoken (the server still saves that round).
+            return [.discard(key: old)] + startHold(at: now, prompt: nil)
+        case .listening:
+            // Key repeat while held.
             return []
         }
     }

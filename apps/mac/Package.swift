@@ -13,6 +13,6 @@ let package = Package(
     targets: [
         .target(name: "ScreenContextCore"),
         .executableTarget(name: "sc-capture", dependencies: ["ScreenContextCore"]),
-        .testTarget(name: "ScreenContextCoreTests", dependencies: ["ScreenContextCore"])
+        .testTarget(name: "ScreenContextCoreTests", dependencies: ["ScreenContextCore"], resources: [.copy("Fixtures/tone.mp3")])
     ]
 )

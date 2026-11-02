@@ -10,9 +10,17 @@
 //                      {"id", "chunk": base64}            then each body chunk as the handler writes it
 //                      {"id", "response", "dirty", "aborted"?, "timing"}  the final response (for a stream, the rest)
 //                      {"id", "failed": true}             the request failed; no success may be claimed
+// Live voice rounds (envelope.live: the start frame of WS /v1/voice-rounds/live, src/live-voice.mjs) add:
+//   adapter -> worker  {"id", "audio": base64}              one PCM frame from the client
+//                      {"id", "end": true}                  the key was released
+//                      {"id", "cancel": true}               the client's socket closed
+//   worker -> adapter  {"id", "event": {...}}               a JSON event for the client (sent as it happens, lock or not)
+//                      {"id", "audio_out": base64}          spoken-reply audio for the client
+//                      {"id", "closed": true}               nothing more will be sent for this id
+// and the final {"id", "response", "dirty"} once the round is written, before its audio may have finished.
 // A request touches the database only while the adapter holds the lock for it: from the envelope (or "go") to its
 // next "release" or final message. "dirty" means the adapter must commit the volume before answering; every request
-// except a GET is dirty. Before a dirty response the WAL is checkpointed into the main file and the database is closed,
+// except a GET or a spoken reply is dirty. Before a dirty response the WAL is checkpointed into the main file and the database is closed,
 // so the commit holds one complete file and no open handle (measured on Modal, Nov 2: a commit took 2.5-3.0 s with the
 // database open, against 0.5-0.9 s closed). It is reopened when the next request is granted the lock, in a few ms.
 // SQLite's own fsyncs are off here (synchronous=OFF): on the volume mount they cost 0.5-1.5 s per write and persist
@@ -25,6 +33,11 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Store } from '../src/store.mjs';
 import { createHandler } from '../src/server.mjs';
+import { SPEECH_PATH, createSpeechModel } from '../src/speech.mjs';
+import { createLiveRound, createRealtimeModel } from '../src/live-voice.mjs';
+import { createModelClients } from '../src/capture.mjs';
+import { createVoiceModel } from '../src/voice.mjs';
+import { createBudget, MODEL_BUDGET_MS } from '../src/budget.mjs';
 
 const MAX_LINE = 12 * 1024 * 1024; // base64 of an 8 MiB recording plus the envelope
 const emit = message => new Promise(resolve => process.stdout.write(JSON.stringify(message) + '\n', resolve));
@@ -65,7 +78,9 @@ async function serve(id, envelope, budgetMs) {
   const started = performance.now();
   const opened = reopened; reopened = null;
   const stream = envelope.stream === true;
-  const dirty = envelope.method !== 'GET';
+  // The spoken reply's only write is its audit row, so it is not committed before its answer either: the row goes out
+  // with the next committed write, as a read's does.
+  const dirty = envelope.method !== 'GET' && !SPEECH_PATH.test(envelope.path ?? '');
   let headSent = false, output, aborted = false;
   const phases = {
     async release() { await emit({ id, phase: 'release' }); },
@@ -106,6 +121,41 @@ async function serve(id, envelope, budgetMs) {
   }
 }
 
+// Live rounds in progress, by id.
+const sessions = new Map();
+const liveModels = { ...createModelClients(), ...createVoiceModel(), ...createSpeechModel(), ...createRealtimeModel() };
+
+async function live(id, envelope, budgetMs) {
+  const started = performance.now();
+  const opened = reopened; reopened = null;
+  const phases = {
+    async release() { await emit({ id, phase: 'release' }); },
+    async acquire() {
+      const go = new Promise(resolve => granted.set(id, resolve));
+      await emit({ id, phase: 'acquire' });
+      await go;
+    }
+  };
+  const budget = createBudget({ totalMs: Math.min(MODEL_BUDGET_MS, Number.isFinite(budgetMs) ? budgetMs : Infinity) });
+  let result;
+  try {
+    const session = createLiveRound({ store, models: liveModels, token: envelope.headers?.authorization, start: envelope.live, phases, budget,
+      emit: event => emit({ id, event }), emitAudio: chunk => emit({ id, audio_out: Buffer.from(chunk).toString('base64') }) });
+    sessions.set(id, session);
+    result = await session.done;
+    const closing = result.dirty ? closeForCommit() : {};
+    await emit({ id, response: { status: result.status, headers: { 'Content-Type': 'application/json' }, body_b64: Buffer.from(JSON.stringify(result.body)).toString('base64') },
+      dirty: result.dirty, timing: { handler: since(started), ...closing, ...(opened !== null ? { reopen: opened } : {}) } });
+  } catch (error) {
+    console.error('Live round failed in worker:', error?.name ?? 'Error');
+    try { closeForCommit(); } catch {}
+    await emit({ id, failed: true, dirty: true });
+  }
+  try { await result?.speechDone; } catch {}
+  sessions.delete(id);
+  await emit({ id, closed: true });
+}
+
 const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
 lines.on('line', line => {
   if (line.length > MAX_LINE) fatal(new Error('Adapter input exceeds 12 MiB'));
@@ -113,6 +163,10 @@ lines.on('line', line => {
   try { message = JSON.parse(line); } catch (error) { fatal(error); }
   // Both messages grant the database lock, so this is where a database closed for a commit is reopened.
   if (message.go) { const resolve = granted.get(message.id); granted.delete(message.id); reopen(); resolve?.(); return; }
+  if (message.audio) { sessions.get(message.id)?.audio(Buffer.from(message.audio, 'base64')); return; }
+  if (message.end) { sessions.get(message.id)?.end(); return; }
+  if (message.cancel) { sessions.get(message.id)?.cancel(); return; }
+  if (message.envelope?.live) { reopen(); live(message.id, message.envelope, message.budget_ms); return; }
   if (message.envelope) { reopen(); serve(message.id, message.envelope, message.budget_ms); }
 });
 lines.on('close', () => { try { closeForCommit(); } catch {} process.exit(0); });

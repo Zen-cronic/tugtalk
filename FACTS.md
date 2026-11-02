@@ -32,8 +32,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 103 | A `node --test` run of the other test files (all must pass), plus this one |
-| `python-tests` | Python hosting-adapter tests | 16 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
+| `node-tests` | Node test cases, as `npm test` reports them | 114 | A `node --test` run of the other test files (all must pass), plus this one |
+| `python-tests` | Python hosting-adapter tests | 21 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
 | `hosting-worker` | How the hosting adapter runs requests | one long-lived Node process; writes commit before the answer, reads skip the commit; no volume reload | deploy/bridge.py and its tests in deploy/test_bridge.py |
@@ -89,3 +89,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `hosted-voice` | Hosted voice round: release to reply, and the time spent outside the API handler | 8800 ms before; 4751 and 3983 ms after (2 rounds); outside the handler 2855 ms before, 1277 and 945 ms after | docs/hosted-latency.json |
 | `hosted-speech` | Hosted spoken reply (wit$Rebecca, audio/mpeg): time to the first audio byte | 6100 ms before; 920 and 706 ms after | docs/hosted-latency.json |
 | `hosted-replay` | Hosted exact retry of a voice round: model calls, and time to the reply | none, 786 ms | docs/hosted-latency.json |
+| `hosted-voice-before` | The live Mac turn the live route replaced (Nov 2, 14:08 EST, WAV upload): release to reply, and to the first spoken word | 10206 ms and 13689 ms | `voice_latency.before` in docs/hosted-latency.json |
+| `hosted-live-voice` | Hosted live voice rounds (WS /v1/voice-rounds/live), Nov 2: release to reply text, and to the first audio byte, p50 / max | reply 2597 / 3233 ms; first audio byte 4175 / 4619 ms (5 rounds) | `voice_latency.live_rounds` in docs/hosted-latency.json |
+| `hosted-live-transcript` | Same rounds: release to the final transcript, p50 / max, and how it was transcribed | 482 / 493 ms; Meta realtime in 5 of 5 | `voice_latency.live_rounds` in docs/hosted-latency.json |
+| `hosted-live-steps` | Same rounds, measured on the server: reply model p50 / max, and the reply to its first audio (Wit), p50 / max | model 2203 / 2804 ms; reply to audio 1043 / 2679 ms | `voice_latency.live_rounds` in docs/hosted-latency.json |
+| `hosted-speech-prefetch` | Hosted WAV round: the spoken reply requested after the receipt, first byte and server time | 284 ms, server 5.9 ms (made while the round was saved; no commit) | `voice_latency.wav_round` in docs/hosted-latency.json |

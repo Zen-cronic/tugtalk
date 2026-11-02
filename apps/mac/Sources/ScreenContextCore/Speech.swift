@@ -62,9 +62,11 @@ public final class SpeechRouter {
     private var generation = 0
     public private(set) var isSpeaking = false
 
-    /// `remote` nil means the local voice only.
-    public init(remote: ReplySpeaker?, fallback: ReplySpeaker) {
-        self.remote = remote; self.fallback = fallback
+    private let localReason: String
+
+    /// `remote` nil means the local voice only; `localReason` is then the card's note for it.
+    public init(remote: ReplySpeaker?, fallback: ReplySpeaker, localReason: String = "no round to voice") {
+        self.remote = remote; self.fallback = fallback; self.localReason = localReason
     }
 
     public func speak(_ line: SpokenLine, started: @escaping @MainActor (SpeechSource) -> Void, finished: @escaping @MainActor (Date) -> Void) {
@@ -87,7 +89,7 @@ public final class SpeechRouter {
                 failed: { _ in done(Date()) }))
         }
         guard let remote, line.roundID != nil else {
-            viaFallback("no round to voice")
+            viaFallback(remote == nil ? localReason : "no round to voice")
             return
         }
         remote.speak(line, events: SpeechEvents(

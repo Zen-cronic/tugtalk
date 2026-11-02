@@ -1,5 +1,9 @@
 import AppKit
 import Carbon.HIToolbox
+import OSLog
+
+/// Every hotkey event as it arrives from the system, before any app state decides what it does.
+let hotkeyLog = Logger(subsystem: "com.kaungzinhein.commscoach.mac", category: "hotkey")
 
 /// Global hotkeys through Carbon's RegisterEventHotKey. Unlike a CGEvent tap, this needs no
 /// Accessibility or Input Monitoring permission, and it only sees the registered combinations.
@@ -17,6 +21,8 @@ final class Hotkeys {
     nonisolated(unsafe) private static var actions: [UInt32: @MainActor () -> Void] = [:]
     nonisolated(unsafe) private static var releaseActions: [UInt32: @MainActor () -> Void] = [:]
     private var refs: [EventHotKeyRef] = []
+    /// Called when a combination is already taken (another app, or another copy of this one), so it is shown, not silent.
+    var onRegistrationFailed: (Combo) -> Void = { _ in }
     private var handler: EventHandlerRef?
 
     init() {
@@ -28,6 +34,7 @@ final class Hotkeys {
             GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
             let number = id.id
             let released = GetEventKind(event) == UInt32(kEventHotKeyReleased)
+            hotkeyLog.notice("hotkey \(number, privacy: .public) \(released ? "released" : "pressed", privacy: .public)")
             DispatchQueue.main.async {
                 MainActor.assumeIsolated { (released ? Hotkeys.releaseActions[number] : Hotkeys.actions[number])?() }
             }
@@ -41,7 +48,12 @@ final class Hotkeys {
         let number = UInt32(Self.actions.count + 1)
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(combo.keyCode, Self.modifiers, EventHotKeyID(signature: OSType(0x4343_4D43), id: number), GetApplicationEventTarget(), 0, &ref)
-        guard status == noErr, let ref else { return false }
+        guard status == noErr, let ref else {
+            hotkeyLog.error("\(combo.label, privacy: .public) could not be registered (status \(status, privacy: .public)); another app may own it")
+            onRegistrationFailed(combo)
+            return false
+        }
+        hotkeyLog.notice("\(combo.label, privacy: .public) registered as hotkey \(number, privacy: .public)")
         Self.actions[number] = action
         if let onRelease { Self.releaseActions[number] = onRelease }
         refs.append(ref)

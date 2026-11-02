@@ -109,3 +109,17 @@ test('sparkCall: SSE split across chunk boundaries, CRLF lines and malformed eve
   const r = await sparkCall({ env, fetchImpl: s.fetchImpl, system: 's', user: 'u' });
   assert.equal(r.ok, true); assert.equal(r.content, '{"q":"hi"}');
 });
+
+test('sparkCall with stopWhen: leaves the stream once the JSON closes, without waiting for its tail', async () => {
+  const { jsonClosed } = await import('../src/spark-stream.mjs');
+  // The reply closes, then the provider would keep the stream open for another 3 s.
+  const s = streaming([reasoning('thinking'), delta('{"move":"challenge","quote":"maybe",'), delta('"question":"Why {you}?"}'), 3000, delta(' '), 'data: [DONE]\n\n']);
+  const started = performance.now();
+  const r = await sparkCall({ env, fetchImpl: s.fetchImpl, system: 'sys', user: 'u', stopWhen: jsonClosed });
+  assert.equal(r.ok, true);
+  assert.equal(r.content, '{"move":"challenge","quote":"maybe","question":"Why {you}?"}');
+  assert.equal(r.timing_ms.stopped_early, true);
+  assert.ok(performance.now() - started < 1000, 'did not wait for the tail');
+  assert.equal(jsonClosed('{"a":"}"'), false, 'a brace inside a string does not close it');
+  assert.equal(jsonClosed('{"a":"x\\"}"}'), true);
+});

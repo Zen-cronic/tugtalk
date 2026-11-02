@@ -16,7 +16,12 @@ Commits: every request except a GET is committed before it is answered, and a co
 any later answer, so nothing is acknowledged that is not stored. Reads skip the commit.
 Model routes get a time budget (budget_ms) that ends before the adapter's deadline, so they finish, or save a
 partial result, while the client is still waiting.
-The spoken reply streams: its audio is passed on chunk by chunk as the speech provider sends it.
+The spoken reply streams: its audio is passed on chunk by chunk as the speech provider sends it. It is not committed
+before its answer (its only write is an audit row, which goes out with the next commit), and it does not wait for the
+model lock: it calls no paid model.
+Live voice rounds are a WebSocket (WS /v1/voice-rounds/live, src/live-voice.mjs): one per hold, carried to the same
+worker. The client's PCM frames are passed on as they arrive; the worker's events and spoken audio go back as they
+happen, even while the round is being committed; a "saved" event follows only once the commit succeeded.
 """
 import asyncio
 import base64
@@ -46,7 +51,12 @@ AUDIO_ROUTES = ('/v1/recordings', '/v1/voice-rounds')
 SPEECH_ROUTE = re.compile(r'/v1/voice-rounds/[A-Za-z0-9-]{1,64}/speech')
 # Timing log: one line per request with the route shape (ids replaced), the status and each phase in ms.
 # Never the body, headers, query or ids.
-ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds))/[^/]+')
+ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds))/(?!live$)[^/]+')
+# Live voice rounds over a WebSocket.
+LIVE_ROUTE = '/v1/voice-rounds/live'
+LIVE_START_TIMEOUT = 10   # the start frame must arrive this soon after the socket opens
+LIVE_FRAME_LIMIT = 64 * 1024   # one PCM frame (the Mac sends about 4 KiB every 85 ms)
+LIVE_DRAIN = 30   # after the answer, how long the spoken audio may keep the socket open
 BUSY = {'error': 'storage_or_worker_unavailable',
         'message': 'Retry the identical request with the same Idempotency-Key; no success is claimed.'}
 
@@ -90,6 +100,7 @@ class Worker:
     def __init__(self, path, database_path):
         self.path, self.database_path = path, database_path
         self.process, self.queues, self.ids = None, {}, itertools.count(1)
+        self.sinks = {}   # live rounds: events, audio and "closed" go straight to the client, not through the queue
         self.starts = 0
 
     @property
@@ -122,6 +133,10 @@ class Worker:
                 if not line:
                     break
                 message = json.loads(line)
+                sink = self.sinks.get(message.get('id'))
+                if sink is not None and ('event' in message or 'audio_out' in message or 'closed' in message):
+                    sink(message)
+                    continue
                 queue = queues.get(message.get('id'))
                 if queue is not None:
                     queue.put_nowait(message)
@@ -135,6 +150,8 @@ class Worker:
                 pass
             for queue in queues.values():
                 queue.put_nowait({'failed': True, 'exited': True})
+            for sink in list(self.sinks.values()):
+                sink({'closed': True, 'exited': True})
 
     def open(self):
         rid, queue = f'r{next(self.ids)}', asyncio.Queue()
@@ -229,11 +246,14 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                     await send({'type': 'lifespan.shutdown.complete'})
                     return
             return
+        if scope['type'] == 'websocket':
+            return await live(scope, receive, send)
         if scope['type'] != 'http':
             return
         recording = scope['method'] == 'POST' and scope['path'] in AUDIO_ROUTES
         speech = scope['method'] == 'POST' and SPEECH_ROUTE.fullmatch(scope['path']) is not None
-        # A screen context is a small JSON body (JSON limit) but waits on a reasoning model.
+        # A screen context is a small JSON body (JSON limit) but waits on a reasoning model. The spoken reply gets the
+        # long deadline but not the model lock.
         model_call = scope['method'] == 'POST' and (scope['path'] in MODEL_ROUTES or speech)
         early_headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}
         # Only a request that at least presents a Bearer credential may buffer a large audio body.
@@ -286,7 +306,7 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 except Exception:
                     stream['closed'] = True
 
-        task = loop.create_task(drive(envelope, model_call, deadline, deadline + GRACE, timing, on_head, on_chunk))
+        task = loop.create_task(drive(envelope, model_call and not speech, deadline, deadline + GRACE, timing, on_head, on_chunk))
         try:
             message = await asyncio.wait_for(asyncio.shield(task), timeout=remaining())
         except TimeoutError:
@@ -388,6 +408,192 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 lock.release()
             if model_held:
                 model_lock.release()
+
+    async def live(scope, receive, send):
+        """One live voice round: one WebSocket per hold. Never answers 'saved' before the commit."""
+        event = await receive()
+        if event['type'] != 'websocket.connect':
+            return
+        headers = {k.decode('latin1').lower(): v.decode('latin1') for k, v in scope['headers']}
+        host = os.environ.get('CONNECTOR_PUBLIC_HOST', headers.get('host', ''))
+        # Refused before the socket is accepted (the client sees HTTP 403): wrong path or host, or no Bearer credential.
+        # Node checks the credential itself before any provider is called.
+        if (scope['path'] != LIVE_ROUTE or not re.fullmatch(r'[a-z0-9-]+(?:\.[a-z0-9-]+)?\.modal\.run', host)
+                or not headers.get('authorization', '').startswith('Bearer ')):
+            await send({'type': 'websocket.close', 'code': 1008})
+            return
+        await send({'type': 'websocket.accept'})
+        loop = asyncio.get_running_loop()
+        timing = Timing()
+        out = asyncio.Queue()   # ('text', str) | ('bytes', bytes) | ('close', code)
+        session = {'client_gone': False, 'closed': asyncio.Event(), 'status': None}
+
+        async def sender():
+            while True:
+                kind, value = await out.get()
+                try:
+                    if kind == 'close':
+                        await send({'type': 'websocket.close', 'code': value})
+                        return
+                    await send({'type': 'websocket.send', kind: value})
+                except Exception:
+                    session['client_gone'] = True
+                    return
+
+        def text(payload):
+            out.put_nowait(('text', json.dumps(payload)))
+
+        def finish(code, label_status):
+            session['status'] = label_status
+            out.put_nowait(('close', code))
+
+        sending = loop.create_task(sender())
+        deadline = loop.time() + MODEL_DEADLINE
+        until = lambda limit: max(0.1, limit - loop.time())
+        try:
+            first = await asyncio.wait_for(receive(), timeout=LIVE_START_TIMEOUT)
+            start = json.loads(first.get('text') or 'null') if first['type'] == 'websocket.receive' else None
+            if not isinstance(start, dict) or start.get('type') != 'start':
+                raise ValueError('no start frame')
+        except (Exception, asyncio.CancelledError):
+            text({'type': 'error', 'status': 400, 'error': 'invalid_body', 'message': 'The first frame must be {"type": "start", ...}.'})
+            finish(1008, 400)
+            await sending
+            return timing.log({'method': 'WS', 'path': LIVE_ROUTE}, 400)
+
+        envelope = {'method': 'POST', 'path': LIVE_ROUTE, 'headers': {'authorization': headers['authorization']},
+                    'base_url': 'https://' + host, 'body_b64': '', 'live': start}
+        model_held = held = False
+        rid = None
+        pump = None
+
+        def sink(message):
+            if 'event' in message:
+                text(message['event'])
+            elif 'audio_out' in message:
+                out.put_nowait(('bytes', base64.b64decode(message['audio_out'])))
+            elif 'closed' in message:
+                session['closed'].set()
+
+        async def pump_client():
+            """Client frames to the worker: PCM, then "end". A closed socket cancels a hold that was not released."""
+            total = 0
+            try:
+                while True:
+                    event = await receive()
+                    if event['type'] == 'websocket.disconnect':
+                        break
+                    data = event.get('bytes')
+                    if data is not None:
+                        total += len(data)
+                        if len(data) > LIVE_FRAME_LIMIT or total > AUDIO_LIMIT:
+                            await worker.send({'id': rid, 'end': True})
+                            continue
+                        await worker.send({'id': rid, 'audio': base64.b64encode(data).decode()})
+                    elif event.get('text'):
+                        try:
+                            kind = json.loads(event['text']).get('type')
+                        except Exception:
+                            kind = None
+                        if kind == 'end':
+                            await worker.send({'id': rid, 'end': True})
+            except Exception:
+                pass
+            session['client_gone'] = True
+            try:
+                await worker.send({'id': rid, 'cancel': True})
+            except Exception:
+                pass
+
+        try:
+            with timing.phase('model_wait'):
+                await asyncio.wait_for(model_lock.acquire(), timeout=until(deadline))
+            model_held = True
+            with timing.phase('lock_wait'):
+                await asyncio.wait_for(lock.acquire(), timeout=until(deadline))
+            held = True
+            await ensure_worker(timing)
+            rid, queue = worker.open()
+            worker.sinks[rid] = sink
+            await worker.send({'id': rid, 'envelope': envelope,
+                               'budget_ms': max(0, int((deadline - loop.time() - COMMIT_RESERVE) * 1000))})
+            pump = loop.create_task(pump_client())
+            message = None
+            while True:
+                try:
+                    message = await asyncio.wait_for(queue.get(), timeout=until(deadline + GRACE))
+                except TimeoutError:
+                    if held:
+                        await worker.kill()
+                    message = None
+                    break
+                if message.get('failed'):
+                    if held and message.get('dirty'):
+                        state['pending'] = True
+                    message = None
+                    break
+                phase = message.get('phase')
+                if phase in ('release', 'acquire') and (phase == 'release') != held:
+                    raise RuntimeError('Worker phase out of order')
+                if phase == 'release':
+                    lock.release(); held = False
+                elif phase == 'acquire':
+                    with timing.phase('lock_wait'):
+                        await asyncio.wait_for(lock.acquire(), timeout=until(deadline + GRACE))
+                    held = True
+                    await worker.send({'id': rid, 'go': True})
+                elif 'response' in message:
+                    if not held:
+                        raise RuntimeError('Worker answered without the database lock')
+                    for name, ms in (message.get('timing') or {}).items():
+                        if name in ('handler', 'checkpoint', 'close', 'reopen'):
+                            timing.add(name, float(ms))
+                    if message.get('dirty'):
+                        state['pending'] = True
+                    if not await settle(timing):
+                        message = None
+                    break
+            if held:
+                lock.release(); held = False
+            if model_held:
+                model_lock.release(); model_held = False
+            if message is None:
+                text({'type': 'error', 'status': 503, **BUSY})
+                finish(1011, 503)
+            else:
+                response = message['response']
+                body = json.loads(base64.b64decode(response['body_b64']) or b'{}')
+                status = response['status']
+                text({'type': 'saved', **body} if status == 200 else {'type': 'error', 'status': status, **body})
+                # The spoken audio may still be streaming; the socket closes once it is done or the client leaves.
+                try:
+                    await asyncio.wait_for(session['closed'].wait(), timeout=LIVE_DRAIN)
+                except TimeoutError:
+                    pass
+                finish(1000 if status == 200 else 1008, status)
+        except (Exception, asyncio.CancelledError) as exc:
+            if held:
+                await worker.kill()
+            if not session['status']:
+                text({'type': 'error', 'status': 503, **BUSY})
+                finish(1011, 503)
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+        finally:
+            if rid is not None:
+                worker.close(rid)
+                worker.sinks.pop(rid, None)
+            if held:
+                lock.release()
+            if model_held:
+                model_lock.release()
+            if pump is not None and not pump.done():
+                pump.cancel()
+        try:
+            await asyncio.wait_for(sending, timeout=5)
+        except (Exception, asyncio.CancelledError):
+            sending.cancel()
+        timing.log({'method': 'WS', 'path': LIVE_ROUTE}, session['status'] or 503)
 
     app.worker = worker
     return app

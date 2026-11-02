@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { ApiError, digest } from './store.mjs';
 import { inspectWav, measure, habitHits, tokenize, parseObject, shapeOf, LANGUAGES } from './capture.mjs';
 import { scrub } from './screen-context.mjs';
-import { sparkCall, SPARK_STREAM_MODEL, DEFAULT_MAX_TOKENS } from './spark-stream.mjs';
+import { sparkCall, jsonClosed, SPARK_STREAM_MODEL, DEFAULT_MAX_TOKENS } from './spark-stream.mjs';
 import { createBudget, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
 
 const NO_PHASES = { async release() {}, async acquire() {} };
@@ -140,7 +140,8 @@ export function createVoiceModel({ env = process.env, fetchImpl = fetch } = {}) 
         if (budget && !budget.allows(MIN_START_MS.reply)) { reason = SKIPPED_FOR_TIME; break; }
         attempts = attempt;
         const timeoutMs = budget ? Math.min(VOICE_TIMEOUT_MS, Math.floor(budget.remaining())) : VOICE_TIMEOUT_MS;
-        const r = await sparkCall({ env, fetchImpl, system, user, stream: true, reasoningEffort: VOICE_EFFORT, maxTokens: VOICE_MAX_TOKENS, timeoutMs });
+        // The reply is one JSON object: reading stops the moment it closes.
+        const r = await sparkCall({ env, fetchImpl, system, user, stream: true, reasoningEffort: VOICE_EFFORT, maxTokens: VOICE_MAX_TOKENS, timeoutMs, stopWhen: jsonClosed });
         modelMs += r.timing_ms.total ?? 0;
         if (r.ok) {
           const reply = acceptReply(parseObject(r.content, shapeOf(acceptReply)));
@@ -178,21 +179,15 @@ export function voiceResponse(receipt) {
     model: r.model, provider_request_id: r.provider_request_id, latency_ms: r.latency_ms };
 }
 
-// input: { params (voiceParams), audio (Buffer), startedAt (performance.now() at request start) }.
-// budget: the request's time budget (src/budget.mjs). The round answers before it runs out: a reply that cannot start
-// in time is a 502 like any failed reply, and transcription that cannot start is refused before it is sent.
-export async function handleVoiceRound(store, models, user, { params, audio, startedAt = performance.now() }, key, requestId, phases = NO_PHASES, budget = createBudget()) {
-  const fingerprintBody = { audio_sha256: digest(audio), goal_id: params.goalId, screen_context_id: params.screenContextId, language: params.language,
-    prompt_ended_at: params.promptEndedAt, occurred_at: params.occurredAt };
-  // An exact retry returns the stored round without calling any model.
-  const previous = store.replay(user, 'POST', VOICE_ROUNDS_PATH, fingerprintBody, key);
-  if (previous) return voiceResponse(previous);
+// The checks and context a round needs before any paid call: the goal, the screen card, the hourly limit, the reply
+// model, the latest watch session and the rounds of the last 15 minutes. Throws an ApiError (4xx/503) to refuse.
+export function prepareVoiceRound(store, models, user, params) {
   const goal = params.goalId ? store.get(user, 'goals', params.goalId) : null;
   const screen = params.screenContextId ? store.get(user, 'screen-contexts', params.screenContextId) : null;
   if (screen?.deleted) throw new ApiError(404, 'not_found', 'Record not found.');
-  const wav = inspectWav(audio);
-  // Guards paid calls against a stuck key. Counts saved and model-failed rounds in the last hour.
-  if (store.recentRequests(user, 'POST', VOICE_ROUNDS_PATH, [200, 502], VOICE_RATE_LIMIT.windowMs) >= VOICE_RATE_LIMIT.requests)
+  // Guards paid calls against a stuck key. Counts saved and model-failed rounds in the last hour (and live rounds
+  // that ended before a reply after audio reached the transcriber, status 499).
+  if (store.recentRequests(user, 'POST', VOICE_ROUNDS_PATH, VOICE_COUNTED_STATUSES, VOICE_RATE_LIMIT.windowMs) >= VOICE_RATE_LIMIT.requests)
     throw new ApiError(429, 'rate_limited', `At most ${VOICE_RATE_LIMIT.requests} voice rounds per hour.`);
   if (typeof models.voiceReply !== 'function' || (models.voiceReady && !models.voiceReady()))
     throw new ApiError(503, 'reply_unconfigured', 'Voice replies are not configured on this deployment.');
@@ -200,37 +195,74 @@ export async function handleVoiceRound(store, models, user, { params, audio, sta
   const since = new Date(Date.now() - ROUND_WINDOW_MS).toISOString();
   const recent = store.list(user, 'voice-rounds').filter(r => !r.deleted && r.created_at >= since);
   const last = recent.slice().sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
+  return { goal, screen, watch, last, roundNumber: recent.length + 1 };
+}
+export const VOICE_COUNTED_STATUSES = [200, 502, 499];
+
+// Measures the answer and asks for the reply; then code checks it. Never touches the database.
+export async function replyToAnswer(models, context, transcription, durationMs, params, budget) {
+  const metrics = voiceMetrics(transcription, durationMs, params);
+  const t1 = performance.now();
+  const result = budget.allows(MIN_START_MS.reply)
+    ? await models.voiceReply({ system: voiceSystemPrompt(params.language), budget,
+      user: voiceUserMessage({ goal: context.goal, screen: context.screen, watch: context.watch, previous: context.last, roundNumber: context.roundNumber,
+        transcript: transcription.transcript, metrics, language: params.language }) })
+    : { status: 'unavailable', reason: SKIPPED_FOR_TIME, attempts: 0 };
+  const modelMs = Math.round(performance.now() - t1);
+  if (result?.status !== 'model_reply') return { metrics, result, modelMs, checked: null };
+  return { metrics, result, modelMs, checked: checkReply(result.reply, transcription.transcript, params.language) };
+}
+
+// The idempotency fingerprint of a round: the same for a WAV upload and for a live round of the same audio.
+export const voiceFingerprint = (params, audio) => ({ audio_sha256: digest(audio), goal_id: params.goalId, screen_context_id: params.screenContextId, language: params.language,
+  prompt_ended_at: params.promptEndedAt, occurred_at: params.occurredAt });
+
+// Writes the round and its receipt in one transaction. roundId is chosen before the write, so the spoken reply can be
+// started (and found by the speech route) before the round is saved.
+export function saveVoiceRound(store, user, { params, fingerprintBody, key, roundId, transcription, metrics, result, checked, latency, live = false }) {
+  return store.mutate(user, 'POST', VOICE_ROUNDS_PATH, fingerprintBody, key, () => {
+    if (params.goalId) store.get(user, 'goals', params.goalId);
+    const timestamp = new Date().toISOString();
+    const record = { id: roundId, version: 1, source: 'voice_round', goal_id: params.goalId, screen_context_id: params.screenContextId,
+      language: params.language, occurred_at: params.occurredAt ?? timestamp, prompt_ended_at: params.promptEndedAt,
+      transcript: transcription.transcript, metrics, reply: checked.reply, reply_checks: checked.checks,
+      model: result.model, provider_request_id: result.provider_request_id, attempts: result.attempts,
+      transcription: { model: transcription.model, provider_session_id: transcription.provider_session_id, ...(live ? { mode: transcription.mode ?? 'realtime' } : {}) },
+      latency_ms: latency, audio_retained: false, deleted: false, created_at: timestamp, updated_at: timestamp };
+    store.put(user, 'voice-rounds', record); return record;
+  });
+}
+
+// input: { params (voiceParams), audio (Buffer), startedAt (performance.now() at request start) }.
+// budget: the request's time budget (src/budget.mjs). The round answers before it runs out: a reply that cannot start
+// in time is a 502 like any failed reply, and transcription that cannot start is refused before it is sent.
+// The spoken reply is started as soon as the checked reply exists, before the write and the commit
+// (models.prefetchSpeech), so the speech request that follows the receipt gets audio at once.
+export async function handleVoiceRound(store, models, user, { params, audio, startedAt = performance.now() }, key, requestId, phases = NO_PHASES, budget = createBudget()) {
+  const fingerprintBody = voiceFingerprint(params, audio);
+  // An exact retry returns the stored round without calling any model.
+  const previous = store.replay(user, 'POST', VOICE_ROUNDS_PATH, fingerprintBody, key);
+  if (previous) return voiceResponse(previous);
+  const wav = inspectWav(audio);
+  const context = prepareVoiceRound(store, models, user, params);
   if (!budget.allows(MIN_START_MS.transcription)) throw new ApiError(503, 'time_budget', 'Not enough time left for this round; retry with the same Idempotency-Key.');
-  let transcription, metrics, result, asrMs, modelMs;
+  let transcription, answer, asrMs;
   await phases.release();
   try {
     const t0 = performance.now();
     transcription = await models.transcribe(audio, { language: params.language, sessionId: requestId, budget });
     asrMs = Math.round(performance.now() - t0);
-    metrics = voiceMetrics(transcription, wav.durationMs, params);
-    const t1 = performance.now();
-    result = budget.allows(MIN_START_MS.reply)
-      ? await models.voiceReply({ system: voiceSystemPrompt(params.language), budget,
-        user: voiceUserMessage({ goal, screen, watch, previous: last, roundNumber: recent.length + 1, transcript: transcription.transcript, metrics, language: params.language }) })
-      : { status: 'unavailable', reason: SKIPPED_FOR_TIME, attempts: 0 };
-    modelMs = Math.round(performance.now() - t1);
+    answer = await replyToAnswer(models, context, transcription, wav.durationMs, params, budget);
   } finally {
     await phases.acquire();
   }
   // Nothing is saved without a reply; a retry with the same key runs the round again.
-  if (result?.status !== 'model_reply') throw new ApiError(502, 'reply_failed', result?.reason ?? 'Reply failed.');
-  const checked = checkReply(result.reply, transcription.transcript, params.language);
-  const receipt = store.mutate(user, 'POST', VOICE_ROUNDS_PATH, fingerprintBody, key, () => {
-    if (params.goalId) store.get(user, 'goals', params.goalId);
-    const timestamp = new Date().toISOString();
-    const record = { id: randomUUID(), version: 1, source: 'voice_round', goal_id: params.goalId, screen_context_id: params.screenContextId,
-      language: params.language, occurred_at: params.occurredAt ?? timestamp, prompt_ended_at: params.promptEndedAt,
-      transcript: transcription.transcript, metrics, reply: checked.reply, reply_checks: checked.checks,
-      model: result.model, provider_request_id: result.provider_request_id, attempts: result.attempts,
-      transcription: { model: transcription.model, provider_session_id: transcription.provider_session_id },
-      latency_ms: { asr: asrMs, model: modelMs, total: Math.round(performance.now() - startedAt) },
-      audio_retained: false, deleted: false, created_at: timestamp, updated_at: timestamp };
-    store.put(user, 'voice-rounds', record); return record;
-  });
+  if (!answer.checked) throw new ApiError(502, 'reply_failed', answer.result?.reason ?? 'Reply failed.');
+  const roundId = randomUUID();
+  models.prefetchSpeech?.(roundId, user, answer.checked.reply.question, params.language);
+  const receipt = saveVoiceRound(store, user, { params, fingerprintBody, key, roundId, transcription, metrics: answer.metrics, result: answer.result, checked: answer.checked,
+    latency: { asr: asrMs, model: answer.modelMs, total: Math.round(performance.now() - startedAt) } });
+  // A replayed receipt (a retry that raced the first attempt) keeps its own round; the prefetch above is unused.
+  if (receipt.record.id !== roundId) models.dropSpeech?.(roundId);
   return voiceResponse(receipt);
 }

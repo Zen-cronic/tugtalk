@@ -15,6 +15,9 @@ final class MicRecorder: @unchecked Sendable {
     private var samples: [Int16] = []
     private var resampler: PCMResampler?
     private let limit = WAV.maxSeconds * WAV.sampleRate
+    /// Each run of samples as it is recorded, on the audio thread (the live round streams them). Exactly the samples
+    /// `stop()` returns, in order, so the live round and a fallback upload carry the same audio.
+    var onSamples: (@Sendable (ArraySlice<Int16>) -> Void)?
 
     /// Opens the microphone. Call only once the microphone permission is granted: touching the
     /// input node before that would make macOS show its prompt.
@@ -49,7 +52,9 @@ final class MicRecorder: @unchecked Sendable {
     private func append(_ buffer: AVAudioPCMBuffer) {
         lock.withLock {
             guard let resampler, samples.count < limit else { return }
-            samples += resampler.convert(buffer).prefix(limit - samples.count)
+            let run = resampler.convert(buffer).prefix(limit - samples.count)
+            samples += run
+            onSamples?(run)
         }
     }
 
@@ -62,7 +67,11 @@ final class MicRecorder: @unchecked Sendable {
         }
         engine = nil
         return lock.withLock {
-            if let resampler, samples.count < limit { samples += resampler.finish().prefix(limit - samples.count) }
+            if let resampler, samples.count < limit {
+                let tail = resampler.finish().prefix(limit - samples.count)
+                samples += tail
+                onSamples?(tail)
+            }
             resampler = nil
             defer { samples = [] }
             return samples

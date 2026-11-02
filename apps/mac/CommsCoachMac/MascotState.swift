@@ -35,7 +35,8 @@ enum ModelLabel {
 /// One voice reply in the speech bubble: the question it speaks, what it heard, and how long it took.
 struct VoiceCard: Equatable {
     let roundID: String
-    let receiptID: String
+    /// Empty until a live round is saved.
+    var receiptID: String
     let question: String
     let move: VoiceReply.Move?
     let transcript: String
@@ -63,6 +64,14 @@ struct VoiceCard: Equatable {
          metrics: VoiceMetrics?, latency: VoiceLatency?, replayed: Bool, modelLabel: String = "Muse Spark Open", isPreview: Bool = false) {
         self.roundID = roundID; self.receiptID = receiptID; self.question = question; self.move = move; self.transcript = transcript
         self.quote = quote; self.metrics = metrics; self.latency = latency; self.replayed = replayed; self.modelLabel = modelLabel; self.isPreview = isPreview
+    }
+
+    /// A live round's reply, shown before it is saved; `receiptID` is filled in when it is.
+    init(live: LiveReply) {
+        self.init(roundID: live.round_id, receiptID: "", question: live.reply.question.trimmingCharacters(in: .whitespacesAndNewlines),
+                  move: live.reply.kind, transcript: live.transcript, quote: live.reply.verifiedQuote, metrics: live.metrics,
+                  latency: VoiceLatency(asr: live.latency_ms?.asr, model: live.latency_ms?.model, total: live.latency_ms?.release_to_reply),
+                  replayed: false, modelLabel: ModelLabel.display(live.model))
     }
 
     init(_ receipt: VoiceRoundReceipt) {

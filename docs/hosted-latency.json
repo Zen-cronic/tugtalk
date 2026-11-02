@@ -15,7 +15,7 @@
     "first_request_after_idle_ms": 7409,
     "in_container_health_ms": [
       {
-        "reload": 65.0,
+        "reload": 65,
         "node_worker": 972.8,
         "commit": 923.9,
         "total": 1965.1
@@ -71,7 +71,7 @@
     ],
     "first_request_after_deploy_ms": 3247,
     "first_request_server_timing": {
-      "lock_wait": 0.0,
+      "lock_wait": 0,
       "handler": 6.4,
       "total": 8.3
     },
@@ -87,11 +87,11 @@
           "total": 3474
         },
         "server_timing": {
-          "model_wait": 0.0,
-          "lock_wait": 0.0,
+          "model_wait": 0,
+          "lock_wait": 0,
           "handler": 3474.9,
-          "checkpoint": 1.0,
-          "close": 2.0,
+          "checkpoint": 1,
+          "close": 2,
           "commit": 945.2,
           "total": 4427.6
         }
@@ -107,8 +107,8 @@
           "total": 3038
         },
         "server_timing": {
-          "model_wait": 0.0,
-          "lock_wait": 0.0,
+          "model_wait": 0,
+          "lock_wait": 0,
           "handler": 3038.9,
           "checkpoint": 1.1,
           "close": 2.5,
@@ -128,8 +128,8 @@
           "total": 3038
         },
         "server_timing": {
-          "model_wait": 0.0,
-          "lock_wait": 0.0,
+          "model_wait": 0,
+          "lock_wait": 0,
           "handler": 1.3,
           "checkpoint": 0.6,
           "close": 1.7,
@@ -146,8 +146,8 @@
         "content_type": "audio/mpeg",
         "voice": "wit$Rebecca",
         "server_timing_at_first_byte": {
-          "model_wait": 0.0,
-          "lock_wait": 0.0,
+          "model_wait": 0,
+          "lock_wait": 0,
           "total": 780.9
         }
       },
@@ -157,11 +157,169 @@
         "content_type": "audio/mpeg",
         "voice": "wit$Rebecca",
         "server_timing_at_first_byte": {
-          "model_wait": 0.0,
-          "lock_wait": 0.0,
-          "total": 617.0
+          "model_wait": 0,
+          "lock_wait": 0,
+          "total": 617
         }
       }
     ]
+  },
+  "voice_latency": {
+    "what": "Release to reply text and to the first spoken audio, before and after the live voice route and speech prefetch. Headless rounds: macOS say clips (synthetic voice) streamed in real time by scripts/voice-client.mjs from Toronto. Times are from the release (the end frame, or the start of the WAV upload). No request content, ids or credentials are recorded.",
+    "deploy": "feat/voice-latency a37fbaf, KEEP_WARM=1, Nov 2 14:56 EST",
+    "before": {
+      "source": "a live turn from the Mac at 14:08 EST (Mac log and Modal timing log): WAV upload, file transcription, then a speech request after the receipt, played once the whole file arrived",
+      "clip_ms": 3400,
+      "release_to_reply_ms": 10206,
+      "release_to_first_word_ms": 13689,
+      "server_handler_ms": 8333,
+      "asr_ms": 3900,
+      "model_ms": 4400,
+      "speech_request_to_playing_ms": 3466
+    },
+    "measured_at": "2026-11-02, 14:57 to 14:59 EST",
+    "live_rounds": [
+      {
+        "clip_ms": 3659,
+        "transcription": "realtime",
+        "release_to_transcript_ms": 493,
+        "release_to_reply_ms": 1850,
+        "release_to_first_audio_ms": 4619,
+        "release_to_saved_ms": 2786,
+        "server": {
+          "asr": 305,
+          "model": 1406,
+          "release_to_reply": 1713,
+          "release_to_speech": 4392
+        },
+        "speech": {
+          "provider": "wit",
+          "voice": "wit$Rebecca",
+          "content_type": "audio/mpeg",
+          "bytes": 37440
+        },
+        "reply_move": "challenge"
+      },
+      {
+        "clip_ms": 3588,
+        "transcription": "realtime",
+        "release_to_transcript_ms": 484,
+        "release_to_reply_ms": 3233,
+        "release_to_first_audio_ms": 4361,
+        "release_to_saved_ms": 4155,
+        "server": {
+          "asr": 311,
+          "model": 2804,
+          "release_to_reply": 3116,
+          "release_to_speech": 4159
+        },
+        "speech": {
+          "provider": "wit",
+          "voice": "wit$Rebecca",
+          "content_type": "audio/mpeg",
+          "bytes": 22080
+        },
+        "reply_move": "challenge"
+      },
+      {
+        "clip_ms": 3594,
+        "transcription": "realtime",
+        "release_to_transcript_ms": 482,
+        "release_to_reply_ms": 3004,
+        "release_to_first_audio_ms": 4175,
+        "release_to_saved_ms": 3952,
+        "server": {
+          "asr": 305,
+          "model": 2584,
+          "release_to_reply": 2889,
+          "release_to_speech": 3978
+        },
+        "speech": {
+          "provider": "wit",
+          "voice": "wit$Rebecca",
+          "content_type": "audio/mpeg",
+          "bytes": 38208
+        },
+        "reply_move": "challenge"
+      },
+      {
+        "clip_ms": 3346,
+        "transcription": "realtime",
+        "release_to_transcript_ms": 441,
+        "release_to_reply_ms": 2597,
+        "release_to_first_audio_ms": 3266,
+        "release_to_saved_ms": 3600,
+        "server": {
+          "asr": 279,
+          "model": 2203,
+          "release_to_reply": 2483,
+          "release_to_speech": 3064
+        },
+        "speech": {
+          "provider": "wit",
+          "voice": "wit$Rebecca",
+          "content_type": "audio/mpeg",
+          "bytes": 43200
+        },
+        "reply_move": "wrap_up"
+      },
+      {
+        "clip_ms": 3546,
+        "transcription": "realtime",
+        "release_to_transcript_ms": 477,
+        "release_to_reply_ms": 2395,
+        "release_to_first_audio_ms": 3128,
+        "release_to_saved_ms": 3457,
+        "server": {
+          "asr": 310,
+          "model": 1970,
+          "release_to_reply": 2280,
+          "release_to_speech": 2925
+        },
+        "speech": {
+          "provider": "wit",
+          "voice": "wit$Rebecca",
+          "content_type": "audio/mpeg",
+          "bytes": 43968
+        },
+        "reply_move": "challenge"
+      }
+    ],
+    "wav_round": {
+      "clip_ms": 4327,
+      "release_to_reply_ms": 6393,
+      "latency_ms": {
+        "asr": 2159,
+        "model": 2366,
+        "total": 4530
+      },
+      "server_timing": {
+        "model_wait": 0,
+        "lock_wait": 0,
+        "handler": 4535,
+        "checkpoint": 11.5,
+        "close": 0.8,
+        "commit": 1218.8,
+        "total": 5770.3
+      },
+      "speech_after_receipt": {
+        "first_byte_ms": 284,
+        "total_ms": 392,
+        "release_to_first_audio_ms": 6677,
+        "server_timing": {
+          "lock_wait": 0,
+          "total": 5.9
+        },
+        "content_type": "audio/mpeg",
+        "voice": "wit$Rebecca"
+      }
+    },
+    "wit_uncached_first_byte_ms": [
+      901,
+      501,
+      548,
+      479
+    ],
+    "wit_uncached_note": "The speech route on four older rounds (nothing prefetched), container otherwise idle: Wit through the hosted path, curl time_starttransfer"
   }
 }

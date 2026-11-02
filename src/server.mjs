@@ -12,6 +12,8 @@ import { createScreenModel, handleScreenContext, SCREEN_CONTEXT_PATH } from './s
 import { createVoiceModel, handleVoiceRound, voiceParams, VOICE_ROUNDS_PATH } from './voice.mjs';
 import { createSpeechModel, handleSpeech, SPEECH_PATH } from './speech.mjs';
 import { createBudget, MODEL_BUDGET_MS, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
+import { createLiveRound, createRealtimeModel, LIVE_PATH } from './live-voice.mjs';
+import { acceptWebSocket } from './ws-server.mjs';
 
 export const RECORDINGS_PATH = '/v1/recordings';
 // Guards paid calls against a stuck capture button or a leaked key. Counts saved and model-failed recordings in the last hour.
@@ -261,7 +263,43 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
     }
   };
 }
-export function createApp(store, options) { return createServer(createHandler(store, options)); }
+// WS /v1/voice-rounds/live on the local server: the same live round the hosting adapter runs (src/live-voice.mjs).
+// The connector key must be in the upgrade request's Authorization header; the round itself checks it.
+function serveLive(store, options, req, socket) {
+  const path = new URL(req.url, 'http://local').pathname;
+  if (path !== LIVE_PATH) { socket.end('HTTP/1.1 404 Not Found\r\n\r\n'); return; }
+  if (!(req.headers.authorization ?? '').startsWith('Bearer ')) { socket.end('HTTP/1.1 401 Unauthorized\r\n\r\n'); return; }
+  const ws = acceptWebSocket(req, socket);
+  if (!ws) return;
+  const models = options?.models ?? { ...createModelClients(), ...createVoiceModel(), ...createSpeechModel(), ...createRealtimeModel() };
+  let session = null;
+  const early = [];
+  const startTimer = setTimeout(() => ws.close(1008), 10_000);
+  ws.onClose = () => { clearTimeout(startTimer); session?.cancel(); };
+  ws.onMessage = message => {
+    if (session) {
+      if (typeof message !== 'string') return session.audio(message);
+      try { if (JSON.parse(message).type === 'end') session.end(); } catch {}
+      return;
+    }
+    if (typeof message !== 'string') { early.push(message); return; }
+    clearTimeout(startTimer);
+    let start = null; try { start = JSON.parse(message); } catch {}
+    session = createLiveRound({ store, models, token: req.headers.authorization, start, phases: NO_PHASES,
+      emit: event => ws.sendText(JSON.stringify(event)), emitAudio: chunk => ws.sendBinary(chunk) });
+    early.splice(0).forEach(chunk => session.audio(chunk));
+    session.done.then(async result => {
+      ws.sendText(JSON.stringify(result.status === 200 ? { type: 'saved', ...result.body } : { type: 'error', status: result.status, ...result.body }));
+      try { await result.speechDone; } catch {}
+      ws.close(result.status === 200 ? 1000 : 1008);
+    });
+  };
+}
+export function createApp(store, options) {
+  const server = createServer(createHandler(store, options));
+  server.on('upgrade', (req, socket) => serveLive(store, options, req, socket));
+  return server;
+}
 if (process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
   const dbPath=process.env.DB_PATH??'.data/connector.sqlite'; mkdirSync(dirname(dbPath),{recursive:true,mode:0o700});
   const store=new Store(dbPath); const port=Number(process.env.PORT??4318);

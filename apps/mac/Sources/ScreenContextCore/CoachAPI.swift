@@ -153,6 +153,9 @@ public struct CoachAPI: Sendable {
         self.baseURL = baseURL; self.token = token; self.session = session
     }
 
+    /// For the live socket's upgrade request, which goes to the same host.
+    var authorizationHeader: String { "Bearer \(token)" }
+
     public static let defaultBaseURL = URL(string: "https://kaungzinhein113--synthetic-coaching-connector-web.us-east.modal.run")!
 
     func request(_ path: String, method: String = "GET", timeout: TimeInterval = 45) -> URLRequest {

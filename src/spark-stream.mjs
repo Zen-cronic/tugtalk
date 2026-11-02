@@ -38,12 +38,28 @@ async function* sseEvents(body) {
   }
 }
 
+// True once text holds one complete JSON object (braces balanced outside strings), so a reader can stop there.
+export function jsonClosed(text) {
+  const start = text.indexOf('{');
+  if (start < 0) return false;
+  let depth = 0, inString = false, escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) { if (escaped) escaped = false; else if (c === '\\') escaped = true; else if (c === '"') inString = false; continue; }
+    if (c === '"') inString = true;
+    else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return true;
+  }
+  return false;
+}
+
 // options: system, user (strings); stream (default true); reasoningEffort ('low' default, or 'medium');
+// stopWhen(content): when it returns true the stream is closed there and the call succeeds with what arrived;
 // maxTokens (>= 1500); temperature; timeoutMs (whole call); idleMs (gap between stream chunks); onContent(delta).
 // Returns { ok: true, content, finish_reason, usage, provider_request_id, timing_ms: { first_chunk, first_content, total } }
 // or { ok: false, reason, status?, finish_reason?, timing_ms }.
 export async function sparkCall({ env = process.env, fetchImpl = fetch, system, user, stream = true, reasoningEffort = 'low',
-  maxTokens = DEFAULT_MAX_TOKENS, temperature = 0.4, timeoutMs = DEFAULT_TIMEOUT_MS, idleMs = DEFAULT_IDLE_MS, onContent, label = 'Reply' } = {}) {
+  maxTokens = DEFAULT_MAX_TOKENS, temperature = 0.4, timeoutMs = DEFAULT_TIMEOUT_MS, idleMs = DEFAULT_IDLE_MS, onContent, stopWhen, label = 'Reply' } = {}) {
   if (!REASONING_EFFORTS.includes(reasoningEffort)) throw new Error(`reasoningEffort must be one of: ${REASONING_EFFORTS.join(', ')}`);
   if (!Number.isInteger(maxTokens) || maxTokens < MIN_MAX_TOKENS) throw new Error(`maxTokens must be an integer of at least ${MIN_MAX_TOKENS}`);
   if (!env.BASETEN_API_KEY) return { ok: false, reason: `${label} is not configured on this deployment.`, timing_ms: { first_chunk: null, first_content: null, total: 0 } };
@@ -79,6 +95,8 @@ export async function sparkCall({ env = process.env, fetchImpl = fetch, system, 
           timing.first_content ??= since(start);
           content += delta;
           onContent?.(delta);
+          // The rest of the stream would only close the JSON's message; leaving here saves its tail.
+          if (stopWhen?.(content)) { finish = 'stop'; timing.stopped_early = true; break; }
         }
         if (choice.finish_reason) finish = choice.finish_reason;
       }

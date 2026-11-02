@@ -69,8 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pointing.avoid = { [weak self] rect in self?.panel.moveAway(from: rect) ?? true }
         pointing.onDismiss = { [weak self] in self?.panel.restoreAnchor() }
         panel.onFrameChange = { [weak self] in self?.pointing.companionMoved() }
-        dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown() }
-        dock.onTalkUp = { [weak self] in self?.voice.keyUp() }
+        dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown(source: "panel") }
+        dock.onTalkUp = { [weak self] in self?.voice.keyUp(source: "panel") }
         dock.onTalkCancel = { [weak self] in self?.voice.cancelHold() }
         dock.onReadWindow = { [weak self] in self?.readLastOtherWindow() }
         menu.onDockMode = { [weak self] on in self?.dock.setEnabled(on) }
@@ -106,7 +106,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// A second copy of the companion (a test build, an older build) registers the same keys, and macOS then
+    /// sends each press to only one of them, so presses can vanish from this copy without a trace.
+    /// `-disableHotkeys YES` (Debug) registers none: test copies use it and drive the app with `-voiceScript`,
+    /// which also implies it. A key that cannot be registered, or another copy running, is shown and logged.
     private func registerHotkeys() {
+        let defaults = UserDefaults.standard
+        #if DEBUG
+        if defaults.bool(forKey: "disableHotkeys") || defaults.string(forKey: "voiceScript") != nil {
+            hotkeyLog.notice("global hotkeys not registered (-disableHotkeys or -voiceScript)")
+            return
+        }
+        #endif
+        let others = NSWorkspace.shared.runningApplications.filter {
+            $0.processIdentifier != ProcessInfo.processInfo.processIdentifier && $0.executableURL?.lastPathComponent == "CommsCoachMac"
+        }
+        if !others.isEmpty {
+            hotkeyLog.error("\(others.count, privacy: .public) other copy of the companion is running; ⌃⌥T presses may go to it instead")
+            model.set(.notice("Another copy of Comms Coach is running. Quit it so ⌃⌥T works here."), collapseAfter: 10)
+        }
+        hotkeys.onRegistrationFailed = { [weak self] combo in
+            self?.model.set(.notice("Another copy of Comms Coach is using \(combo.label). Quit it to use the shortcut here."), collapseAfter: 10)
+        }
         hotkeys.register(Hotkeys.capture) { [weak self] in self?.capture(trigger: "hotkey") }
         hotkeys.register(Hotkeys.hide) { [weak self] in self?.model.presenting.toggle() }
         hotkeys.register(Hotkeys.ghost) { [weak self] in self?.model.ghost.toggle() }
