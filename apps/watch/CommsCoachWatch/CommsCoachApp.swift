@@ -15,6 +15,8 @@ struct PendingCapture {
     let goalID: String?
     let language: String
     let occurredAt: Date
+    /// The open drill when the recording started; the server measures this capture against its basis.
+    var exerciseID: String? = nil
 }
 
 @MainActor
@@ -23,7 +25,11 @@ final class CaptureModel: ObservableObject {
 
     @Published var phase: Phase = .loading
     @Published var goals: [GoalSummary] = []
-    @Published var selectedGoal: GoalSummary?
+    @Published var selectedGoal: GoalSummary? {
+        didSet { if oldValue?.id != selectedGoal?.id, !isLoading { Task { await refreshDrill() } } }
+    }
+    /// The open drill Muse set for the selected goal (Drill.swift), or nil.
+    @Published var drill: Drill?
     @Published var language = "en"
     /// Keep my recordings, as the coach server has it. Nil until read.
     @Published var settings: CoachSettings?
@@ -69,6 +75,7 @@ final class CaptureModel: ObservableObject {
             settings = await setting
             settingsNote = settings == nil ? "Not available on this coach yet." : nil
             if selectedGoal == nil { selectedGoal = goals.first }
+            await refreshDrill()
             phase = .ready
         } catch {
             phase = .failed(Self.plain(error))
@@ -113,7 +120,8 @@ final class CaptureModel: ObservableObject {
     func capture(_ file: URL) -> Bool {
         guard case .recording = phase else { return false }
         pending = PendingCapture(file: file, key: "watch-\(UUID().uuidString)", goalID: selectedGoal?.id,
-                                 language: language, occurredAt: recorder.startedAt)
+                                 language: language, occurredAt: recorder.startedAt,
+                                 exerciseID: drill.flatMap { $0.goal_id == selectedGoal?.id ? $0.id : nil })
         phase = .uploading
         return true
     }
@@ -123,9 +131,10 @@ final class CaptureModel: ObservableObject {
         phase = .uploading
         do {
             let receipt = try await CoachAPI.fromBundle().upload(file: pending.file, idempotencyKey: pending.key, goalID: pending.goalID,
-                                                                 language: pending.language, occurredAt: pending.occurredAt)
+                                                                 language: pending.language, occurredAt: pending.occurredAt, exerciseID: pending.exerciseID)
             try? FileManager.default.removeItem(at: pending.file) // audio is not kept on the watch either
             self.pending = nil
+            if receipt.record.drill?.status == "measured" { drill = nil } // this capture closed the drill
             phase = .done(receipt)
         } catch {
             phase = .failed(Self.plain(error)) // file and key kept; Retry resends the same request
@@ -133,6 +142,15 @@ final class CaptureModel: ObservableObject {
     }
 
     var canRetryUpload: Bool { pending != nil }
+
+    private var isLoading: Bool { if case .loading = phase { return true } else { return false } }
+
+    /// Reads the selected goal's open drill. A failed read hides the drill line; it never blocks recording.
+    func refreshDrill() async {
+        guard let goalID = selectedGoal?.id else { drill = nil; return }
+        let found = try? await CoachAPI.fromBundle().openDrill(goalID: goalID)
+        if selectedGoal?.id == goalID { drill = found }
+    }
 
     /// Turns Keep my recordings on or off on the server; on a conflict or failure it reads the setting again.
     func setKeepRecordings(_ keep: Bool, deleteKept: Bool = false) async {

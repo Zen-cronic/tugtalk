@@ -28,6 +28,8 @@ struct CapturedSession: Decodable {
     let analysis: Analysis
     /// Present only when Keep my recordings is on.
     var media: KeptMedia? = nil
+    /// Present only when the capture named a drill (X-Exercise-Id); see Drill.swift.
+    var drill: DrillOutcome? = nil
 }
 
 /// "Keep my recordings": the account's setting on the coach server, off by default. Off, audio is deleted after
@@ -137,7 +139,7 @@ struct CoachAPI {
 
     /// Uploads one WAV. `idempotencyKey` is stored with the file so a retry after a
     /// network drop returns the original receipt instead of creating (and paying for) a duplicate.
-    func upload(file: URL, idempotencyKey: String, goalID: String?, language: String, occurredAt: Date) async throws -> CaptureReceipt {
+    func upload(file: URL, idempotencyKey: String, goalID: String?, language: String, occurredAt: Date, exerciseID: String? = nil) async throws -> CaptureReceipt {
         var request = URLRequest(url: baseURL.appending(path: "v1/recordings"))
         request.httpMethod = "POST"
         request.timeoutInterval = 170
@@ -148,6 +150,7 @@ struct CoachAPI {
         request.setValue(language, forHTTPHeaderField: "X-Language")
         request.setValue(ISO8601DateFormatter().string(from: occurredAt), forHTTPHeaderField: "X-Occurred-At")
         if let goalID { request.setValue(goalID, forHTTPHeaderField: "X-Goal-Id") }
+        if let exerciseID { request.setValue(exerciseID, forHTTPHeaderField: "X-Exercise-Id") } // the open drill: measured against its basis
         if language == "fr" {
             // The wearer records only their own speech. A French-practice backend requires these;
             // this backend's hosting adapter does not forward them.
