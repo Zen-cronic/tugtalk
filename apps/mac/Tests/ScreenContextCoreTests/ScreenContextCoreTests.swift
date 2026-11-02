@@ -226,10 +226,11 @@ final class CoachAPITests: XCTestCase {
     override func setUp() { StubProtocol.requests = []; StubProtocol.bodies = [] }
 
     func testPostSendsAuthIdempotencyAndJSONAndDecodesTheReceipt() async throws {
-        StubProtocol.reply = (200, #"{"receipt_id":"r1","replayed":false,"record_version":1,"saved":true,"record":{"id":"s1","version":1,"app_name":"TextEdit","goal_id":"g1","text_retained":false,"pixels_sent":false,"extra":1,"analysis":{"status":"model_observation","summary":"s","observation":"o","next_step":"n","model":"m"}}}"#)
+        StubProtocol.reply = (200, #"{"receipt_id":"r1","replayed":false,"record_version":1,"saved":true,"record":{"id":"s1","version":1,"app_name":"TextEdit","goal_id":"g1","language":"fr","text_retained":false,"pixels_sent":false,"extra":1,"analysis":{"status":"model_observation","summary":"s","observation":"o","next_step":"n","model":"m"}}}"#)
         let payload = try XCTUnwrap(ScreenContextPayload.make(redacted: RedactionResult(text: "Lead with [person]'s ask.", counts: [.person: 1]), appName: "TextEdit", goalID: "g1", purpose: .meeting_prep))
         let receipt = try await api().postScreenContext(payload, idempotencyKey: "mac-test-0001")
         XCTAssertEqual(receipt.receipt_id, "r1"); XCTAssertEqual(receipt.record.analysis.next_step, "n"); XCTAssertFalse(receipt.record.text_retained)
+        XCTAssertEqual(receipt.record.language, "fr", "the card's language, for speaking its sentence")
         let request = try XCTUnwrap(StubProtocol.requests.first)
         XCTAssertEqual(request.url?.path, "/v1/screen-contexts"); XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer local-test-token")

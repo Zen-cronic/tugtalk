@@ -13,8 +13,9 @@ struct PointingRequest {
     /// The window's owner at capture time: a reused window number must not get the ring.
     let windowPID: pid_t?
     let label: String
-    /// The one sentence Tug says about it.
+    /// The one sentence Tug says about it, and the language it is said in (the card's).
     let sentence: String
+    var language: VoiceLanguage = .en
     let recordID: String
 
     /// Builds a request from a capture's lines and the card the coach wrote about them, or nil when no line
@@ -22,17 +23,9 @@ struct PointingRequest {
     static func make(lines: [TextLine], frame: CGRect?, windowID: CGWindowID?, windowBounds: CGRect?, windowPID: pid_t? = nil, card: ContextCard) -> PointingRequest? {
         guard let frame, let match = LineMatcher.bestLine(in: lines, summary: card.summary, observation: card.observation, nextStep: card.nextStep) else { return nil }
         let rect = ScreenMapping.globalTopLeftRect(normalized: lines[match.index].box, windowFrame: frame)
+        // The card's first sentence (not cut at "2.5" or "e.g."), at most 24 words.
         return PointingRequest(line: rect, windowBounds: windowBounds ?? frame, windowID: windowID, windowPID: windowPID, label: match.label,
-                               sentence: firstSentence(card.observation), recordID: card.recordID)
-    }
-
-    /// The card's observation up to its first full stop, at most 24 words.
-    static func firstSentence(_ text: String) -> String {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        var sentence = trimmed
-        if let end = trimmed.firstIndex(where: { ".!?".contains($0) }) { sentence = String(trimmed[...end]) }
-        let words = sentence.split(separator: " ")
-        return words.count > 24 ? words.prefix(24).joined(separator: " ") + "." : sentence
+                               sentence: SpokenText.firstSentence(card.observation), language: card.language, recordID: card.recordID)
     }
 }
 
@@ -170,7 +163,7 @@ final class PointingController {
                              userInfo: [.announcement: "\(request.label) on your window. \(request.sentence)", .priority: NSAccessibilityPriorityLevel.medium.rawValue])
         watchDismissInput()
         watch = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.tick() } }
-        if speak { say(request.sentence) }
+        if speak { say(request.sentence, in: request.language) }
     }
 
     /// Our floating card changed size or place while the ring shows: keep it off the line, or remove the ring.
@@ -184,10 +177,10 @@ final class PointingController {
         }
     }
 
-    private func say(_ sentence: String) {
+    private func say(_ sentence: String, in language: VoiceLanguage) {
         guard !model.isPresenting else { return }
         model.talking = true
-        speaker.speak(SpokenLine(text: sentence, language: .en, roundID: nil), events: SpeechEvents(
+        speaker.speak(SpokenLine(text: sentence, language: language, roundID: nil), events: SpeechEvents(
             started: { _ in },
             finished: { [weak self] ended in self?.spokenUntil = ended; self?.model.talking = false },
             failed: { [weak self] _ in self?.spokenUntil = Date(); self?.model.talking = false }))

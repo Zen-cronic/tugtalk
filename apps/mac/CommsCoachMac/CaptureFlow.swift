@@ -111,9 +111,12 @@ final class CaptureFlow {
             let receipt = try await api.postScreenContext(payload, idempotencyKey: key)
             pending = nil
             let r = receipt.record
+            // Spoken in the language the card is written in; the record's language, then the voice setting, when unsure.
+            let fallback = r.language.flatMap(VoiceLanguage.init(rawValue:)) ?? Settings.voiceLanguage
             let card = ContextCard(recordID: r.id, version: r.version, receiptID: receipt.receipt_id, appName: r.app_name ?? payload.app_name ?? "this window",
                                    summary: r.analysis.summary, observation: r.analysis.observation, nextStep: r.analysis.next_step,
-                                   replayed: receipt.replayed, modelLabel: ModelLabel.display(r.analysis.model))
+                                   replayed: receipt.replayed, modelLabel: ModelLabel.display(r.analysis.model),
+                                   language: SpokenText.language(of: r.analysis.observation, fallback: fallback))
             model.set(.speaking(card), collapseAfter: 20)
             point(at: card)
             afterSave()

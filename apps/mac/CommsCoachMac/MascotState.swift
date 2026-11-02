@@ -15,6 +15,8 @@ struct ContextCard: Equatable {
     let replayed: Bool
     var modelLabel = "Muse Spark Open"
     var isPreview = false
+    /// The language the card is written in, for saying its sentence out loud.
+    var language: VoiceLanguage = .en
 }
 
 /// Who writes the card: the real model on the shared record, or a stub on a local test server.

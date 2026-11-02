@@ -77,6 +77,8 @@ public struct ScreenContextRecord: Decodable, Sendable, Equatable {
     public let version: Int
     public let app_name: String?
     public let goal_id: String?
+    /// The capture's language ("en", "fr"), when the server sends it.
+    public let language: String?
     public let text_retained: Bool
     public let pixels_sent: Bool
     public let analysis: ScreenContextAnalysis

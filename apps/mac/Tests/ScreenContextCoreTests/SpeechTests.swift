@@ -179,3 +179,20 @@ final class SpeechFetchTests: XCTestCase {
         }
     }
 }
+
+final class SpokenTextTests: XCTestCase {
+    func testTheFirstSentenceIsNotCutAtADecimalOrAnAbbreviation() {
+        XCTAssertEqual(SpokenText.firstSentence("Your pace was 2.5 words a second, which is quick. Slow the opening."),
+                       "Your pace was 2.5 words a second, which is quick.")
+        XCTAssertEqual(SpokenText.firstSentence("Lead with the ask, e.g. the launch date. Then the reason."), "Lead with the ask, e.g. the launch date.")
+        XCTAssertEqual(SpokenText.firstSentence("Ask Dr. Lee first. Then the team."), "Ask Dr. Lee first.")
+        XCTAssertEqual(SpokenText.firstSentence("No full stop at all"), "No full stop at all")
+        XCTAssertEqual(SpokenText.firstSentence(String(repeating: "word ", count: 30)).split(separator: " ").count, 24)
+    }
+
+    func testTheLanguageIsTheOneTheSentenceIsWrittenIn() {
+        XCTAssertEqual(SpokenText.language(of: "Lead with the ask; right now it's buried at the end of the note.", fallback: .fr), .en)
+        XCTAssertEqual(SpokenText.language(of: "Commencez par la demande : pour l'instant, elle est cachée à la fin de la note.", fallback: .en), .fr)
+        XCTAssertEqual(SpokenText.language(of: "OK", fallback: .fr), .fr, "unsure: the fallback")
+    }
+}
