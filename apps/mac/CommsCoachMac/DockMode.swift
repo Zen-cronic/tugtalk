@@ -96,15 +96,23 @@ final class DockController {
 
     // The docked panel
 
+    /// The rule (open, or close if open; nothing outside docked mode) is `DockState.dockIconClicked`.
     func dockIconClicked() {
-        guard state.enabled else { return }
-        if state.panelOpen { closePanel(animated: true) } else { openPanel() }
+        let wasFloating = state.floatingTugVisible
+        state.dockIconClicked()
+        if state.panelOpen, panel == nil { presentPanel(wasFloating: wasFloating) }
+        else if !state.panelOpen, panel != nil { closePanel(animated: true) }
     }
 
     func openPanel() {
         guard state.enabled, panel == nil else { return }
-        let start = floatingTugCenter(), wasFloating = state.floatingTugVisible
+        let wasFloating = state.floatingTugVisible
         state.openPanel()
+        presentPanel(wasFloating: wasFloating)
+    }
+
+    private func presentPanel(wasFloating: Bool) {
+        let start = floatingTugCenter()
         let view = NSHostingView(rootView: DockPanelView(model: model, onTalkDown: { [weak self] in self?.talkHeld = true; self?.onTalkDown() },
                                                          onTalkUp: { [weak self] in self?.talkReleased() },
                                                          onReadWindow: { [weak self] in self?.readWindow() },

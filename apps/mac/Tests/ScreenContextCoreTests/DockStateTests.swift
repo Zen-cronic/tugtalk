@@ -9,6 +9,8 @@ final class DockStateTests: XCTestCase {
         state.nudgeArrived(); state.recording = true; state.openPanel()
         XCTAssertFalse(state.showsDockIcon); XCTAssertNil(state.badge); XCTAssertFalse(state.showsLiveDot)
         XCTAssertFalse(state.panelOpen); XCTAssertTrue(state.floatingTugVisible)
+        state.dockIconClicked()
+        XCTAssertFalse(state.panelOpen, "a Dock click outside docked mode opens nothing")
     }
 
     func testNudgesCountUntilThePanelOpens() {
