@@ -13,8 +13,8 @@ import { MAX_AUDIO_BYTES, MAX_AUDIO_MS, TRANSCRIBE_MODEL, ANALYSIS_MODEL, LANGUA
 import { runEval, parseItem, goldSpans, CORPUS_URL } from '../src/evaluate.mjs';
 import { measurePauses } from '../src/pauses.mjs';
 import { adjudicationCandidates, adjudicateCapture, buildAdjudication, verifyLabels, createAdjudicationModel } from '../src/adjudicate.mjs';
-import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES } from '../src/screen-context.mjs';
-import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS } from '../src/voice.mjs';
+import { MAX_SCREEN_TEXT_CHARS, MAX_SCREEN_TEXT_BYTES, createScreenModel } from '../src/screen-context.mjs';
+import { createVoiceModel, safeQuestion, VOICE_TIMEOUT_MS, VOICE_EFFORT } from '../src/voice.mjs';
 import { runVoiceEval } from '../src/voice-eval.mjs';
 import { createSpeechModel, SPEECH_PROVIDERS } from '../src/speech.mjs';
 import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
@@ -130,6 +130,17 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         const result = await createModelClients({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }).analyze({ goal: null, transcript: 't', metrics: measure('t', 1000, 'en'), language: 'en' });
         assert.equal(result.status, 'unavailable'); assert.equal(sent.length, 2, 'one retry, then the session is saved without an observation');
         return `${sent[0]}, then ${sent[1]} on retry`;
+      },
+      'analysis-effort': async () => {
+        // The hosted value from deploy/modal_app.py, sent through both request paths (fake fetch).
+        const hosted = modal.match(/'ANALYSIS_EFFORT': '([a-z]+)'/)[1];
+        const sent = [];
+        const answer = content => async (url, init) => { sent.push(JSON.parse(init.body).reasoning_effort); return chat(content); };
+        const env = { BASETEN_API_KEY: 'k', ANALYSIS_EFFORT: hosted };
+        await createModelClients({ env, fetchImpl: answer('{"observation":"o","suggested_exercise":"e"}') }).analyze({ goal: null, transcript: 't', metrics: measure('t', 1000, 'en'), language: 'en' });
+        await createScreenModel({ env, fetchImpl: answer('{"summary":"s","observation":"o","next_step":"n"}') }).describeScreen({ goal: null, text: 't', language: 'en', purpose: 'reading', app_name: null });
+        assert.deepEqual(sent, [hosted, hosted]);
+        return `${sent[0]} on the watch observation and the screen card; ${VOICE_EFFORT} on voice replies`;
       },
       'contract-version': () => {
         const version = spec.info.version.replace(/\./g, '\\.');

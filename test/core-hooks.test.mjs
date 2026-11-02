@@ -17,11 +17,11 @@ function wav(seconds = 1.5, rate = 16000) {
   return Buffer.concat([h, data]);
 }
 
-async function analyzeBody(extra = {}) {
+async function analyzeBody(extra = {}, env = { BASETEN_API_KEY: 'k' }) {
   let body;
   const fetchImpl = async (url, init) => { body = init.body; return new Response(JSON.stringify({ choices: [{ message: { content: '{"observation":"o","suggested_exercise":"e"}' } }] }), { status: 200 }); };
   const metrics = measure('Um, I think we ship it. Sorry, let me restart.', 6000, 'fr');
-  await createModelClients({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }).analyze({ goal: { title: 'Be concise', target: 'Fewer fillers' }, transcript: 'Um, I think we ship it.', metrics, language: 'fr', ...extra });
+  await createModelClients({ env, fetchImpl }).analyze({ goal: { title: 'Be concise', target: 'Fewer fillers' }, transcript: 'Um, I think we ship it.', metrics, language: 'fr', ...extra });
   return body;
 }
 
@@ -34,6 +34,15 @@ test('analyze: the default request is byte-for-byte unchanged; a custom system p
   const original = JSON.parse(body);
   assert.equal(custom.messages[0].content, 'You are a French tutor. Reply with JSON only.');
   assert.deepEqual({ ...custom, messages: [custom.messages[1]] }, { ...original, messages: [original.messages[1]] });
+});
+
+test('analyze: with ANALYSIS_EFFORT unset, empty or unknown, the pinned request body is unchanged', async () => {
+  const pinned = 'a3a59c9c4addc4d85e6581d5861f313681da8d68b487e821e60ce8833f616b10';
+  for (const effort of [undefined, '', 'max', 'MEDIUM']) {
+    const env = { BASETEN_API_KEY: 'k', ...(effort === undefined ? {} : { ANALYSIS_EFFORT: effort }) };
+    assert.equal(createHash('sha256').update(await analyzeBody({}, env)).digest('hex'), pinned, `ANALYSIS_EFFORT=${effort}`);
+  }
+  assert.notEqual(createHash('sha256').update(await analyzeBody({}, { BASETEN_API_KEY: 'k', ANALYSIS_EFFORT: 'medium' })).digest('hex'), pinned);
 });
 
 test('server helpers are exported for reuse', () => {
