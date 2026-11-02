@@ -161,3 +161,13 @@ extension Requests {
         #expect(ScriptedProtocol.seen.count == 1)
     }
 }
+
+extension Requests {
+    @Test func theScreenCardIsSentOnlyWhenPicked() {
+        let requests = RoundRequests(baseURL: base, token: "tok")
+        #expect(requests.answer(upload, wav: Data()).value(forHTTPHeaderField: "X-Screen-Context-Id") == nil)
+        let carded = AnswerUpload(idempotencyKey: "watch-voice-card1234", goalID: "goal-1", language: .en, occurredAt: upload.occurredAt, promptEndedAt: nil,
+                                  screenContextID: "card-goal")
+        #expect(requests.answer(carded, wav: Data()).value(forHTTPHeaderField: "X-Screen-Context-Id") == "card-goal")
+    }
+}

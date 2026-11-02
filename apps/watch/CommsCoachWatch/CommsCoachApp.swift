@@ -1,3 +1,4 @@
+import SparringCore
 import SwiftUI
 
 @main
@@ -25,6 +26,8 @@ final class CaptureModel: ObservableObject {
 
     @Published var phase: Phase = .loading
     @Published var goals: [GoalSummary] = []
+    /// The account's newest screen card from the Mac, from the same overview read.
+    @Published var latestCard: ScreenCard?
     @Published var selectedGoal: GoalSummary? {
         didSet { if oldValue?.id != selectedGoal?.id, !isLoading { Task { await refreshDrill() } } }
     }
@@ -71,7 +74,9 @@ final class CaptureModel: ObservableObject {
         do {
             let api = try CoachAPI.fromBundle()
             async let setting = try? api.settings() // a failed read leaves the row saying it is checking
-            goals = try await api.goals()
+            let overview = try await api.overview()
+            goals = overview.goals
+            latestCard = overview.latest_screen_context
             settings = await setting
             settingsNote = settings == nil ? "Not available on this coach yet." : nil
             if selectedGoal == nil { selectedGoal = goals.first }

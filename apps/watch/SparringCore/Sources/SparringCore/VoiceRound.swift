@@ -22,10 +22,19 @@ public struct AnswerUpload: Sendable, Equatable {
     /// What the other person needs in this practice round, as the round's first reply named it; sent back as
     /// `X-Counterpart-Need` so code can measure each answer against it. Part of the retry fingerprint when sent.
     public let need: String?
+    /// The Mac's latest screen card for this goal (`ScreenCard.pick`), sent as `X-Screen-Context-Id`. With it, the
+    /// round's first reply picks the other person's need from the card, as on the Mac.
+    public let screenContextID: String?
 
-    public init(idempotencyKey: String, goalID: String?, language: VoiceLanguage, occurredAt: Date, promptEndedAt: Date?, need: String? = nil) {
+    public init(idempotencyKey: String, goalID: String?, language: VoiceLanguage, occurredAt: Date, promptEndedAt: Date?, need: String? = nil,
+                screenContextID: String? = nil) {
         self.idempotencyKey = idempotencyKey; self.goalID = goalID; self.language = language
-        self.occurredAt = occurredAt; self.promptEndedAt = promptEndedAt; self.need = need
+        self.occurredAt = occurredAt; self.promptEndedAt = promptEndedAt; self.need = need; self.screenContextID = screenContextID
+    }
+
+    /// The same answer without the screen card (the card was hidden after the overview was read).
+    public func withoutScreenCard() -> AnswerUpload {
+        AnswerUpload(idempotencyKey: idempotencyKey, goalID: goalID, language: language, occurredAt: occurredAt, promptEndedAt: promptEndedAt, need: need)
     }
 
     /// ISO 8601 with milliseconds, in UTC.
@@ -34,6 +43,39 @@ public struct AnswerUpload: Sendable, Equatable {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
+    }
+}
+
+/// A screen card as the overview lists it (`latest_screen_context`, per goal and for the account): only what the watch
+/// needs to pick one. The card itself (a model-written summary of one Mac window) stays on the server.
+public struct ScreenCard: Decodable, Sendable, Hashable {
+    public let id: String
+    public let occurred_at: String
+    public let goal_id: String?
+
+    public init(id: String, occurred_at: String, goal_id: String?) { self.id = id; self.occurred_at = occurred_at; self.goal_id = goal_id }
+
+    /// A card older than this is not about the conversation being practised now.
+    public static let maxAge: TimeInterval = 60 * 60
+
+    /// The card a watch round is about: the selected goal's latest card, or else the account's latest card when no goal
+    /// owns it (with no goal selected, the account's latest card, as the Mac sends its last card); only when it is less
+    /// than `maxAge` old. Never a card that belongs to another goal. Nil: no card is sent, and the round runs as
+    /// before, without a need.
+    public static func pick(goalCard: ScreenCard?, latest: ScreenCard?, goalID: String?, now: Date) -> String? {
+        let candidates = [goalID == nil ? nil : goalCard, latest.flatMap { goalID == nil || $0.goal_id == nil || $0.goal_id == goalID ? $0 : nil }]
+        return candidates.compactMap { $0 }.first { card in
+            guard let at = parse(card.occurred_at) else { return false }
+            return now.timeIntervalSince(at) <= maxAge && at.timeIntervalSince(now) < 60
+        }?.id
+    }
+
+    private static func parse(_ text: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: text) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: text)
     }
 }
 
@@ -135,6 +177,7 @@ public struct RoundRequests: Sendable {
         request.setValue(AnswerUpload.timestamp(upload.occurredAt), forHTTPHeaderField: "X-Occurred-At")
         if let ended = upload.promptEndedAt { request.setValue(AnswerUpload.timestamp(ended), forHTTPHeaderField: "X-Prompt-Ended-At") }
         if let need = upload.need { request.setValue(need, forHTTPHeaderField: "X-Counterpart-Need") }
+        if let card = upload.screenContextID { request.setValue(card, forHTTPHeaderField: "X-Screen-Context-Id") }
         request.httpBody = wav
         return request
     }

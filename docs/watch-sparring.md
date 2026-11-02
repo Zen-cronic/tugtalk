@@ -16,6 +16,7 @@ It uses the same routes as the Mac (`docs/voice.md`):
    - the goal and language picked on the goal screen (`X-Goal-Id`, `X-Language`);
    - `X-Occurred-At` (when the recording started);
    - `X-Prompt-Ended-At` (when the previous question finished playing, if it played to the end);
+   - `X-Screen-Context-Id`: the Mac's latest screen card, read from the overview the watch already loads. It is the selected goal's newest card, or else the account's newest card when no goal owns it (with no goal selected, the account's newest card, as the Mac sends its last card), and only if it is under an hour old; never another goal's card. With it, the round's first reply picks what the other person needs from the card, so the need set by what is on the Mac's screen reaches the wrist. Without one, the round runs without a need. If the card was hidden on the Mac after the overview was read (404), the same answer is sent again, with the same key, without it;
    - `X-Counterpart-Need`, when the round's first reply named what the other person needs (`counterpart.need`). The watch holds it for the round and drops it at the end, as the Mac does.
    Meta transcribes the answer, code measures it, and Muse Spark Open picks the next move. Code checks the quote and the question before they come back.
 3. **Speaking.** The question is the large text on screen. Below it is **You said**, your own words in the transcript face, shown only when code on the server found them word for word in the transcript (`quote_verified`). In English the watch fetches the Wit.ai voice (`wit$Rebecca`, MP3) and plays it with `AVAudioPlayer` on the default audio route, which is the watch speaker. The line under the question says which voice spoke.
@@ -48,7 +49,7 @@ It uses the same routes as the Mac (`docs/voice.md`):
 - `apps/watch/CommsCoachWatch/Sparring.swift`: performs what the machine decides (the microphone, the upload, the player and the speech synthesizer).
 - `apps/watch/CommsCoachWatch/SparringView.swift`: the screens. Tug listens with its brows up and its string taut, closes its eyes while thinking, and moves its mouth while speaking. With Reduce Motion, Tug holds still and the mouth stays half open while it talks.
 
-Tests: `cd apps/watch/SparringCore && swift test` (38 tests). They cover the turn count, the wrap-up from the move gate, the need carried to later answers, the round end sent after End round (and resent with its key until confirmed, never after a wrap-up), Retry reusing the same Idempotency-Key and headers, a 429 that offers no Retry, a speech failure that keeps the question and uses the watch voice, French skipping the speech request, the request headers, and the singular and plural labels.
+Tests: `cd apps/watch/SparringCore && swift test` (41 tests). They cover the turn count, the wrap-up from the move gate, the need carried to later answers, the round end sent after End round (and resent with its key until confirmed, never after a wrap-up), the screen card picked from the overview and dropped on a 404, Retry reusing the same Idempotency-Key and headers, a 429 that offers no Retry, a speech failure that keeps the question and uses the watch voice, French skipping the speech request, the request headers, and the singular and plural labels.
 
 ## Try it in the simulator, without a microphone
 

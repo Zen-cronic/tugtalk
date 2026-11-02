@@ -21,14 +21,17 @@ final class SparringModel: ObservableObject {
     /// The last round end sent to the server (`POST /v1/voice-rounds/end`). The next answer waits for it.
     private var endTask: Task<Void, Never>?
 
-    init(goal: GoalSummary?, language: String) {
+    /// `latestCard`: the account's newest screen card from the overview. With the goal's own card it decides which card,
+    /// if any, the round is about (`ScreenCard.pick`), so the round's first reply picks the other person's need from it.
+    init(goal: GoalSummary?, latestCard: ScreenCard? = nil, language: String) {
         goalTitle = goal?.title
         var language = language
         #if DEBUG
         // `-sparringLanguage fr`: a French round without opening Setup, for simulator runs.
         if let forced = UserDefaults.standard.string(forKey: "sparringLanguage") { language = forced }
         #endif
-        machine = SparringMachine(goalID: goal?.id, language: VoiceLanguage(rawValue: language) ?? .en)
+        let card = ScreenCard.pick(goalCard: goal?.latest_screen_context, latest: latestCard, goalID: goal?.id, now: Date())
+        machine = SparringMachine(goalID: goal?.id, language: VoiceLanguage(rawValue: language) ?? .en, screenContextID: card)
         if let api = try? CoachAPI.fromBundle() {
             client = RoundClient(requests: RoundRequests(baseURL: api.baseURL, token: api.token))
         } else {

@@ -1,9 +1,12 @@
 import Foundation
+import SparringCore
 
 struct GoalSummary: Decodable, Identifiable, Hashable {
     let id: String
     let title: String
     let target: String
+    /// The goal's newest screen card from the Mac (id and time only), if any. A spoken round on the wrist is about it.
+    var latest_screen_context: ScreenCard? = nil
 }
 
 struct Metrics: Decodable {
@@ -52,7 +55,11 @@ struct CaptureReceipt: Decodable {
     let record: CapturedSession
 }
 
-private struct Overview: Decodable { let goals: [GoalSummary] }
+/// The fresh overview, as the watch reads it: the goals, and the account's newest screen card.
+struct Overview: Decodable {
+    let goals: [GoalSummary]
+    var latest_screen_context: ScreenCard? = nil
+}
 private struct APIErrorBody: Decodable { let error: String; let message: String? }
 
 enum CoachError: LocalizedError {
@@ -101,14 +108,14 @@ struct CoachAPI {
         }
     }
 
-    func goals() async throws -> [GoalSummary] {
+    func overview() async throws -> Overview {
         var request = URLRequest(url: baseURL.appending(path: "v1/overview"))
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         request.timeoutInterval = 45
         let (data, response) = try await URLSession.shared.data(for: request)
         try check(data, response)
-        return try JSONDecoder().decode(Overview.self, from: data).goals
+        return try JSONDecoder().decode(Overview.self, from: data)
     }
 
     func settings() async throws -> CoachSettings {

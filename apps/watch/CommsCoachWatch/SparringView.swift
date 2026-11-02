@@ -7,8 +7,8 @@ struct SparringView: View {
     @StateObject private var model: SparringModel
     @State private var scrolled = false
 
-    init(goal: GoalSummary?, language: String) {
-        _model = StateObject(wrappedValue: SparringModel(goal: goal, language: language))
+    init(goal: GoalSummary?, latestCard: ScreenCard? = nil, language: String) {
+        _model = StateObject(wrappedValue: SparringModel(goal: goal, latestCard: latestCard, language: language))
     }
 
     var body: some View {

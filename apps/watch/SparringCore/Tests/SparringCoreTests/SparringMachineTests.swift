@@ -341,3 +341,43 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         #expect(m.leave() == [.endRoundOnServer(key: "end-1")])
     }
 }
+
+@Suite struct ScreenCardOnTheWrist {
+    private func iso(_ date: Date) -> String {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f.string(from: date)
+    }
+
+    @Test func theGoalsRecentCardIsPickedElseAnUnlinkedOneNeverAnotherGoals() {
+        let fresh = iso(t0.addingTimeInterval(-600)), stale = iso(t0.addingTimeInterval(-ScreenCard.maxAge - 60))
+        let mine = ScreenCard(id: "card-goal", occurred_at: fresh, goal_id: "g1")
+        let loose = ScreenCard(id: "card-loose", occurred_at: fresh, goal_id: nil)
+        let other = ScreenCard(id: "card-other", occurred_at: fresh, goal_id: "g2")
+        #expect(ScreenCard.pick(goalCard: mine, latest: other, goalID: "g1", now: t0) == "card-goal")
+        #expect(ScreenCard.pick(goalCard: ScreenCard(id: "old", occurred_at: stale, goal_id: "g1"), latest: loose, goalID: "g1", now: t0) == "card-loose")
+        #expect(ScreenCard.pick(goalCard: nil, latest: other, goalID: "g1", now: t0) == nil, "never another goal's card")
+        #expect(ScreenCard.pick(goalCard: nil, latest: ScreenCard(id: "old", occurred_at: stale, goal_id: nil), goalID: "g1", now: t0) == nil, "too old")
+        #expect(ScreenCard.pick(goalCard: nil, latest: other, goalID: nil, now: t0) == "card-other", "no goal selected: the latest card, as the Mac sends")
+        #expect(ScreenCard.pick(goalCard: nil, latest: ScreenCard(id: "x", occurred_at: "2026-11-02T20:00:00Z", goal_id: nil), goalID: nil,
+                                now: ISO8601DateFormatter().date(from: "2026-11-02T20:10:00Z")!) == "x", "whole-second timestamps parse too")
+        #expect(ScreenCard.pick(goalCard: nil, latest: nil, goalID: "g1", now: t0) == nil)
+    }
+
+    @Test func theCardGoesWithEveryAnswerAndIsDroppedIfTheServerNoLongerHasIt() {
+        var m = SparringMachine(goalID: "g1", language: .en, screenContextID: "card-goal", newKey: Keys().next)
+        let first = answer(&m, at: t0)
+        #expect(first.screenContextID == "card-goal")
+        // Hidden on the Mac after the overview was read: the same answer, same key, goes again without the card.
+        let effects = m.uploadFailed(key: first.idempotencyKey, RoundFailure(kind: .serverError, message: "Record not found.", status: 404))
+        guard case .thinking(1, let again) = m.phase else { Issue.record("not thinking: \(m.phase.name)"); return }
+        #expect(effects == [.upload(again)])
+        #expect(again.idempotencyKey == first.idempotencyKey && again.screenContextID == nil && again.occurredAt == first.occurredAt)
+        _ = m.replied(key: again.idempotencyKey, receipt("r1"))
+        _ = m.speechFinished(roundID: "r1", at: t0.addingTimeInterval(9))
+        #expect(answer(&m, at: t0.addingTimeInterval(10)).screenContextID == nil, "later answers go without it")
+        // A 404 without a card is an ordinary failure.
+        var plain = SparringMachine(goalID: "g1", language: .en, newKey: Keys().next)
+        let up = answer(&plain, at: t0)
+        _ = plain.uploadFailed(key: up.idempotencyKey, RoundFailure(kind: .serverError, message: "Record not found.", status: 404))
+        guard case .failed = plain.phase else { Issue.record("expected a failure"); return }
+    }
+}

@@ -71,6 +71,9 @@ public struct SparringMachine: Sendable {
 
     public let goalID: String?
     public let language: VoiceLanguage
+    /// The Mac's screen card this round is about (`ScreenCard.pick`), sent with every answer. Dropped if the server no
+    /// longer has it (404), so the round goes on without it.
+    public private(set) var screenContextID: String?
     public private(set) var phase: Phase = .ready(answer: 1)
     /// The server's measurements of each answer so far.
     public private(set) var metrics: [VoiceMetrics] = []
@@ -85,9 +88,9 @@ public struct SparringMachine: Sendable {
     private let newKey: @Sendable () -> String
     private let newEndKey: @Sendable () -> String
 
-    public init(goalID: String?, language: VoiceLanguage, newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() },
+    public init(goalID: String?, language: VoiceLanguage, screenContextID: String? = nil, newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() },
                 newEndKey: @escaping @Sendable () -> String = { RoundRequests.newRoundEndKey() }) {
-        self.goalID = goalID; self.language = language; self.newKey = newKey; self.newEndKey = newEndKey
+        self.goalID = goalID; self.language = language; self.screenContextID = screenContextID; self.newKey = newKey; self.newEndKey = newEndKey
     }
 
     /// Answers the server has replied to.
@@ -180,6 +183,14 @@ public struct SparringMachine: Sendable {
 
     public mutating func uploadFailed(key: String, _ failure: RoundFailure) -> [Effect] {
         guard case .thinking(let answer, let upload) = phase, upload.idempotencyKey == key else { return [] }
+        // The screen card was hidden on the Mac after the overview was read: the same answer goes again without it.
+        // Nothing was saved under this key (the server refused before any model call), so the key is reused.
+        if failure.status == 404, upload.screenContextID != nil {
+            screenContextID = nil
+            let again = upload.withoutScreenCard()
+            phase = .thinking(answer: answer, upload: again)
+            return [.upload(again)]
+        }
         if failure.retryable {
             phase = .failed(answer: answer, failure: failure, upload: upload)
             return []
@@ -272,7 +283,8 @@ public struct SparringMachine: Sendable {
     }
 
     private mutating func start(_ answer: Int, at now: Date, prompt: Date?) -> [Effect] {
-        let upload = AnswerUpload(idempotencyKey: newKey(), goalID: goalID, language: language, occurredAt: now, promptEndedAt: prompt, need: need)
+        let upload = AnswerUpload(idempotencyKey: newKey(), goalID: goalID, language: language, occurredAt: now, promptEndedAt: prompt, need: need,
+                                  screenContextID: screenContextID)
         promptEndedAt = nil
         phase = .recording(answer: answer, upload: upload)
         // A round end still unconfirmed is sent again (same key) before the first answer of the next round.

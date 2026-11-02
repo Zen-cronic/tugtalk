@@ -47,7 +47,7 @@ struct ContentView: View {
             }
             .navigationTitle(showingResult ? "Result" : "Coach")
             .navigationDestination(isPresented: $showSetup) { SetupList(model: model) }
-            .navigationDestination(isPresented: $practise) { SparringView(goal: model.selectedGoal, language: model.language) }
+            .navigationDestination(isPresented: $practise) { SparringView(goal: model.selectedGoal, latestCard: model.latestCard, language: model.language) }
         }
     }
 
