@@ -95,6 +95,9 @@ final class NotchBarController {
             .sink { [weak self] card in if card != nil { self?.ui.latest = .round } }.store(in: &observers)
         model.$lastCard.dropFirst().receive(on: RunLoop.main)
             .sink { [weak self] card in if card != nil { self?.ui.latest = .card } }.store(in: &observers)
+        // The camera dot appearing (a hold with the camera on) can widen a crowded bar's left wing.
+        CameraSession.shared.$look.map { $0 != nil }.removeDuplicates().receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.layoutWindow() }.store(in: &observers)
         ui.$bodyHeight.removeDuplicates().receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.layoutWindow() }.store(in: &observers)
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
@@ -294,7 +297,7 @@ final class NotchBarController {
     /// The bar's mark for now: the state's own, or the warning when another copy holds the talk keys.
     private var mark: NotchBarStatus.Mark {
         let status = self.status
-        if model.hotkeyNotice != nil, status.mark == .none, !status.wordChip { return .symbol("exclamationmark.circle") }
+        if model.hotkeyNotice != nil, status.mark == .none, !status.emphasized { return .symbol("exclamationmark.circle") }
         return status.mark
     }
 
@@ -303,19 +306,22 @@ final class NotchBarController {
     private func wings(housing: CGRect?) -> (left: CGFloat, right: CGFloat) {
         let notch = housing != nil
         let glyph: CGFloat = notch ? 18 : 16
-        let word = glyph + 6 + BarType.width(status.word) + (status.wordChip ? 2 * NotchBarUI.chipPad : 0)
+        let word = glyph + 6 + BarType.width(status.word, heavy: status.emphasized)
         let markWidth = BarType.markWidth(mark)
         var right = markWidth == 0 ? 0 : (notch ? NotchBarPlacement.notchGap : 8) + markWidth + NotchBarUI.inset
         if let housing, right > 0, !NotchBarPlacement.rightWingFits(statusItemsMinX: statusItemsMinX(right: housing.midX),
                                                                    housingMaxX: housing.maxX, width: right) {
             right = 0
         }
-        // The record light never goes: with no room on the right, it moves beside the word.
-        let content = right == 0 && markWidth > 0 && { if case .recordLight = mark { return true } else { return false } }()
-            ? word + 6 + RecordLight.side : word
-        // With a notch the left wing ends at the housing, 8 pt clear; without one it runs into the right wing.
-        let left = notch || right == 0 ? NotchBarPlacement.wing(content: content, inset: NotchBarUI.inset, notch: notch)
-                                       : NotchBarUI.inset + content
+        // The record light (and the camera dot) never go: with no room on the right, they move beside the word.
+        let recording: Bool = { if case .recordLight = mark { return true } else { return false } }()
+        let content = right == 0 && recording
+            ? word + 6 + RecordLight.side + (CameraSession.shared.look == nil ? 0 : 6 + CameraDot.side) : word
+        // Never narrower than Tug and "Listening", so the bar's outer edge holds still as the word changes.
+        let minimum = BarType.minimumWord(glyph: glyph)
+        let left = notch || right == 0
+            ? NotchBarPlacement.steadyWing(content: content, minimum: minimum, inset: NotchBarUI.inset, notch: notch)
+            : NotchBarUI.inset + max(content, minimum)
         return (left, right)
     }
 

@@ -79,7 +79,6 @@ final class CameraSession: ObservableObject {
     private var results: [(key: String, metrics: CameraMetrics)] = []
     private var safety: Task<Void, Never>?
     private var generation = 0
-    private var cue: CameraCueController?
     #if DEBUG
     /// `-cameraFixture <poses.json>`: these head angles stand in for the camera, so no permission is needed.
     private let fixture: [HeadPoseSample]? = UserDefaults.standard.string(forKey: "cameraFixture").flatMap {
@@ -89,7 +88,6 @@ final class CameraSession: ObservableObject {
     #endif
 
     private init() {
-        cue = CameraCueController(session: self)
         #if DEBUG
         CameraPreview.runLaunchPreview(self)
         #endif

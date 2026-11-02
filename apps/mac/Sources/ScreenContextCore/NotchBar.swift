@@ -69,6 +69,13 @@ public enum NotchBarPlacement {
         return inset + content + (notch ? notchGap : inset)
     }
 
+    /// A wing that keeps its width as the word changes: at least `minimum` of content (sized to the longest common
+    /// word), growing outward from the notch only for a longer one. Its outer edge holds still.
+    public static func steadyWing(content: CGFloat, minimum: CGFloat, inset: CGFloat, notch: Bool) -> CGFloat {
+        guard content > 0 else { return 0 }
+        return wing(content: max(content, minimum), inset: inset, notch: notch)
+    }
+
     /// The collapsed bar: exactly the menu bar's height. With a notch it wraps the housing, flush with the top edge,
     /// with a wing of its own width on each side (a zero-width wing is left out). Without one it hangs just under the
     /// menu bar, centred, as wide as both wings.
@@ -165,8 +172,8 @@ public struct NotchBarStatus: Equatable, Sendable {
     public let word: String
     public let mark: Mark
     public let face: Face
-    /// "Your turn": the word sits in an ink chip on the sunflower wing, so it looks different at a glance.
-    public let wordChip: Bool
+    /// "Your turn": the word is set heavier, and Tug holds its string up, so it reads at a glance.
+    public let emphasized: Bool
     /// The open panel shows a card for this state.
     public let showsCard: Bool
     /// A card that opens the panel by itself shows one or two lines, and its full form on hover.
@@ -175,8 +182,8 @@ public struct NotchBarStatus: Equatable, Sendable {
     /// the person acts on it (a permission step, a retry) or it closes.
     public let linger: Double?
 
-    init(_ word: String, _ mark: Mark, _ face: Face, chip: Bool = false, card: Bool = false, compact: Bool = false, linger: Double? = nil) {
-        self.word = word; self.mark = mark; self.face = face; self.wordChip = chip
+    init(_ word: String, _ mark: Mark, _ face: Face, emphasized: Bool = false, card: Bool = false, compact: Bool = false, linger: Double? = nil) {
+        self.word = word; self.mark = mark; self.face = face; self.emphasized = emphasized
         self.showsCard = card; self.compact = compact; self.linger = linger
     }
 
@@ -193,7 +200,7 @@ public struct NotchBarStatus: Equatable, Sendable {
             if !finished { return .init("Speaking", .wave, .speaking, card: true, compact: true) }
             if endsRound { return .init("Done", .symbol("checkmark"), .rest, card: true, compact: true, linger: 8) }
             // The question has been asked: the panel folds a second later so the bar shows whose turn it is.
-            return .init("Your turn", .none, .turn, chip: true, card: true, compact: true, linger: 1)
+            return .init("Your turn", .none, .turn, emphasized: true, card: true, compact: true, linger: 1)
         case .nudge(let opened): return .init("Updated", .symbol("bell"), .rest, card: opened, compact: true, linger: 8)
         case .blocked: return .init("Blocked", .symbol("hand.raised"), .still)
         case .offline(let retryable): return .init("Offline", .symbol("wifi.slash"), .still, card: true, linger: retryable ? nil : 8)

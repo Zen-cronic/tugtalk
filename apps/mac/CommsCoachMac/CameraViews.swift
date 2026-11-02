@@ -3,7 +3,7 @@ import Combine
 import ScreenContextCore
 import SwiftUI
 
-// The camera's visible parts: Tug looking back while you hold ⌃⌥T, a small dot under the camera, one chip on the
+// The camera's visible parts: Tug looking back while you hold ⌃⌥T, a small dot in the top bar, one chip on the
 // reply card, and the explainer shown before macOS asks for the camera. Every word here describes where the head
 // pointed, never the person.
 
@@ -32,59 +32,29 @@ extension TugPose {
     }
 }
 
-// The dot under the camera
+// The dot in the top bar
 
-/// A small dot at the top centre of the screen, under the camera, shown only while a hold has the camera open:
-/// filled when your head faces the camera, an open ring when it doesn't. It never takes clicks.
-@MainActor
-final class CameraCueController {
-    private let panel: NSPanel
-    private var watch: AnyCancellable?
-    static let size = NSSize(width: 34, height: 20)
-
-    init(session: CameraSession) {
-        panel = NSPanel(contentRect: NSRect(origin: .zero, size: Self.size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
-        panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        panel.ignoresMouseEvents = true
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.hidesOnDeactivate = false
-        panel.isExcludedFromWindowsMenu = true
-        panel.contentView = NSHostingView(rootView: CameraCueView(session: session))
-        watch = session.$look.map { $0 != nil }.removeDuplicates().sink { [weak self] open in
-            DispatchQueue.main.async { open ? self?.show() : self?.panel.orderOut(nil) }
-        }
-    }
-
-    private func show() {
-        // The camera is at the top centre of the built-in display; any other screen falls back to the menu-bar one.
-        guard let screen = NSScreen.screens.first(where: { $0.localizedName.localizedCaseInsensitiveContains("built-in") }) ?? NSScreen.screens.first else { return }
-        let top = max(screen.frame.maxY - screen.visibleFrame.maxY, screen.safeAreaInsets.top)
-        panel.setFrameOrigin(NSPoint(x: screen.frame.midX - Self.size.width / 2, y: screen.frame.maxY - top - Self.size.height - 6))
-        panel.orderFrontRegardless()
-    }
-}
-
-struct CameraCueView: View {
-    @ObservedObject var session: CameraSession
+/// Beside the record light in the top bar while a hold has the camera open: filled when your head faces the camera,
+/// an open ring when it doesn't. Nothing shows while the camera is off. It never takes clicks.
+struct CameraDot: View {
+    @ObservedObject var session: CameraSession = .shared
+    var ink: NSColor = Tok.inkFixed
     @Environment(\.reduceMotionOn) private var reduceMotion
 
+    static let side: CGFloat = 11
+
     var body: some View {
-        let facing = session.look?.facing ?? false
-        ZStack {
-            Capsule().fill(Color(Tok.surface))
-            Capsule().strokeBorder(Color(Tok.cardEdge).opacity(0.6), lineWidth: 1)
+        if let look = session.look {
             ZStack {
-                Circle().strokeBorder(Color(Tok.ink).opacity(0.55), lineWidth: 1.6).frame(width: 10, height: 10).opacity(facing ? 0 : 1)
-                Circle().fill(Color(Tok.ink)).frame(width: 10, height: 10).opacity(facing ? 1 : 0)
+                Circle().strokeBorder(Color(ink), lineWidth: 1.6).opacity(look.facing ? 0 : 1)
+                Circle().fill(Color(ink)).opacity(look.facing ? 1 : 0)
             }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: facing)
+            .frame(width: Self.side, height: Self.side)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: look.facing)
+            .allowsHitTesting(false)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(look.facing ? "Facing the camera" : "Not facing the camera")
         }
-        .frame(width: CameraCueController.size.width, height: CameraCueController.size.height)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(facing ? "Facing the camera" : "Not facing the camera")
     }
 }
 
