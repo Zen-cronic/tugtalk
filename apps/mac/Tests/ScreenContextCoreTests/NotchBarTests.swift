@@ -39,6 +39,20 @@ final class NotchBarPlacementTests: XCTestCase {
         }
     }
 
+    func testTheOuterEdgeHoldsStillAsTheWordChanges() {
+        // Content widths for Tug plus "Ready", "Thinking" and "Listening"; the minimum is "Listening".
+        let minimum = 86.0
+        let edges = [64.0, 80.0, 86.0].map { content -> CGFloat in
+            let wing = NotchBarPlacement.steadyWing(content: content, minimum: minimum, inset: 10, notch: true)
+            return NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, left: wing, right: 0).frame.minX
+        }
+        XCTAssertEqual(Set(edges).count, 1, "the bar's left edge does not jump")
+        let longer = NotchBarPlacement.steadyWing(content: 100, minimum: minimum, inset: 10, notch: true)
+        let bar = NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, left: longer, right: 0)
+        XCTAssertLessThan(bar.frame.minX, edges[0], "a longer word grows outward")
+        XCTAssertEqual(bar.frame.maxX, housing.maxX, "the notch side stays put")
+    }
+
     func testAnEmptyWingTakesNoRoom() {
         XCTAssertEqual(NotchBarPlacement.wing(content: 0, inset: 10, notch: true), 0)
         let bar = NotchBarPlacement.collapsed(screen: notched, visible: notchedVisible, housing: housing, left: 90, right: 0)
@@ -156,11 +170,11 @@ final class NotchBarStatusTests: XCTestCase {
         XCTAssertEqual(NotchBarStatus.make(.offline(retryable: true)).face, .still)
     }
 
-    func testOnlyYourTurnPutsTheWordInAChip() {
-        XCTAssertTrue(NotchBarStatus.make(.voiceReply(finished: true, endsRound: false)).wordChip)
+    func testOnlyYourTurnIsEmphasized() {
+        XCTAssertTrue(NotchBarStatus.make(.voiceReply(finished: true, endsRound: false)).emphasized)
         let others: [NotchBarInput] = [.idle, .voiceListening(seconds: 0), .thinking, .voiceReply(finished: false, endsRound: false),
                                        .voiceReply(finished: true, endsRound: true), .offline(retryable: true), .permission]
-        for input in others { XCTAssertFalse(NotchBarStatus.make(input).wordChip, "\(input)") }
+        for input in others { XCTAssertFalse(NotchBarStatus.make(input).emphasized, "\(input)") }
     }
 
     func testTheRecordLightIsOnlyForListening() {

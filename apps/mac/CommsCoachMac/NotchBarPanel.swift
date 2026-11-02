@@ -39,8 +39,6 @@ final class NotchBarUI: ObservableObject {
     /// Room under the open panel for the spring's overshoot.
     static let slack: CGFloat = 24
     static let inset: CGFloat = 10
-    /// The word chip's padding on each side ("Your turn").
-    static let chipPad: CGFloat = 7
     /// The bare glyph buttons in the open band, and the card's close button: one size, one right inset.
     static let glyphButton: CGFloat = 28
     static let glyphInset: CGFloat = 4
@@ -90,23 +88,31 @@ enum BarType {
         let attributes: [CFString: Any] = [kCTFontNameAttribute: "Anybody-Thin", kCTFontVariationAttribute: axes as CFDictionary]
         return CTFontCreateWithFontDescriptor(CTFontDescriptorCreateWithAttributes(attributes as CFDictionary), size, nil)
     }()
-    static var word: Font { (CTFontCopyFamilyName(ctFont) as String) == "Anybody" ? Font(ctFont) : .system(size: size, weight: .semibold) }
+    /// "Your turn": the same face, heavier.
+    static let ctHeavy: CTFont = {
+        TypeFace.register()
+        let axes: [Int: CGFloat] = [0x77647468: 104, 0x77676874: 900]
+        let attributes: [CFString: Any] = [kCTFontNameAttribute: "Anybody-Thin", kCTFontVariationAttribute: axes as CFDictionary]
+        return CTFontCreateWithFontDescriptor(CTFontDescriptorCreateWithAttributes(attributes as CFDictionary), size, nil)
+    }()
+    private static var bundled: Bool { (CTFontCopyFamilyName(ctFont) as String) == "Anybody" }
+    static func word(heavy: Bool = false) -> Font {
+        bundled ? Font(heavy ? ctHeavy : ctFont) : .system(size: size, weight: heavy ? .heavy : .semibold)
+    }
 
-    static func width(_ text: String) -> CGFloat {
-        let string = NSAttributedString(string: text, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): ctFont])
+    static func width(_ text: String, heavy: Bool = false) -> CGFloat {
+        let string = NSAttributedString(string: text, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): heavy ? ctHeavy : ctFont])
         return ceil(CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(string), nil, nil, nil)))
     }
 
-    /// The right wing's mark, in points.
-    static func markWidth(_ mark: NotchBarStatus.Mark) -> CGFloat {
-        switch mark {
-        case .none: 0
-        case .recordLight: 52
-        case .dots: 18
-        case .wave: 15
-        case .symbol: 16
-        }
-    }
+    /// The left wing's least content: Tug and the widest common word ("Listening", or the heavier "Your turn"), so the
+    /// bar's edge holds still between states.
+    static func minimumWord(glyph: CGFloat) -> CGFloat { glyph + 6 + max(width("Listening"), width("Your turn", heavy: true)) }
+
+    /// The right wing's one width for every mark, sized to the widest (record light, timer and camera dot), so it
+    /// holds still between states too. Zero when there is no mark.
+    static let markSlot: CGFloat = 72
+    static func markWidth(_ mark: NotchBarStatus.Mark) -> CGFloat { mark == .none ? 0 : markSlot }
 }
 
 /// The label that hangs from the top edge: square top corners against the screen edge or the menu bar,
@@ -250,23 +256,16 @@ struct NotchBarView: View {
         // The clock ticks once a second only while the microphone is open, for the timer.
         TimelineView(.animation(minimumInterval: 1, paused: !isListening)) { context in
             let status = NotchBarStatus.make(model.phase.barInput(talking: model.talking, now: context.date))
-            let conflict = model.hotkeyNotice != nil && status.mark == .none && !status.wordChip
+            let conflict = model.hotkeyNotice != nil && status.mark == .none && !status.emphasized
             let mark: NotchBarStatus.Mark = conflict ? .symbol("exclamationmark.circle") : status.mark
             HStack(spacing: 0) {
                 HStack(spacing: 6) {
                     TugGlyphFace(face: status.face, awake: !model.isPresenting)
                         .frame(width: ui.glyph, height: ui.glyph)
-                    if status.wordChip {
-                        // "Your turn": an ink chip around the word, on the sunflower wing.
-                        Text(status.word).font(BarType.word).lineLimit(1).fixedSize()
-                            .foregroundStyle(Color(Tok.field))
-                            .padding(.horizontal, NotchBarUI.chipPad).frame(height: 20)
-                            .background(Capsule().fill(Color(Tok.inkFixed)))
-                    } else {
-                        Text(status.word).font(BarType.word).lineLimit(1).fixedSize()
-                    }
-                    // No room past the notch: the record light comes over beside the word.
-                    if ui.rightWing == 0, !ui.expanded, case .recordLight = mark { RecordLight() }
+                    // "Your turn" is the same bare word, heavier, with Tug's string held up.
+                    Text(status.word).font(BarType.word(heavy: status.emphasized)).lineLimit(1).fixedSize()
+                    // No room past the notch: the record light and the camera dot come over beside the word.
+                    if ui.rightWing == 0, !ui.expanded, case .recordLight = mark { RecordLight(); CameraDot() }
                 }
                 .padding(.leading, NotchBarUI.inset)
                 .frame(width: ui.expanded && ui.housingWidth != nil ? ui.openHousingX : ui.leftWing, alignment: .leading)
@@ -306,7 +305,7 @@ struct NotchBarView: View {
     }
 
     private func accessibilityDetail(_ status: NotchBarStatus) -> String {
-        if status.wordChip { return "Hold Control Option T to answer." }
+        if status.emphasized { return "Hold Control Option T to answer." }
         switch status.mark {
         case .none: return "Hold Control Option T and talk."
         case .recordLight(let time): return "Recording, \(time)"
@@ -348,6 +347,8 @@ struct BarMark: View {
             HStack(spacing: 5) {
                 RecordLight()
                 Text(time).font(TypeFace.mono(12, weight: 600)).monospacedDigit()
+                // Facing the camera or not, while a hold has the camera on.
+                CameraDot().padding(.leading, 2)
             }
         case .dots: BarDots()
         case .wave: SpeakingWave(color: Tok.inkFixed)
@@ -411,7 +412,8 @@ struct NotchBarBody: View {
     private var compact: Bool { status.showsCard && status.compact && ui.openedByCard && !ui.dwelled }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        // Two blocks, evidence then action, with more space between them than inside them.
+        VStack(alignment: .leading, spacing: 16) {
             if ui.settingsOpen {
                 NotchBarSettings(model: model, onHome: ui.onHome, onDone: { ui.settingsOpen = false })
             } else {
@@ -426,7 +428,7 @@ struct NotchBarBody: View {
     // The card
 
     @ViewBuilder private var card: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             if status.showsCard {
                 liveCard
             } else {
@@ -444,7 +446,7 @@ struct NotchBarBody: View {
             CardTitle(eyebrow: card.replayed ? "Already saved · \(card.appName)" : "Card saved · \(card.appName)", sample: card.isPreview, onClose: close)
             MainLine(text: card.observation, compact: compact)
             if !compact {
-                Instruction(label: "Next step", text: card.nextStep)
+                LabelledLine(label: "Next step", text: card.nextStep)
                 if model.pointing {
                     Label { Text("Circled on your \(card.appName) window").font(TypeFace.body(13, weight: 550)) } icon: { Image(systemName: "circle.circle") }
                         .foregroundStyle(Color(Tok.muted))
@@ -484,23 +486,20 @@ struct NotchBarBody: View {
             CardTitle(eyebrow: "Shortcut")
             NoticeText(text: notice)
         } else if ui.latest == .round, let round = model.latestVoiceCard {
-            CardTitle(eyebrow: "Latest round" + (round.round.map { " · Round \($0)" } ?? ""), sample: round.isPreview)
+            CardTitle(eyebrow: "Latest round", trailing: round.round.map { "Round \($0)" }, sample: round.isPreview)
             if let number = LatestRoundNumber.make(summary: round.summary, latest: round.metrics) {
                 // A plain line: the count chip and its caption on one baseline.
                 HabitCount(count: number.value, habit: number.habit, caption: number.caption)
             }
             SaidDisclosure(quote: round.quote, transcript: round.transcriptSnippet, onLayout: { model.layoutNeeded() })
             RecordingNote(note: round.recordingNote)
-            TalkHint()
         } else if ui.latest == .card, let card = model.lastCard {
             CardTitle(eyebrow: "Latest card · \(card.appName)", sample: card.isPreview)
             MainLine(text: card.observation, compact: false)
-            Instruction(label: "Next step", text: card.nextStep)
-            TalkHint()
+            LabelledLine(label: "Next step", text: card.nextStep)
         } else {
             CardTitle(eyebrow: "Ready")
             Text("No round yet").font(TypeFace.display(17, weight: 800)).foregroundStyle(Color(Tok.ink))
-            TalkHint()
         }
     }
 
@@ -534,8 +533,7 @@ struct NotchBarBody: View {
             }
             // A permission step comes first; everything else offers talking and reading.
             if !isPermission {
-                // In "Your turn" the yellow chip in the card is the one talk prompt.
-                if !status.wordChip { NotchTalkButton(ui: ui, primary: cardAction == nil) }
+                NotchTalkButton(ui: ui, primary: cardAction == nil)
                 Button("Read this window") { ui.onReadWindow() }
                     .buttonStyle(ChipButtonStyle())
                     .accessibilityHint("Reads the window in front, like Control-Option-Space.")
@@ -562,13 +560,20 @@ struct CardTitle: View {
     var sample = false
     var onClose: (() -> Void)? = nil
 
+    /// "Round 1 · Sample", with one divider. "Sample" is Debug previews only; `-noSampleTag YES` hides it for the video.
+    private var meta: String? {
+        var parts = [trailing].compactMap { $0 }
+        #if DEBUG
+        if sample, !UserDefaults.standard.bool(forKey: "noSampleTag") { parts.append("Sample") }
+        #endif
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(eyebrow).font(TypeFace.body(12, weight: 650)).foregroundStyle(Color(Tok.muted)).lineLimit(1)
             Spacer(minLength: 4)
-            if let trailing { Text(trailing).font(TypeFace.body(12, weight: 650)).foregroundStyle(Color(Tok.muted)) }
-            // Debug previews only; `-noSampleTag YES` hides it in captures for the video.
-            SampleTag(isPreview: sample && !UserDefaults.standard.bool(forKey: "noSampleTag"), text: "Sample")
+            if let meta { Text(meta).font(TypeFace.body(12, weight: 650)).foregroundStyle(Color(Tok.muted)).lineLimit(1) }
             if let onClose {
                 Button(action: onClose) {
                     Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Color(Tok.ink))
@@ -594,13 +599,20 @@ struct MainLine: View {
     }
 }
 
-/// "Hold ⌃⌥T to talk", with the keys as keycaps.
-struct TalkHint: View {
-    var body: some View { ShortcutLine(text: "Hold ⌃⌥T to talk", font: TypeFace.body(13, weight: 600), ink: Tok.muted) }
+/// "Next step  Say the ask in one sentence": a muted label and the text on one plain line, no rule.
+struct LabelledLine: View {
+    let label: String
+    let text: String
+    var body: some View {
+        (Text(label + "  ").font(TypeFace.body(13, weight: 600)).foregroundColor(Color(Tok.muted))
+         + Text(noWidow(text)).font(TypeFace.body(15, weight: 600)).foregroundColor(Color(Tok.ink)))
+            .lineSpacing(2).fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel("\(label): \(text)")
+    }
 }
 
-/// The panel's buttons: compact chips, at least 32 pt tall, body-size labels, light outlines. The primary is ink on
-/// sunflower in both looks.
+/// The panel's buttons: compact chips, at least 32 pt tall, body-size labels, light outlines. The primary is ink with
+/// white text in light, and sunflower only in dark (sunflower otherwise belongs to the bar).
 struct ChipButtonStyle: ButtonStyle {
     var primary = false
     @Environment(\.colorScheme) private var scheme
@@ -620,12 +632,15 @@ struct ChipBackground<Label: View>: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
         label
-            .foregroundStyle(Color(primary ? Tok.inkFixed : Tok.ink))
+            .foregroundStyle(Color(primary ? Self.onPrimary(scheme) : Tok.ink))
             .padding(.horizontal, 10).frame(minHeight: 32)
-            .background(shape.fill(primary ? Color(Tok.barField(scheme)) : Color.clear))
-            .overlay(shape.strokeBorder(primary ? Color(Tok.inkFixed).opacity(0.3) : Color(Tok.edge).opacity(0.7), lineWidth: 1))
+            .background(shape.fill(primary ? Color(Self.primaryFill(scheme)) : Color.clear))
+            .overlay(shape.strokeBorder(primary ? Color.clear : Color(Tok.edge).opacity(0.7), lineWidth: 1))
             .contentShape(shape)
     }
+
+    static func primaryFill(_ scheme: ColorScheme) -> NSColor { scheme == .dark ? Tok.barField(.dark) : Tok.inkFixed }
+    static func onPrimary(_ scheme: ColorScheme) -> NSColor { scheme == .dark ? Tok.inkFixed : Tok.labelWhite }
 }
 
 /// A notice: its first sentence with the keys as keycaps (wrapping text when it is long), the rest muted underneath.
@@ -670,8 +685,6 @@ struct ReplyCard: View {
     var onClose: () -> Void
     var onLayout: () -> Void
 
-    private var yourTurn: Bool { card.finished && !card.endsRound }
-
     var body: some View {
         CardTitle(eyebrow: card.endsRound ? "Round done" : card.moveTitle, trailing: card.round.map { "Round \($0)" }, sample: card.isPreview, onClose: onClose)
         if card.endsRound, let summary = card.summary, let number = LatestRoundNumber.make(summary: summary, latest: nil) {
@@ -680,14 +693,10 @@ struct ReplyCard: View {
         }
         MainLine(text: card.question, compact: compact).accessibilityLabel("Question: \(card.question)")
         if !compact {
-            if card.summary == nil {
-                EvidenceRow(card: card, onLayout: onLayout)
-            } else {
-                ShortcutLine(text: "Hold ⌃⌥T to start again", font: TypeFace.body(13, weight: 600), ink: Tok.muted)
-            }
+            if card.summary == nil { EvidenceRow(card: card, onLayout: onLayout) }
+            if let camera = card.camera { CameraChip(metrics: camera) }
             RecordingNote(note: card.recordingNote)
         }
-        if yourTurn { TurnChip() }
     }
 }
 
@@ -745,28 +754,6 @@ struct SaidDisclosure<Extra: View>: View {
     }
 }
 
-/// "Your turn · hold ⌃⌥T": the one talk prompt once a question has been asked, as the primary chip. Its edge
-/// pulses slowly; still with Reduce Motion.
-struct TurnChip: View {
-    @Environment(\.reduceMotionOn) private var reduceMotion
-    @Environment(\.colorScheme) private var scheme
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 20, paused: reduceMotion)) { context in
-            let pulse = reduceMotion ? 1 : 0.55 + 0.45 * sin(context.date.timeIntervalSinceReferenceDate * 2 * .pi / 2.0)
-            HStack(spacing: 8) {
-                Text("Your turn").font(TypeFace.body(13, weight: 700))
-                ShortcutLine(text: "hold ⌃⌥T", font: TypeFace.body(13, weight: 600), ink: Tok.inkFixed)
-            }
-            .foregroundStyle(Color(Tok.inkFixed))
-            .padding(.horizontal, 10).frame(minHeight: 32)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(Tok.barField(scheme))))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(Tok.inkFixed).opacity(0.2 + 0.45 * pulse), lineWidth: 1.2))
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Your turn. Hold Control Option T to answer.")
-    }
-}
-
 /// The habit's word for a count, with "unsure words" for hedges.
 enum HabitWord {
     static func word(_ habit: RoundSummary.Habit, _ count: Int) -> String {
@@ -784,17 +771,16 @@ struct HabitCount: View {
     let count: Int
     let habit: RoundSummary.Habit
     var caption: String? = nil
-    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        // The habit's own token (fillers: Tok.filler with Tok.fillerEdge), full strength in both looks, ink text.
         let (fill, edge) = HabitChip.colours(habit)
-        let dark = scheme == .dark
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("\(count) \(HabitWord.word(habit, count))").font(TypeFace.body(13, weight: 650)).monospacedDigit()
-                .foregroundStyle(Color(dark ? Tok.ink : Tok.inkFixed))
+                .foregroundStyle(Color(Tok.inkFixed))
                 .padding(.horizontal, 7).padding(.vertical, 3)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(dark ? edge : fill).opacity(dark ? 0.3 : 1)))
-                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color(edge).opacity(0.5), lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(fill)))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color(edge), lineWidth: 1))
             if let caption { Text(caption).font(TypeFace.body(13, weight: 500)).foregroundStyle(Color(Tok.muted)) }
         }
         .accessibilityElement(children: .ignore)
@@ -802,24 +788,19 @@ struct HabitCount: View {
     }
 }
 
-/// Round done's one big number, as a single lockup: the numeral, its unit and the change, on sunflower when the round
-/// improved.
+/// Round done's one big number, as a single lockup on the card surface: an ink numeral in Anybody, and "fillers, down
+/// from 2 in your first answer" on the same baseline. No tile.
 struct RoundNumber: View {
     let number: LatestRoundNumber
-    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("\(number.value)").font(TypeFace.display(40, weight: 850)).monospacedDigit()
-            VStack(alignment: .leading, spacing: 1) {
-                Text(HabitWord.word(number.habit, number.value)).font(TypeFace.body(16, weight: 750))
-                Text(number.caption).font(TypeFace.body(13, weight: 550)).opacity(0.85)
-            }
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("\(number.value)").font(TypeFace.display(40, weight: 850)).monospacedDigit().foregroundStyle(Color(Tok.ink))
+            (Text(HabitWord.word(number.habit, number.value) + ", ").font(TypeFace.body(15, weight: 750)).foregroundColor(Color(Tok.ink))
+             + Text(number.caption).font(TypeFace.body(15, weight: 550)).foregroundColor(Color(Tok.muted)))
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .foregroundStyle(Color(number.improved ? Tok.inkFixed : Tok.ink))
-        .padding(.horizontal, 12).padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(number.improved ? Color(Tok.barField(scheme)) : Color.clear))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(number.value) \(HabitWord.word(number.habit, number.value)) \(number.caption)")
     }
@@ -832,9 +813,11 @@ struct NotchTalkButton: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         ChipBackground(primary: primary, scheme: scheme) {
-            HStack(spacing: 6) {
-                if ui.holdingTalk { RecordDot() } else { Image(systemName: "mic.fill").font(.system(size: 12, weight: .bold)) }
+            // "Talk ⌃⌥T": the keys inline, in the chip's own ink, so no separate hint line is needed.
+            HStack(spacing: 7) {
+                if ui.holdingTalk { RecordDot() }
                 Text(ui.holdingTalk ? "Listening" : "Talk").font(TypeFace.body(13, weight: 650))
+                if !ui.holdingTalk { KeyCaps("⌃⌥T", size: 11, ink: primary ? ChipBackground<EmptyView>.onPrimary(scheme) : Tok.ink) }
             }
             .fixedSize()
         }
@@ -842,7 +825,7 @@ struct NotchTalkButton: View {
             .onChanged { _ in if !ui.holdingTalk { ui.holdingTalk = true; ui.onTalkDown() } }
             .onEnded { _ in ui.onTalkUp() })
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Talk")
+        .accessibilityLabel("Talk, Control Option T")
         .accessibilityHint("Hold to talk, let go to send. Control-Option-T does the same.")
         .accessibilityAddTraits(.isButton)
     }
@@ -871,8 +854,8 @@ struct NotchBarSettings: View {
                 row("Tug lives in") {
                     CartSegmented(label: "Where Tug lives", options: TugHome.allCases.map { ($0, $0.title) }, selection: $home)
                 }
-                row("Presenting") {
-                    CartSegmented(label: "Presenting", options: [(true, "Hide in meetings"), (false, "Always show")], selection: $hideInMeetings)
+                row("In meetings") {
+                    CartSegmented(label: "In meetings", options: [(true, "Hide Tug"), (false, "Show Tug")], selection: $hideInMeetings)
                 }
             }
         }
@@ -893,8 +876,9 @@ struct NotchBarSettings: View {
     }
 }
 
-/// A row of choices in one hairline edge; the chosen one is a neutral tint with no second outline. Each choice is a
-/// button at least 28 pt tall inside a 32 pt control, and VoiceOver reads which one is selected.
+/// A row of equal-width choices on a neutral track, about a third shorter than the row; the chosen one is white (the
+/// card surface) with a 1 pt ink border. Each choice is a button at least 28 pt tall inside a 32 pt control, and
+/// VoiceOver reads which one is selected.
 struct CartSegmented<Value: Hashable>: View {
     let label: String
     let options: [(Value, String)]
@@ -907,8 +891,10 @@ struct CartSegmented<Value: Hashable>: View {
                 Button { selection = option.0 } label: {
                     Text(option.1).font(TypeFace.body(13, weight: chosen ? 700 : 600))
                         .foregroundStyle(Color(chosen ? Tok.ink : Tok.muted))
+                        .lineLimit(1)
                         .frame(maxWidth: .infinity, minHeight: 28)
-                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(chosen ? Color(Tok.rule) : Color.clear))
+                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(chosen ? Color(Tok.surface) : Color.clear))
+                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Color(Tok.ink).opacity(chosen ? 1 : 0), lineWidth: 1))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -917,7 +903,8 @@ struct CartSegmented<Value: Hashable>: View {
             }
         }
         .padding(2)
-        .thinEdge(radius: 9, fill: Tok.surface, edge: Tok.edge.withAlphaComponent(0.7))
+        .frame(width: 196)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(Tok.rule)))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
     }
