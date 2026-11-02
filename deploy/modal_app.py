@@ -19,7 +19,7 @@ if not bootstrap_hash:
 # Provider keys live only in this Modal secret (created from the ignored suite .env); never in the image or repo.
 models_secret = modal.Secret.from_name('synthetic-coaching-models')
 # KEEP_WARM=1 at deploy time keeps one container running (min_containers=1), for filming windows: no cold start
-# (about 4.5 s, measured Nov 2). It is billed around the clock while on: at Modal's list price for 0.25 core and
+# (about 3 s from Toronto, measured Nov 2). It is billed around the clock while on: at Modal's list price for 0.25 core and
 # 512 MiB, about $0.016 an hour ($0.38 a day), or $0.047 an hour non-preemptible. Default off: redeploy without it after filming.
 keep_warm = os.environ.get('KEEP_WARM', '') == '1'
 # A container stays up for 5 minutes after its last request, so the pauses in a practice conversation do not

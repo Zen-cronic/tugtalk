@@ -66,7 +66,7 @@ The round has one time budget (`src/budget.mjs`), as recordings do: 120 s, cut t
 | Value | Voice | Needs | Status |
 |---|---|---|---|
 | `mms` | Meta MMS-TTS, `facebook/mms-tts-eng` and `facebook/mms-tts-fra`, self-hosted on Modal as its own app (`deploy/mms_tts_app.py`, CPU). **Licence CC-BY-NC-4.0: non-commercial use, with attribution.** | `MMS_TTS_URL`, `MMS_TTS_TOKEN` (a shared secret only the backend holds) | Code and tests ready; not deployed |
-| `wit` | Wit.ai text-to-speech, the service behind Meta's Voice SDK. English voices only (30, in en_US, en_CA and en_GB); a French round gets 503 and the Apple voice | `WIT_TTS_TOKEN`, optional `WIT_TTS_VOICE` (default `wit$Rebecca`) | Checked live on Nov 2 (5 calls): `POST /synthesize?v=20240304`, Bearer, `{q, voice}`. It asks for MP3, which streams (first byte 0.39 s for a 10 s clip); WAV came back in one burst after 2.8–3.6 s |
+| `wit` | Wit.ai text-to-speech, the service behind Meta's Voice SDK. English voices only (30, in en_US, en_CA and en_GB); a French round gets 503 and the Apple voice | `WIT_TTS_TOKEN`, optional `WIT_TTS_VOICE` (default `wit$Rebecca`) | Checked live on Nov 2 (5 calls): `POST /synthesize?v=20240304`, Bearer, `{q, voice}`. It asks for MP3, which streams (first byte 0.39 s for a 10 s clip); WAV came back in one burst after 2.8–3.6 s. Live on the hosted service (Nov 2) |
 
 ## Errors
 
@@ -108,7 +108,21 @@ Live, one run on 2026-11-02 (`eval/voice-live-latency.json`): 12 headless rounds
 - p90 and the percentiles are linear-interpolated over 12 rounds; the 6.4 s reply was one outlier.
 - 11 of 11 offered quotes passed code's check; one round offered no quote.
 - One spoken reply through the speech route with `wit` (`wit$Rebecca`, MP3): first byte 340 ms, total 1589 ms, locally.
-- What it does not include: the Modal hop. The hosted service runs each request in a new Node worker; on Nov 2 a warm `GET /health` took 6.7 s, so a hosted round will be slower until that is fixed. Meta's realtime transcription would save about 2 s of the `asr` step; it is not wired in.
+- What it does not include: the Modal hop. Meta's realtime transcription would save about 2 s of the `asr` step; it is not wired in.
+
+Hosted, on Modal (`docs/hosted-latency.json`, Nov 2, from Toronto). The hosting adapter used to start a new Node worker for each request and reload and commit the volume around it, reads included. It now runs every request on one long-lived worker, commits only writes, and streams the spoken reply.
+
+| | Before | After |
+|---|---|---|
+| Warm `GET /health`, median of 7 | 2906 ms | 145 ms |
+| Voice round, release to reply | 8800 ms (one round) | 4751 and 3983 ms (two rounds) |
+| Of which outside the API handler (adapter, commit, network) | 2855 ms | 1277 and 945 ms |
+| Spoken reply, first audio byte (`wit$Rebecca`) | 6100 ms | 920 and 706 ms |
+
+- What is left outside the handler is mostly the volume commit before the answer (0.67–0.95 s), which every write needs, plus about 0.3 s of network.
+- The spoken reply now starts within the Mac's 2 s wait for the server voice, so the Mac should play the Meta voice rather than fall back to an Apple voice; we have not yet checked that on the Mac. Its first byte is Wit's own first byte from Modal (0.6–0.8 s) plus the network.
+- An exact retry of a round came back in 786 ms with no model call.
+- These are two rounds, not a distribution. The copy rule below still applies.
 - What we saw in the replies: every one of the 12 moves was `challenge`, including round 12, although the prompt asks for `wrap_up` by about round 4. The model presses well on what was said, but code does not yet end a round.
 - The file transcription repeated words in 5 of 12 clips that were not in the audio ("two weeks two weeks", "you you know", "cut the cut the"). A repeated single word shows up in `immediate_repeats`; neither kind counts as a restart.
 

@@ -85,3 +85,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `voice-live-quotes` | Same run: offered quotes that passed code's check | 11 of 11 (1 round offered none) | `eval/voice-live-latency.json` |
 | `voice-wording` | What the latency lets us call the reply | voice reply, not real-time | Rule on `eval/voice-live-latency.json`: real-time needs at least 10 rounds, p50 ≤ 2000 ms and none over 3500 ms |
 | `speech-wit-live` | One spoken reply through the speech route with wit, locally | first byte 340 ms, total 1589 ms, audio/mpeg | `speech_route_sample` in `eval/voice-live-latency.json` |
+| `hosted-health` | Warm `GET /health` on the hosted service, Nov 2: median before and after the adapter change | 2906 ms before, 145 ms after (7 requests each) | docs/hosted-latency.json |
+| `hosted-voice` | Hosted voice round: release to reply, and the time spent outside the API handler | 8800 ms before; 4751 and 3983 ms after (2 rounds); outside the handler 2855 ms before, 1277 and 945 ms after | docs/hosted-latency.json |
+| `hosted-speech` | Hosted spoken reply (wit$Rebecca, audio/mpeg): time to the first audio byte | 6100 ms before; 920 and 706 ms after | docs/hosted-latency.json |
+| `hosted-replay` | Hosted exact retry of a voice round: model calls, and time to the reply | none, 786 ms | docs/hosted-latency.json |

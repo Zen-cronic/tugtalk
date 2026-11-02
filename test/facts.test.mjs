@@ -251,7 +251,8 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
       ...measurementChecks(evalResult),
       ...voiceChecks(base, store, dbPath, calls),
       ...await speechChecks(),
-      ...liveVoiceChecks()
+      ...liveVoiceChecks(),
+      ...hostedChecks()
     };
 
     const facts = parseFacts();
@@ -489,5 +490,33 @@ function liveVoiceChecks() {
       return t.length >= 10 && pct(t, 0.5) <= 2000 && Math.max(...t) <= 3500 ? 'real-time' : 'voice reply, not real-time';
     },
     'speech-wit-live': () => { const s = live.speech_route_sample; return `first byte ${s.first_byte_ms} ms, total ${s.total_ms} ms, ${s.content_type}`; }
+  };
+}
+
+// The hosted before-and-after timings (docs/hosted-latency.json), recomputed from the recorded samples.
+function hostedChecks() {
+  const h = JSON.parse(read('docs/hosted-latency.json'));
+  const median = xs => { const s = [...xs].sort((a, b) => a - b); return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2; };
+  const fresh = h.after.voice_rounds.filter(r => !r.replayed), replay = h.after.voice_rounds.filter(r => r.replayed);
+  return {
+    'hosted-health': () => {
+      assert.equal(h.before.warm_health_ms.length, h.after.warm_health_ms.length);
+      return `${median(h.before.warm_health_ms)} ms before, ${median(h.after.warm_health_ms)} ms after (${h.after.warm_health_ms.length} requests each)`;
+    },
+    'hosted-voice': () => {
+      assert.ok(fresh.every(r => r.status === 200));
+      const outside = r => r.release_to_reply_ms - r.latency_ms.total;
+      return `${h.before.voice_round.release_to_reply_ms} ms before; ${fresh.map(r => r.release_to_reply_ms).join(' and ')} ms after (${fresh.length} rounds); `
+        + `outside the handler ${outside(h.before.voice_round)} ms before, ${fresh.map(outside).join(' and ')} ms after`;
+    },
+    'hosted-speech': () => {
+      assert.ok(h.after.speech.every(s => s.voice === 'wit$Rebecca' && s.content_type === 'audio/mpeg'));
+      return `${h.before.speech_first_byte_ms} ms before; ${h.after.speech.map(s => s.first_byte_ms).join(' and ')} ms after`;
+    },
+    'hosted-replay': () => {
+      assert.equal(replay.length, 1); assert.equal(replay[0].status, 200);
+      assert.equal(replay[0].server_timing.handler < 100, true, 'the replay made no model call');
+      return `none, ${replay[0].release_to_reply_ms} ms`;
+    }
   };
 }
