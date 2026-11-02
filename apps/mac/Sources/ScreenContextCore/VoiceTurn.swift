@@ -101,6 +101,16 @@ public struct VoiceTurnMachine: Sendable {
         return []
     }
 
+    /// The hold was abandoned without a release (the docked panel closed under the Talk button, or the app
+    /// lost focus mid-hold): the microphone closes and the clip is dropped, never sent. Only a hold is
+    /// affected, and like a tap it does not use up the last question's end time.
+    public mutating func cancelHold() -> [Effect] {
+        guard case .listening(let key, _, let prompt) = phase else { return [] }
+        phase = .idle
+        promptEndedAt = prompt
+        return [.discard(key: key)]
+    }
+
     /// The reply or the error card was closed.
     public mutating func dismiss() -> [Effect] {
         switch phase {

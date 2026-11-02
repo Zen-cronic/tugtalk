@@ -84,6 +84,14 @@ final class VoiceFlow {
 
     func retry() { perform(machine.retry(at: Date())) }
 
+    /// A hold that can no longer end with a release (the docked panel closed under Talk): nothing is sent.
+    func cancelHold() {
+        guard case .listening = machine.phase else { return }
+        voiceLog.notice("hold cancelled before release; nothing sent")
+        perform(machine.cancelHold())
+        model.set(.notice("Not sent. Hold Talk until you finish."), collapseAfter: 3)
+    }
+
     /// The bubble was closed, by its button or a click on the character.
     func dismissed() { perform(machine.dismiss()) }
 

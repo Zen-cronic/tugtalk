@@ -19,6 +19,10 @@ final class DockController {
     var floatingTugCenter: () -> CGPoint = { .zero }
     var onTalkDown: () -> Void = {}
     var onTalkUp: () -> Void = {}
+    /// The panel's Talk hold ended without a release: close the microphone and send nothing.
+    var onTalkCancel: () -> Void = {}
+    /// Talk is held down in the panel.
+    private var talkHeld = false
     var onReadWindow: () -> Void = {}
 
     init(model: CompanionModel) {
@@ -101,8 +105,8 @@ final class DockController {
         guard state.enabled, panel == nil else { return }
         let start = floatingTugCenter(), wasFloating = state.floatingTugVisible
         state.openPanel()
-        let view = NSHostingView(rootView: DockPanelView(model: model, onTalkDown: { [weak self] in self?.onTalkDown() },
-                                                         onTalkUp: { [weak self] in self?.onTalkUp() },
+        let view = NSHostingView(rootView: DockPanelView(model: model, onTalkDown: { [weak self] in self?.talkHeld = true; self?.onTalkDown() },
+                                                         onTalkUp: { [weak self] in self?.talkReleased() },
                                                          onReadWindow: { [weak self] in self?.readWindow() },
                                                          onClose: { [weak self] in self?.closePanel(animated: true) }))
         let size = view.fittingSize
@@ -112,6 +116,7 @@ final class DockController {
         let panel = DockPanel(contentRect: NSRect(origin: origin, size: size))
         panel.contentView = view
         panel.onClose = { [weak self] in self?.closePanel(animated: true) }
+        panel.onResignKey = { [weak self] in self?.cancelTalk() }
         self.panel = panel
         let end = CGPoint(x: origin.x + DockPanelView.tugCenter.x, y: origin.y + size.height - DockPanelView.tugCenter.y)
         model.dockedPanelOpen = true
@@ -123,7 +128,22 @@ final class DockController {
         refreshTile()
     }
 
+    /// A release from the panel's Talk button. Ignored after the hold was cancelled, so it never sends.
+    private func talkReleased() {
+        guard talkHeld else { return }
+        talkHeld = false
+        onTalkUp()
+    }
+
+    /// The app lost focus, or the panel is closing, while Talk is held: the release will never come.
+    func cancelTalk() {
+        guard talkHeld else { return }
+        talkHeld = false
+        onTalkCancel()
+    }
+
     func closePanel(animated: Bool) {
+        cancelTalk()
         guard let panel else { return }
         let from = CGPoint(x: panel.frame.minX + DockPanelView.tugCenter.x, y: panel.frame.maxY - DockPanelView.tugCenter.y)
         self.panel = nil
@@ -192,6 +212,8 @@ extension MascotPhase {
 /// The docked panel's window: a key panel (so its buttons work from the keyboard) that closes on Esc.
 final class DockPanel: NSPanel {
     var onClose: () -> Void = {}
+    /// The panel stopped taking the keyboard (another app or window came forward).
+    var onResignKey: () -> Void = {}
 
     init(contentRect: NSRect) {
         // Non-activating, like the floating Tug: it appears over a full-screen app without switching Spaces,
@@ -209,6 +231,7 @@ final class DockPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
     override func cancelOperation(_ sender: Any?) { onClose() }
+    override func resignKey() { super.resignKey(); onResignKey() }
 }
 
 /// Tug, larger, with its status, the latest spoken round, and four actions.

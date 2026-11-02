@@ -71,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.onFrameChange = { [weak self] in self?.pointing.companionMoved() }
         dock.onTalkDown = { [weak self] in self?.previewTask?.cancel(); self?.voice.keyDown() }
         dock.onTalkUp = { [weak self] in self?.voice.keyUp() }
+        dock.onTalkCancel = { [weak self] in self?.voice.cancelHold() }
         dock.onReadWindow = { [weak self] in self?.readLastOtherWindow() }
         menu.onDockMode = { [weak self] on in self?.dock.setEnabled(on) }
         voice.afterSave = { [weak self] in self?.poller.pollSoon() }
@@ -165,6 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidResignActive(_ notification: Notification) {
+        dock.cancelTalk()
         if dock.state.panelOpen { dock.closePanel(animated: true) }
     }
 

@@ -277,6 +277,20 @@ final class VoiceTurnMachineTests: XCTestCase {
         XCTAssertNil(m.promptEndedAt)
     }
 
+    func testAnAbandonedHoldClosesTheMicrophoneAndIsNeverSent() {
+        var m = machine()
+        _ = m.keyDown(at: t0); _ = m.keyUp(at: t0 + 2); _ = m.replyReady(key: "k1", question: "Why you?", endsRound: false)
+        _ = m.speechFinished(at: t0 + 4)
+        XCTAssertEqual(m.keyDown(at: t0 + 5), [.startRecording(key: "k2")])
+        XCTAssertEqual(m.cancelHold(), [.discard(key: "k2")], "the clip is dropped")
+        XCTAssertEqual(m.phase, .idle)
+        XCTAssertEqual(m.keyUp(at: t0 + 9), [], "a late release uploads nothing")
+        XCTAssertEqual(m.promptEndedAt, t0 + 4, "the question's end time is kept for the next hold")
+        XCTAssertEqual(m.cancelHold(), [], "nothing to cancel when not holding")
+        _ = m.keyDown(at: t0 + 10); _ = m.keyUp(at: t0 + 12)
+        XCTAssertEqual(m.cancelHold(), [], "a hold already released is on its way and is not cancelled")
+    }
+
     func testTheCapSendsEvenAShortHoldAndAnEmptyQuestionFails() {
         var m = machine()
         _ = m.keyDown(at: t0)
