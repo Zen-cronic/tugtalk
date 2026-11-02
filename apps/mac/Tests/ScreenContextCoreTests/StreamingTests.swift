@@ -178,3 +178,48 @@ final class LiveVoiceSessionTests: XCTestCase {
         XCTAssertEqual(CoachAPI(baseURL: URL(string: "http://127.0.0.1:4319")!, token: "t").liveURL.absoluteString, "ws://127.0.0.1:4319/v1/voice-rounds/live")
     }
 }
+
+@MainActor
+final class LiveAudioTests: XCTestCase {
+    private func waitUntil(_ audio: LiveAudio, waiting count: Int) async {
+        for _ in 0..<1_000 where audio.waiting < count { await Task.yield() }
+        XCTAssertEqual(audio.waiting, count)
+    }
+
+    func testAudioThatEndsBeforeItBeganResumesEveryWaiterWithAFailure() async {
+        let audio = LiveAudio()
+        let first = Task { try await audio.stream() }, second = Task { try await audio.stream() }
+        await waitUntil(audio, waiting: 2)
+        audio.finish()
+        for task in [first, second] {
+            do { _ = try await task.value; XCTFail("expected a failure") } catch { XCTAssertEqual(error as? LiveAudio.EndedBeforeAudio, LiveAudio.EndedBeforeAudio()) }
+        }
+        XCTAssertEqual(audio.waiting, 0)
+        // Later calls fail at once, and a late head or a second end changes nothing (no continuation resumes twice).
+        audio.start(contentType: "audio/mpeg", provider: "wit")
+        audio.finish(); audio.fail(CancellationError())
+        do { _ = try await audio.stream(); XCTFail("expected a failure") } catch { XCTAssertTrue(error is LiveAudio.EndedBeforeAudio) }
+    }
+
+    func testAHeadThenTheEndHandsOverTheBytesAndCloses() async throws {
+        let audio = LiveAudio()
+        let waiter = Task { try await audio.stream() }
+        await waitUntil(audio, waiting: 1)
+        audio.start(contentType: "audio/mpeg", provider: "wit")
+        audio.yield(Data("a".utf8)); audio.yield(Data("b".utf8)); audio.finish()
+        let stream = try await waiter.value
+        XCTAssertEqual(stream.contentType, "audio/mpeg"); XCTAssertEqual(stream.provider, "wit")
+        var bytes = Data()
+        for try await chunk in stream.chunks { bytes.append(chunk) }
+        XCTAssertEqual(bytes, Data("ab".utf8))
+        audio.fail(CancellationError()) // after the end: nothing is waiting, nothing resumes
+    }
+
+    func testAFailureResumesWaitersOnce() async {
+        let audio = LiveAudio()
+        let waiter = Task { try await audio.stream() }
+        await waitUntil(audio, waiting: 1)
+        audio.fail(CoachError.notConfigured); audio.fail(CancellationError()); audio.finish()
+        do { _ = try await waiter.value; XCTFail("expected a failure") } catch { XCTAssertEqual(error as? CoachError, .notConfigured) }
+    }
+}
