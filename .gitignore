@@ -7,3 +7,6 @@ node_modules/
 
 __pycache__/
 *.pyc
+
+# Local archives and exports
+/build/
