@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.kaungzinhein.commscoach
   deploymentTarget:
     watchOS: "11.0"
+    iOS: "18.0"
   createIntermediateGroups: true
 packages:
   SparringCore:
@@ -19,6 +20,25 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
+  # Store wrapper for the watch-only app, as in Xcode's Watch-only App template:
+  # an iOS stub with no executable that carries the watch app under Watch/ and
+  # holds the App Store Connect bundle ID. Archive this target.
+  CommsCoach:
+    type: application.watchapp2-container
+    platform: iOS
+    dependencies:
+      - target: CommsCoachWatch
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kaungzinhein.commscoach.watch
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Comms Coach
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+      configs:
+        Release:
+          VALIDATE_PRODUCT: YES
   CommsCoachWatch:
     type: application
     platform: watchOS
@@ -44,8 +64,28 @@ targets:
           - AzeretMono-Variable.ttf
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.kaungzinhein.commscoach.watch
+        PRODUCT_BUNDLE_IDENTIFIER: com.kaungzinhein.commscoach.watch.watchkitapp
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        # Watch-only: the app installs itself into the archive (XcodeGen's watchOS preset assumes an iOS host app).
-        SKIP_INSTALL: NO
+        # Embedded in the CommsCoach wrapper, which is the target that installs into the archive.
+        SKIP_INSTALL: YES
+schemes:
+  # Archive and upload: builds the wrapper with the watch app inside it.
+  CommsCoach:
+    build:
+      targets:
+        CommsCoach: all
+        CommsCoachWatch: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  # Simulator and device runs of the watch app itself.
+  CommsCoachWatch:
+    build:
+      targets:
+        CommsCoachWatch: all
+    run:
+      config: Debug
+    archive:
+      config: Release

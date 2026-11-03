@@ -58,7 +58,7 @@ STUB_SPEECH_MP3=question.mp3 PORT=4391 npm run stub       # prints token_file
 cd apps/watch && xcodegen generate
 xcodebuild -project CommsCoachWatch.xcodeproj -scheme CommsCoachWatch -destination 'platform=watchOS Simulator,name=Apple Watch SE 3 (40mm)' -derivedDataPath build/DerivedData build
 xcrun simctl install booted build/DerivedData/Build/Products/Debug-watchsimulator/CommsCoachWatch.app
-xcrun simctl launch booted com.kaungzinhein.commscoach.watch -devBaseURL http://127.0.0.1:4391 -devTokenFile <token_file> \
+xcrun simctl launch booted com.kaungzinhein.commscoach.watch.watchkitapp -devBaseURL http://127.0.0.1:4391 -devTokenFile <token_file> \
   -openSparring YES -sparringAutoplay YES -sparringFixtureWAV a1.wav,a2.wav,a3.wav -sparringVolume 0.1
 ```
 
@@ -75,14 +75,23 @@ Make the fixtures with `say -o a1.aiff "…"` and `afconvert -f WAVE -d LEI16@16
 
 ## Install on a watch Xcode can't see: TestFlight (internal testing)
 
-1. In App Store Connect, **Apps › + › New App**: platform watchOS, name "Comms Coach", bundle ID `com.kaungzinhein.commscoach.watch`, any SKU.
-2. Archive and upload. The upload uses Xcode's signed-in account to sign for distribution:
+The project has two targets, as in Xcode's Watch-only App template:
+
+| Target | Bundle ID | What it is |
+| --- | --- | --- |
+| `CommsCoach` | `com.kaungzinhein.commscoach.watch` | The App Store wrapper: an iOS stub with no executable that carries the watch app under `Watch/`. The App Store Connect listing uses this ID. |
+| `CommsCoachWatch` | `com.kaungzinhein.commscoach.watch.watchkitapp` | The watch app (`WKWatchOnly`), with the app icon. Embedded in the wrapper. |
+
+Use the `CommsCoach` scheme to archive and upload, and the `CommsCoachWatch` scheme for simulator and watch runs. Archiving the watch app on its own makes an archive App Store Connect can't accept.
+
+1. In App Store Connect, **Apps › + › New App**: platform iOS (watch-only apps are listed there), name "Comms Coach", bundle ID `com.kaungzinhein.commscoach.watch`, any SKU.
+2. Archive and upload. The upload uses Xcode's signed-in account to sign for distribution, and makes the App IDs and store profiles for both bundle IDs:
    ```sh
    cd apps/watch && xcodegen generate
-   xcodebuild -project CommsCoachWatch.xcodeproj -scheme CommsCoachWatch -configuration Release -destination 'generic/platform=watchOS' -archivePath build/CommsCoachWatch.xcarchive archive -allowProvisioningUpdates
+   xcodebuild -project CommsCoachWatch.xcodeproj -scheme CommsCoach -configuration Release -destination 'generic/platform=iOS' -archivePath build/CommsCoachWatch.xcarchive archive -allowProvisioningUpdates
    xcodebuild -exportArchive -archivePath build/CommsCoachWatch.xcarchive -exportOptionsPlist ExportOptions-TestFlight.plist -exportPath build/export -allowProvisioningUpdates
    ```
-   Raise `CURRENT_PROJECT_VERSION` in `project.yml` before each new upload. The build includes the synthetic test account's connector key from `Config/Secrets.xcconfig`, as every local build does.
+   The destination is iOS because the wrapper is the archived target; Xcode builds the embedded watch app for watchOS. Raise `CURRENT_PROJECT_VERSION` in `project.yml` before each new upload (both targets share it). The build includes the synthetic test account's connector key from `Config/Secrets.xcconfig`, as every local build does.
 3. In **TestFlight › Internal Testing**, add a group, add yourself, and add the build once it has finished processing.
 4. On the iPhone paired with the watch, open TestFlight and install Comms Coach. It installs on the watch.
 
