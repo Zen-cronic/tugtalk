@@ -73,6 +73,19 @@ Debug builds only:
 
 Make the fixtures with `say -o a1.aiff "…"` and `afconvert -f WAVE -d LEI16@16000 -c 1 a1.aiff a1.wav`.
 
+## Install on a watch Xcode can't see: TestFlight (internal testing)
+
+1. In App Store Connect, **Apps › + › New App**: platform watchOS, name "Comms Coach", bundle ID `com.kaungzinhein.commscoach.watch`, any SKU.
+2. Archive and upload. The upload uses Xcode's signed-in account to sign for distribution:
+   ```sh
+   cd apps/watch && xcodegen generate
+   xcodebuild -project CommsCoachWatch.xcodeproj -scheme CommsCoachWatch -configuration Release -destination 'generic/platform=watchOS' -archivePath build/CommsCoachWatch.xcarchive archive -allowProvisioningUpdates
+   xcodebuild -exportArchive -archivePath build/CommsCoachWatch.xcarchive -exportOptionsPlist ExportOptions-TestFlight.plist -exportPath build/export -allowProvisioningUpdates
+   ```
+   Raise `CURRENT_PROJECT_VERSION` in `project.yml` before each new upload. The build includes the synthetic test account's connector key from `Config/Secrets.xcconfig`, as every local build does.
+3. In **TestFlight › Internal Testing**, add a group, add yourself, and add the build once it has finished processing.
+4. On the iPhone paired with the watch, open TestFlight and install Comms Coach. It installs on the watch.
+
 ## One live round (Nov 2, 15:56 EST)
 
 One round of three answers in the watchOS simulator against the hosted service, before the move gate was deployed there and while the watch still stopped at three answers, with three `say` fixture clips in place of the microphone: 3 Meta transcriptions and 3 Spark Open replies, all HTTP 200, and 3 spoken questions, each played on the watch from the coach's MP3. Verbatim from the saved rounds:

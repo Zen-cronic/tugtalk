@@ -17,13 +17,15 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CoachAPIBaseURL</key>
 	<string>$(COACH_API_BASE_URL)</string>
 	<key>CoachAPIToken</key>
 	<string>$(COACH_API_TOKEN)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Records a short practice answer you choose to capture, so your coach can measure fillers, unsure words, pace and restarts, and ask you a follow-up question. Audio is uploaded once and not kept unless you turn on Keep my recordings.</string>
 	<key>UIAppFonts</key>

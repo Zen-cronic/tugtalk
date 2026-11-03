@@ -15,6 +15,7 @@ settings:
     DEVELOPMENT_TEAM: LVG4WJ7M59
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "6.0"
+    # Raise CURRENT_PROJECT_VERSION for every build uploaded to App Store Connect.
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
@@ -29,6 +30,9 @@ targets:
       path: CommsCoachWatch/Info.plist
       properties:
         CFBundleDisplayName: Comms Coach
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
         WKApplication: true
         WKWatchOnly: true
         NSMicrophoneUsageDescription: Records a short practice answer you choose to capture, so your coach can measure fillers, unsure words, pace and restarts, and ask you a follow-up question. Audio is uploaded once and not kept unless you turn on Keep my recordings.
@@ -42,4 +46,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kaungzinhein.commscoach.watch
         GENERATE_INFOPLIST_FILE: NO
-        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Watch-only: the app installs itself into the archive (XcodeGen's watchOS preset assumes an iOS host app).
+        SKIP_INSTALL: NO
