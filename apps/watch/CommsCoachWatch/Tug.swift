@@ -137,7 +137,7 @@ struct TugSpeaking: View {
             // A 15 Hz TimelineView here rebuilt the screen on every frame, and the real watch dropped taps on the
             // buttons beside it. The mouth now steps about twice a second, the rate of the recording clock.
             TimelineView(.periodic(from: .now, by: 0.45)) { context in
-                let step = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 2
+                let step = Int(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 0.9) / 0.45) % 2 // the remainder first: the full count overflows Int on 32-bit watches
                 TugGlyph(size: size, reach: reach, face: .speaking(step == 0 ? 0.9 : 0.35))
             }
         } else {

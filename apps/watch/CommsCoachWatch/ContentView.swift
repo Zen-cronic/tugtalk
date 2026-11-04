@@ -361,7 +361,7 @@ struct RecordLamp: View {
 struct ProgressDots: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.45)) { context in
-            let step = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 3
+            let step = Int(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.35) / 0.45) % 3 // the remainder first: the full count overflows Int on 32-bit watches
             HStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { i in
                     Circle().fill(Palette.inkDark).frame(width: 6, height: 6).opacity(i == step ? 1 : 0.42) // the dim dots stay above 3:1 on the face
