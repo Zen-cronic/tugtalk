@@ -190,6 +190,10 @@ export function connectorDocument(baseUrl) {
       + `End with one clear next step; if it needs a write, ask first and write only after they say yes. `
       + `Label the two kinds of result: numbers from the transcript are "counted by the app"; model-written text (observations, assessments, the other person's replies, suggested next steps) is an "AI suggestion" or "the AI thinks". `
       + `Never present an AI opinion as a count, and never call one practice round improvement. `
+      + `Start every opinion about how the person spoke, including "clear" or "did well", with "the AI thinks". `
+      + `Do not use the word "measured" in replies. `
+      + `Say "you marked an exercise done", never "check-in". `
+      + `Do not mention past events the reply has not explained. `
       + `Use everyday words, not field names: practice round for a session or voice round; filler words, such as "um"; unsure words, such as "I think" or "maybe"; "you marked it done" for a self-reported completion; "the AI thinks you covered this point" for an addressed assessment and "not covered yet" for partial or not_addressed; "a sample round" for a fixture. `
       + `Leave out record ids, versions, hashes, request ids, endpoints, status codes, field names, raw timestamps, "null", "lexicon" and "adjudicated" unless the user asks for details or the source. `
       + `Say times as the person would, such as "this morning" or "at 2:15 pm". `
