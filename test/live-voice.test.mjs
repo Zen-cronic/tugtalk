@@ -455,6 +455,30 @@ test('realtime: a turn Meta marks final mid-hold does not end the wait; the last
   assert.equal(result.transcript, ANSWER, 'the whole answer, not the sentence finalized mid-hold');
 });
 
+test('live: a client that closed the socket after release still gets its speech prefetched once the live round is saved', async () => {
+  const s = setup();
+  try {
+    const prefetched = [], prefetch = s.models.prefetchSpeech;
+    s.models.prefetchSpeech = (id, ...rest) => { prefetched.push(id); return prefetch(id, ...rest); };
+    const frames = [pcm(1000, 5), pcm(800, 6)];
+    const round = s.open({ ...START, idempotency_key: 'live-race-03' });
+    await tick();
+    metaAnswers(s.meta.sockets[0]);
+    frames.forEach(f => round.audio(f));
+    await tick();
+    round.end();
+    round.cancel(); // the Mac gave up on the socket; its upload of the same hold comes after this round is saved
+    const result = await round.done;
+    await result.speechDone;
+    assert.equal(result.status, 200);
+    assert.deepEqual(prefetched, [result.body.round_id], 'the saved round has its speech ready for the upload\'s replay');
+    assert.equal(s.audio.length, 0, 'no audio frames go to a client that went away'); assert.equal(s.calls.tts, 1);
+    const params = voiceParams({ 'x-language': 'en', 'x-occurred-at': START.occurred_at, 'x-prompt-ended-at': START.prompt_ended_at });
+    const upload = await handleVoiceRound(s.store, s.models, 'alice', { params, audio: wavFromPcm(Buffer.concat(frames)) }, 'live-race-03', 'req-upload-3');
+    assert.equal(upload.round_id, result.body.round_id, 'the upload replays the live round');
+  } finally { s.cleanup(); }
+});
+
 test('live: a client that closed the socket after release for its fallback upload gets no speech made; the upload saved first wins', async () => {
   const s = setup();
   try {
