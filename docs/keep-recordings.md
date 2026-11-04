@@ -1,4 +1,4 @@
-# Keep my recordings (contract 0.9.0)
+# Keep my recordings (contract 0.9.1)
 
 Audio is deleted after transcription unless you turn on **Keep my recordings** (off by default). Kept audio stays in your account and you can delete it any time.
 

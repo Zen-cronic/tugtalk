@@ -1,4 +1,4 @@
-# Confirmed practice requests (contract 0.9.0)
+# Confirmed practice requests (contract 0.9.1)
 
 A practice round keeps a request, its objectives and the current conversation on the server, scoped to one goal. Spark interprets each spoken answer against that confirmed request. Its assessment is a **model judgment**, not a code-measured success, proof of truth or evidence of improvement. Code validates ownership, versions, evidence spans and transitions; code cannot establish semantic correctness from a matching quote.
 

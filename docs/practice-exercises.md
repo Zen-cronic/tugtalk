@@ -1,4 +1,4 @@
-# Fictional follow-up practice (contract 0.9.0)
+# Fictional follow-up practice (contract 0.9.1)
 
 A practice exercise proposes a different fictional scenario from one saved objective assessment. The person confirms the scenario before it becomes an active [practice round](practice.md). An assessed answer is a fallible model interpretation, not a measured completion, communication improvement or demonstrated learning transfer.
 
