@@ -6,6 +6,6 @@ import { fixtureServer } from './dashboard-fixture.mjs';
 const port=Number(process.env.DASHBOARD_PORT??4321), upstreamPort=Number(process.env.DASHBOARD_FIXTURE_PORT??4320);
 const token=randomBytes(32).toString('hex'),password=randomBytes(24).toString('base64url');
 await mkdir('.data',{recursive:true,mode:0o700});await writeFile('.data/dashboard-preview-code.txt',password,{mode:0o600});
-const fixture=fixtureServer(token), app=createDashboard({webRoot:resolve('build/dashboard'),origin:`http://127.0.0.1:${port}`,upstream:`http://127.0.0.1:${upstreamPort}`,token,password,secure:false,demo:true,allowRecordingChanges:true});
+const fixture=fixtureServer(token), app=createDashboard({webRoot:resolve('build/dashboard'),landingRoot:resolve('build/landing'),origin:`http://127.0.0.1:${port}`,upstream:`http://127.0.0.1:${upstreamPort}`,token,password,secure:false,demo:true,allowRecordingChanges:true});
 fixture.listen(upstreamPort,'127.0.0.1');app.listen(port,'127.0.0.1',()=>process.stdout.write(`Sample dashboard: http://127.0.0.1:${port}/app/\nAccess code saved to .data/dashboard-preview-code.txt (private local file).\n`));
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{app.close();fixture.close();});

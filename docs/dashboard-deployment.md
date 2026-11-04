@@ -1,8 +1,8 @@
-# Separate read-only dashboard hosting
+# Shared landing and private dashboard hosting
 
-`deploy/dashboard_app.py` describes a separate Modal app, `comms-coach-dashboard`. It runs the Node gateway behind HTTPS with one container and no database volume. Its small Python entrypoint is serialized explicitly so container startup does not depend on importing an omitted deployment module. It adds only the explicit built-asset allowlist and the two gateway entrypoint modules to its image; it does not package the repository, local preview passwords or provider keys.
+`deploy/dashboard_app.py` describes the shared Modal app, `comms-coach-landing`, with the public landing at `/` and the authenticated dashboard at `/app/`. It runs the Node gateway behind HTTPS with one container and no database volume. Its small Python entrypoint is serialized explicitly so container startup does not depend on importing an omitted deployment module. It adds only the two explicit built-asset allowlists, their public asset manifest and the two gateway entrypoint modules to its image; it does not package the repository, local preview passwords or provider keys.
 
-The manifest deliberately fixes `DASHBOARD_ALLOW_RECORDING_CHANGES=0` and `DASHBOARD_LOCAL_HTTP=0`. Browsers can review records and listen to/download kept audio; recording settings and deletion remain disabled. There are no model calls. The existing connector remains the authoritative store.
+The manifest deliberately fixes `DASHBOARD_ALLOW_RECORDING_CHANGES=0` and `DASHBOARD_LOCAL_HTTP=0`. Browsers can review records and listen to/download kept audio; recording settings and deletion remain disabled. There are no model calls. The existing connector remains the authoritative store. The public landing has its own asset allowlist and font policy; the private dashboard retains its stricter content-security policy. Neither public files nor public requests expose the connector credential.
 
 ## Prepare and validate locally
 
@@ -38,7 +38,7 @@ Set these nonsecret deployment variables:
 | `DASHBOARD_ORIGIN` | The exact verified HTTPS browser origin for this dashboard endpoint, with no path |
 | `DASHBOARD_UPSTREAM` | The exact existing connector HTTPS origin, with no path |
 
-Do not guess a live endpoint host. Confirm the target workspace and endpoint naming before setting the origin. The gateway validates Host exactly and fails closed if the ingress or configured hostname differs. The `practice` web endpoint label belongs to the separate app; the existing connector deployment is untouched.
+Do not guess a live endpoint host. Confirm the target workspace and endpoint naming before setting the origin. The gateway validates Host exactly and fails closed if the ingress or configured hostname differs. The `comms-coach` web endpoint label serves both pages. The existing connector backend remains a separate authoritative service and is untouched by this deployment.
 
 After deployment and secret provisioning are explicitly approved, the command in the configured Modal environment is:
 

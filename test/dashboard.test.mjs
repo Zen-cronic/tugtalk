@@ -85,3 +85,23 @@ test('practice requests are readable only through the narrow authenticated GET r
  for(const method of ['POST','PATCH','DELETE'])assert.equal((await h.request('/app-api/practice-rounds/round-1',{method,headers:h.writeHeaders(),body:method==='DELETE'?undefined:'{}'})).status,404);
  assert.equal((await h.request('/app-api/practice-rounds/'+'x'.repeat(65))).status,404);assert.equal(h.calls.length,1);
 });
+
+test('one origin serves the public landing and private app with distinct security policies',async t=>{
+ const h=await harness(t,{landingRoot:path.resolve('site'),allowRecordingChanges:false});
+ const home=await h.request('/');assert.equal(home.status,200);assert.match(home.text,/Practise on your watch/);assert.match(home.text,/href="\/app\/"/);assert.match(home.text,/src="\/motion-init.js"/);
+ assert.ok(!home.text.includes(token));assert.equal(h.calls.length,0);
+ assert.match(home.headers.get('content-security-policy'),/fonts.googleapis.com/);
+ const app=await h.request('/app/');assert.equal(app.status,200);assert.match(app.text,/Your practice/);
+ assert.doesNotMatch(app.headers.get('content-security-policy'),/googleapis|unsafe-inline/);
+ assert.equal((await h.request('/app-api/context')).status,401);
+ await h.login();assert.equal((await h.request('/app-api/context')).status,200);
+ assert.equal((await h.request('/app-api/settings',{method:'PATCH',headers:h.writeHeaders(),body:'{}'})).status,403);
+});
+test('combined public routing allows only site assets and never exposes account or repository files',async t=>{
+ const h=await harness(t,{landingRoot:path.resolve('site')});
+ for(const name of ['main.js','motion-init.js','styles.css','assets/watch-ready.png'])assert.equal((await h.request('/'+name)).status,200);
+ assert.match((await h.request('/assets/watch-ready.png')).headers.get('content-type'),/image\/png/);
+ for(const name of ['.env','.git/config','.data/dashboard-production-code.txt','assets/','src/landing-assets.json','build/dashboard/index.html'])assert.equal((await h.request('/'+name)).status,404);
+ const head=await h.request('/',{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.text,'');
+ assert.equal(h.calls.length,0);
+});

@@ -1,6 +1,6 @@
 # Private practice dashboard
 
-The dashboard displays saved goals, capture and voice-round transcripts, code-counted speech metrics, model feedback, saved drills and retained audio. Its browser talks only to a separate same-origin Node gateway. The gateway holds one account's connector credential; the browser receives an opaque, eight-hour HttpOnly session cookie. No model calls are made by dashboard reads.
+The shared application serves the public landing at `/` and the private dashboard at `/app/`. The dashboard displays saved goals, capture and voice-round transcripts, code-counted speech metrics, model feedback, saved drills and retained audio. Its browser talks only to a same-origin Node gateway. The gateway holds one account's connector credential; the browser receives an opaque, eight-hour HttpOnly session cookie. No model calls are made by dashboard reads.
 
 This is a private, single-account application. It does not sign into a personal Muse account or retrieve Muse chat history. Conversation import is not connected. Only drills actually saved through the connector are visible; unsaved chat suggestions are not records. Connector provenance alone does not prove which assistant wrote a drill.
 
@@ -13,7 +13,7 @@ npm run dashboard:build
 npm run dashboard:preview
 ```
 
-Open `http://127.0.0.1:4321/app/`. The generated access code is in `.data/dashboard-preview-code.txt`, mode 0600, and is never printed by the server. Read it locally and paste into the sign-in field. `.data/` is excluded from Git. The fixture API uses port 4320; change `DASHBOARD_PORT` and `DASHBOARD_FIXTURE_PORT` if needed. The preview explicitly labels fictional records and stores any setting changes only in memory. Restarting resets them. Its sample WAV is silence, not a person's recording.
+Open `http://127.0.0.1:4321/` for the landing or `http://127.0.0.1:4321/app/` for the private preview. The generated access code is in `.data/dashboard-preview-code.txt`, mode 0600, and is never printed by the server. Read it locally and paste into the sign-in field. `.data/` is excluded from Git. The fixture API uses port 4320; change `DASHBOARD_PORT` and `DASHBOARD_FIXTURE_PORT` if needed. The preview explicitly labels fictional records and stores any setting changes only in memory. Restarting resets them. Its sample WAV is silence, not a person's recording.
 
 ## Private server configuration
 

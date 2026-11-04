@@ -53,10 +53,11 @@ class DashboardManifestTests(unittest.TestCase):
     def test_only_explicit_assets_and_gateway_are_packaged(self):
         loaded = self.load()
         files = loaded['image'].files
-        self.assertEqual(len(files), len(loaded['ASSETS']) + 2)
+        self.assertEqual(len(files), len(loaded['ASSETS']) + len(loaded['LANDING_ASSETS']) + 3)
         self.assertTrue(all('/.data/' not in source and '/.env' not in source for source, _ in files))
         self.assertEqual(loaded['app'].config['include_source'], False)
         self.assertNotIn('volumes', loaded['app'].config)
+        self.assertEqual(loaded['app'].name, 'comms-coach-landing')
 
     def test_read_only_single_instance_secure_configuration(self):
         config = self.load()['app'].config

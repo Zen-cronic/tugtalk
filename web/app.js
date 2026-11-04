@@ -9,7 +9,7 @@ const device = s => ({ watch:'Apple Watch', apple_watch:'Apple Watch', mac:'Mac'
 const practices = context => practiceRecords(context,state.data?.overview,{fresh:!state.stale&&!state.loading});
 const allGoals = c => [...(c.goals??[]),...(practices(c).some(s=>!s.goal_id)?[{id:'__unlinked',title:'Not linked to a goal',target:'These practices are shared account records. They are not evidence of progress on a specific goal.'}]:[])];
 const forGoal = (s,id) => id==='__unlinked'?!s.goal_id:s.goal_id===id;
-const brand = '<a class="brand" href="/app/"><img src="/app/icon.svg" alt="">Comms Coach</a>';
+const brand = '<a class="brand" href="/"><img src="/app/icon.svg" alt="">Comms Coach</a>';
 async function api(path, { method = 'GET', body } = {}) {
   const response = await fetch(`/app-api/${path}`, { method, credentials:'same-origin', cache:'no-store', headers:{ ...(body ? {'Content-Type':'application/json'} : {}), ...(method !== 'GET' ? {'X-CSRF-Token':state.csrf, 'Idempotency-Key':crypto.randomUUID()} : {}) }, ...(body ? {body:JSON.stringify(body)} : {}) });
   const data = await response.json();

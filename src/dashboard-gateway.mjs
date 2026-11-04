@@ -3,6 +3,8 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import landingAssetNames from './landing-assets.json' with { type: 'json' };
+const landingAssets = new Set(landingAssetNames);
 
 const hash = value => createHash('sha256').update(value).digest();
 const same = (a, b) => timingSafeEqual(hash(a), hash(b));
@@ -18,7 +20,7 @@ const routes = [
   ['GET', new RegExp(`^/media/(${id})$`), m => `/v1/media/${m[1]}`],
   ['DELETE', new RegExp(`^/media/(${id})$`), m => `/v1/media/${m[1]}`],
 ];
-const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ttf': 'font/ttf' };
+const mime = { '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ttf': 'font/ttf' };
 const assets = new Set(['index.html', 'app.js', 'practice-view.js', 'styles.css', 'icon.svg', 'Anybody.ttf', 'HankenGrotesk.ttf', 'AzeretMono.ttf']);
 class Failure extends Error { constructor(status, message) { super(message); this.status = status; } }
 async function bytes(stream, max) {
@@ -33,7 +35,7 @@ async function jsonBody(req) {
 function cookieValue(req, name) {
   return (req.headers.cookie ?? '').split(';').map(v => v.trim()).find(v => v.startsWith(`${name}=`))?.slice(name.length + 1) ?? '';
 }
-export function createDashboard({ origin, upstream, token, password, secure = true, webRoot = fileURLToPath(new URL('../web/', import.meta.url)), fetchImpl = fetch, now = Date.now, demo = false, allowRecordingChanges = false, sessionMs = 8 * 60 * 60 * 1000, timeoutMs = 10000 }) {
+export function createDashboard({ origin, upstream, token, password, secure = true, webRoot = fileURLToPath(new URL('../web/', import.meta.url)), landingRoot = null, fetchImpl = fetch, now = Date.now, demo = false, allowRecordingChanges = false, sessionMs = 8 * 60 * 60 * 1000, timeoutMs = 10000 }) {
   const publicURL = new URL(origin), apiURL = new URL(upstream);
   if (!['http:', 'https:'].includes(publicURL.protocol) || (!secure && !['127.0.0.1', 'localhost', '[::1]'].includes(publicURL.hostname))) throw new Error('Insecure cookies are allowed only on loopback.');
   if (secure && publicURL.protocol !== 'https:') throw new Error('HTTPS is required.');
@@ -106,6 +108,14 @@ export function createDashboard({ origin, upstream, token, password, secure = tr
         res.writeHead(response.status, { ...headers, 'Content-Type': type, ...(type.startsWith('audio/') ? { 'Content-Disposition': 'inline' } : {}) }); res.end(data); return;
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') throw new Failure(405, 'This action is not available.');
+      if (landingRoot && !route.startsWith('/app/') && route !== '/app') {
+        const publicFile = route === '/' ? 'index.html' : route.slice(1);
+        if (!landingAssets.has(publicFile)) throw new Failure(404, 'Page not found.');
+        const data = await readFile(path.join(landingRoot, publicFile));
+        const publicPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+        res.writeHead(200, { ...headers, 'Content-Security-Policy': publicPolicy, 'Content-Type': mime[path.extname(publicFile)] });
+        res.end(req.method === 'HEAD' ? undefined : data); return;
+      }
       const file = route === '/' || route === '/app' || route === '/app/' ? 'index.html' : route.startsWith('/app/') ? route.slice(5) : '';
       if (!assets.has(file)) throw new Failure(404, 'Page not found.');
       const data = await readFile(path.join(webRoot, file));
