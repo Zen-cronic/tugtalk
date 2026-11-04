@@ -121,7 +121,7 @@ final class CaptureModel: ObservableObject {
             _ = try recorder.start()
             phase = .recording
         } catch {
-            phase = .failed(error.localizedDescription)
+            phase = .failed("Mic didn't start.") // never a status code or an OSStatus on the wrist
         }
     }
 
