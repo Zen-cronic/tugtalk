@@ -1,0 +1,6701 @@
+{
+  "eval": "heldout-live",
+  "label": "Live Muse Spark Open adjudication, model-only words on, one run.",
+  "heldout": "heldout-v1",
+  "heldout_sha256": "9e0d16d9f714adc40246ed990a697094b57ad1e6bea30e35e7a1359e517c4bee",
+  "model": "meta-models/muse-spark-open-1026",
+  "reasoning_effort": "low",
+  "temperature": 0,
+  "ran_at": "2026-11-04T17:05:33.663Z",
+  "date": "2026-11-04",
+  "seconds": 99,
+  "calls_sent": 60,
+  "calls": {
+    "sent": 60,
+    "http_200": 60,
+    "finish_stop": 60,
+    "retries": 0,
+    "asr_calls": 0,
+    "hard_cap": 120,
+    "est_usd_per_call": 0.005,
+    "est_usd_total": 0.3,
+    "baseten_request_ids": [
+      "54ca701a1a784675b780d8f64e8087005bc9b",
+      "54ca701a1a7846d7574e6b0f5cc9abe252f50",
+      "54ca701a1a784720c7035a987b37257c38efa",
+      "54ca701a1a78478147a97bc12fc945eb22810",
+      "54ca701a1a7847ba67c18b9216e3b0e477f1f",
+      "54ca701a1a784803172909207a447955b0736",
+      "54ca701a1a78489057525ac7748fe25275ce9",
+      "54ca701a1a7848da77dae8df5e7633a7afa1b",
+      "54ca701a1a784960c718cb5e7d82c7c553d41",
+      "54ca701a1a7849d06769b9c8237f8b8632e81",
+      "54ca701a1a784a73b7d199a744e953033810f",
+      "54ca701a1a784aba77cf6a72ca0dcd5dec253",
+      "54ca701a1a784af4a7e1c8171667f1403afab",
+      "54ca701a1a784baa77325ae54a86e44a6cb70",
+      "54ca701a1a784c9757829b183a859d69de4d1",
+      "54ca701a1a784ccfc73798133ef019eb4c4f0",
+      "54ca701a1a784d1a07117bb6e857b9982bb91",
+      "54ca701a1a784d99b77abae77e25e0f2e9058",
+      "54ca701a1a784e138796bbab95498cc90ccc9",
+      "54ca701a1a784e72f7ba8b997a003c151d3ff",
+      "54ca701a1a784ec177bf69785b22e93e873ae",
+      "54ca701a1a784f107709199d2a94a44d04191",
+      "54ca701a1a784f9a97066ac854303472f47bf",
+      "54ca701a1a7850082751a9c579b14f7a50df0",
+      "54ca701a1a785065c7ab3b42988581a4754c0",
+      "54ca701a1a7850ab07080bc6db05c54bfd10c",
+      "54ca701a1a78514b67f04babd987a97974271",
+      "54ca701a1a7851d2a721abc30e5ae3cb9ed4d",
+      "54ca701a1a78521297bd9a2b1861b12c35667",
+      "54ca701a1a7852dec763680521eea14b2e4ac",
+      "54ca701a1a78532577b1a9b61b50e4d13630b",
+      "54ca701a1a78537697de694e1b2abd525c538",
+      "54ca701a1a7853b8675baa4c19d30fdb76963",
+      "54ca701a1a7853f607bbcb52d8efb0a23e5a6",
+      "54ca701a1a78549477bee8474ef6c32dd6197",
+      "54ca701a1a7854d587acc9fb6070789daf14a",
+      "54ca701a1a78553157b5fa63240ea38cd59ed",
+      "54ca701a1a78556d6774a8fa1a126b6556d73",
+      "54ca701a1a7855a09796b93dd99ec4ad79adf",
+      "54ca701a1a7855e61713c8e17132955d86f92",
+      "54ca701a1a785629a75b2948a5b6cc86fc5e2",
+      "54ca701a1a785671f76b2b3d00fa8681cd524",
+      "54ca701a1a7856e4b7d2f92fb560d354e7b3a",
+      "54ca701a1a785732470d4839d8a800b1771a7",
+      "54ca701a1a785813c7316aa45ac70890e12a5",
+      "54ca701a1a7858fc778dd933b79be4f3c30ce",
+      "54ca701a1a78593cf7d54bb9308175da22f18",
+      "54ca701a1a78597ea76a2a32de13b006f4292",
+      "54ca701a1a785a1e173eb9f8b5a8f5096ab60",
+      "54ca701a1a785b3ab7e60aff7cd02adec6b19",
+      "54ca701a1a785b7cb74bbb29aad32a05af321",
+      "54ca701a1a785bcfe7b6aa95538bedaf29f34",
+      "54ca701a1a785c1867ebbb48fcd59cc2d6b23",
+      "54ca701a1a785c52077a7873c5b0f4b566d4d",
+      "54ca701a1a785cb0b78638041cb4799e08135",
+      "54ca701a1a785cf9f784c834c16079a75957c",
+      "54ca701a1a785d4ec711996af97864c59a705",
+      "54ca701a1a785dac77e56b95937523c038883",
+      "54ca701a1a785df1a7c238a30de2aa33f73db",
+      "54ca701a1a785e2dd7ccd8349c1a315841119"
+    ]
+  },
+  "summary": {
+    "model_only": {
+      "metric": "F1 on the 86 model-only occurrences (like, genre, quoi); positive = labelled filler",
+      "model_only": {
+        "precision": 1,
+        "recall": 0.886,
+        "f1": 0.94,
+        "tp": 39,
+        "fp": 0,
+        "fn": 5,
+        "tn": 42
+      },
+      "count_all": {
+        "precision": 0.512,
+        "recall": 1,
+        "f1": 0.677,
+        "tp": 44,
+        "fp": 42,
+        "fn": 0,
+        "tn": 0
+      },
+      "count_none": {
+        "precision": null,
+        "recall": 0,
+        "f1": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 44,
+        "tn": 42
+      },
+      "lexicon": {
+        "precision": null,
+        "recall": 0,
+        "f1": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 44,
+        "tn": 42
+      }
+    },
+    "hedge": {
+      "metric": "recall on the 44 labelled hedge-family spans; positive = labelled hedge",
+      "lexicon": {
+        "precision": 0.676,
+        "recall": 0.742,
+        "f1": 0.708,
+        "tp": 23,
+        "fp": 11,
+        "fn": 8,
+        "tn": 2
+      },
+      "adjudication": {
+        "precision": 1,
+        "recall": 0.484,
+        "f1": 0.652,
+        "tp": 15,
+        "fp": 0,
+        "fn": 16,
+        "tn": 13
+      },
+      "count_all": {
+        "precision": 0.705,
+        "recall": 1,
+        "f1": 0.827,
+        "tp": 31,
+        "fp": 13,
+        "fn": 0,
+        "tn": 0
+      }
+    },
+    "rule1_model_only_ships": "PASS",
+    "rule2_hedges_leave_adjudication": "FIRES",
+    "errors": {
+      "model_only_missed_fillers": [
+        "en-06:like#1",
+        "en-06:like#2",
+        "en-22:like#2",
+        "en-25:like#1",
+        "en-27:like#1"
+      ],
+      "model_only_false_counts": [],
+      "hedges_removed_that_were_hedges": [
+        "en-03:Maybe",
+        "en-06:Probably",
+        "en-17:sort of",
+        "en-18:maybe",
+        "en-23:probably",
+        "fr-12:un peu",
+        "fr-24:un peu",
+        "fr-27:Peut-être"
+      ],
+      "non_hedges_removed": [
+        "en-07:kind of",
+        "en-09:I think",
+        "en-11:sort of",
+        "en-16:kind of",
+        "en-18:I think",
+        "en-28:maybe",
+        "fr-11:un peu",
+        "fr-15:Je pense",
+        "fr-18:je crois",
+        "fr-21:je pense",
+        "fr-26:un peu"
+      ],
+      "non_hedges_kept": []
+    }
+  },
+  "derived_note": "calls, summary and items[].checks were added after the run from the stored labels and the call log, with the same buildAdjudication code that rescore() runs; the recomputed score and rules were checked equal to the stored ones. No label, score or rule was changed.",
+  "score": {
+    "classes": {
+      "model_only": {
+        "lexicon": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 44,
+          "tn": 42
+        },
+        "adjudication": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 44,
+          "tn": 42
+        },
+        "model_only": {
+          "precision": 1,
+          "recall": 0.886,
+          "f1": 0.94,
+          "tp": 39,
+          "fp": 0,
+          "fn": 5,
+          "tn": 42
+        },
+        "count_all": {
+          "precision": 0.512,
+          "recall": 1,
+          "f1": 0.677,
+          "tp": 44,
+          "fp": 42,
+          "fn": 0,
+          "tn": 0
+        },
+        "count_none": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 44,
+          "tn": 42
+        }
+      },
+      "model_only:like": {
+        "lexicon": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 24,
+          "tn": 23
+        },
+        "adjudication": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 24,
+          "tn": 23
+        },
+        "model_only": {
+          "precision": 1,
+          "recall": 0.792,
+          "f1": 0.884,
+          "tp": 19,
+          "fp": 0,
+          "fn": 5,
+          "tn": 23
+        },
+        "count_all": {
+          "precision": 0.511,
+          "recall": 1,
+          "f1": 0.676,
+          "tp": 24,
+          "fp": 23,
+          "fn": 0,
+          "tn": 0
+        },
+        "count_none": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 24,
+          "tn": 23
+        }
+      },
+      "model_only:genre": {
+        "lexicon": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 9,
+          "tn": 8
+        },
+        "adjudication": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 9,
+          "tn": 8
+        },
+        "model_only": {
+          "precision": 1,
+          "recall": 1,
+          "f1": 1,
+          "tp": 9,
+          "fp": 0,
+          "fn": 0,
+          "tn": 8
+        },
+        "count_all": {
+          "precision": 0.529,
+          "recall": 1,
+          "f1": 0.692,
+          "tp": 9,
+          "fp": 8,
+          "fn": 0,
+          "tn": 0
+        },
+        "count_none": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 9,
+          "tn": 8
+        }
+      },
+      "model_only:quoi": {
+        "lexicon": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 11,
+          "tn": 11
+        },
+        "adjudication": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 11,
+          "tn": 11
+        },
+        "model_only": {
+          "precision": 1,
+          "recall": 1,
+          "f1": 1,
+          "tp": 11,
+          "fp": 0,
+          "fn": 0,
+          "tn": 11
+        },
+        "count_all": {
+          "precision": 0.5,
+          "recall": 1,
+          "f1": 0.667,
+          "tp": 11,
+          "fp": 11,
+          "fn": 0,
+          "tn": 0
+        },
+        "count_none": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 11,
+          "tn": 11
+        }
+      },
+      "hedge": {
+        "lexicon": {
+          "precision": 0.676,
+          "recall": 0.742,
+          "f1": 0.708,
+          "tp": 23,
+          "fp": 11,
+          "fn": 8,
+          "tn": 2
+        },
+        "adjudication": {
+          "precision": 1,
+          "recall": 0.484,
+          "f1": 0.652,
+          "tp": 15,
+          "fp": 0,
+          "fn": 16,
+          "tn": 13
+        },
+        "model_only": null,
+        "count_all": {
+          "precision": 0.705,
+          "recall": 1,
+          "f1": 0.827,
+          "tp": 31,
+          "fp": 13,
+          "fn": 0,
+          "tn": 0
+        },
+        "count_none": {
+          "precision": null,
+          "recall": 0,
+          "f1": 0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 31,
+          "tn": 13
+        }
+      }
+    },
+    "items": 60,
+    "model_only_not_counted": 0,
+    "unmatched": {
+      "model_only": [],
+      "lexicon_hedges": []
+    }
+  },
+  "rules": {
+    "rule1_model_only_ships": {
+      "pass": true,
+      "f1": 0.94,
+      "precision": 1,
+      "count_all_f1": 0.677,
+      "count_none_f1": 0,
+      "precision_floor": 0.8
+    },
+    "rule2_hedges_leave_adjudication": {
+      "fires": true,
+      "lexicon_recall": 0.742,
+      "adjudication_recall": 0.484,
+      "drop": 0.258,
+      "threshold": 0.2
+    }
+  },
+  "items": [
+    {
+      "id": "en-01",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784675b780d8f64e8087005bc9b",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "sort of",
+            "label": "habit",
+            "reason": "hedge softening 'stuck', removable without changing core meaning"
+          },
+          {
+            "id": "c2",
+            "quote": "I think",
+            "label": "habit",
+            "reason": "hedge before prediction, could be dropped"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "filler inserted before 'mostly done'"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "habit",
+            "reason": "filler before restart 'it's sort of stuck'"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 2
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 2
+        },
+        "summary": {
+          "hits": 2,
+          "always_habit": 0,
+          "candidates": 2,
+          "over_cap": 0,
+          "verified": 2,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "sort of",
+            "start": 102,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          },
+          {
+            "id": "c2",
+            "category": "hedges",
+            "quote": "I think",
+            "start": 136,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 2
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 27,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 91,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "sort of",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "I think",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-02",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7846d7574e6b0f5cc9abe252f50",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "after": " the plan, honestly. I'd go with",
+            "label": "content",
+            "reason": "main verb meaning enjoy/approve, essential to clause meaning"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "after": " Pagewell for the docs, and we",
+            "label": "content",
+            "reason": "preposition meaning such as introducing example, carries meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 2,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 56,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-03",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784720c7035a987b37257c38efa",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "Maybe",
+            "label": "content",
+            "reason": "Proposes possible action, dropping it changes suggestion to definite statement"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler before verb phrase, removable without changing meaning"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler between clauses, removable without loss of meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "Maybe",
+            "start": 142,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 2
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 40,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 122,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "Maybe",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-04",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78478147a97bc12fc945eb22810",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Part of 'looks like' meaning 'appears that', not a filler."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 35,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "I'm not sure",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-05",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7847ba67c18b9216e3b0e477f1f",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Functions as comparative preposition meaning 'similar to a dashboard', not a filler"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 81,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-06",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784803172909207a447955b0736",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "Probably",
+            "label": "content",
+            "reason": "Expresses uncertainty about cause, not a removable filler"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Approximator meaning about forty, carries meaning"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "content",
+            "reason": "Approximator meaning about twelve, carries meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "Probably",
+            "start": 83,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 33,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 70,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "Probably",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-07",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78489057525ac7748fe25275ce9",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "kind of",
+            "label": "content",
+            "reason": "Means 'type of summary', not a hedge."
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Main verb in 'would you like', carries meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "kind of",
+            "start": 116,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 10,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "kind of",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-08",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7848da77dae8df5e7633a7afa1b",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "I think",
+            "label": "habit",
+            "reason": "Hedge softening claim, removable without changing core proposition"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler after 'was', no comparative meaning"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler before clause, could be dropped"
+          },
+          {
+            "id": "m3",
+            "quote": "like",
+            "label": "content",
+            "reason": "Comparative meaning 'similar to the share button'"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "I think",
+            "start": 82,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 2
+          },
+          "summary": {
+            "candidates": 3,
+            "over_cap": 0,
+            "verified": 3,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 16,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 46,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m3",
+              "category": "fillers",
+              "quote": "like",
+              "start": 145,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 3,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "I think",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-09",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784960c718cb5e7d82c7c553d41",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "I think",
+            "label": "content",
+            "reason": "Inside quoted speech, expresses the quoted speaker's stance, not a filler to drop"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Main verb meaning enjoy/appreciate, essential to clause meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "I think",
+            "start": 49,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 112,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "I think",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-10",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7849d06769b9c8237f8b8632e81",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "kind of",
+            "label": "habit",
+            "reason": "Hedge softening 'halfway', droppable without changing core meaning"
+          },
+          {
+            "id": "c2",
+            "quote": "I guess",
+            "label": "habit",
+            "reason": "Hedge filler before plan, sentence works without it"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler inserted before 'broken', no semantic contribution"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 2
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 2
+        },
+        "summary": {
+          "hits": 3,
+          "always_habit": 1,
+          "candidates": 2,
+          "over_cap": 0,
+          "verified": 2,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "kind of",
+            "start": 32,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          },
+          {
+            "id": "c2",
+            "category": "hedges",
+            "quote": "I guess",
+            "start": 117,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 1
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 87,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "kind of",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "I guess",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-11",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784a73b7d199a744e953033810f",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "sort of",
+            "label": "content",
+            "reason": "Means 'what kind of budget', carries lexical meaning not a hedge."
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Means 'similar to this', part of comparison not a filler."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "sort of",
+            "start": 5,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 129,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "sort of",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-12",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784aba77cf6a72ca0dcd5dec253",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "Like",
+            "label": "habit",
+            "reason": "Filler before restatement, adds no propositional meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 1
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "Like",
+              "start": 11,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "Like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-13",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784af4a7e1c8171667f1403afab",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Part of 'looks like' expressing appearance, carries meaning."
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "content",
+            "reason": "Main verb 'like' meaning to prefer the room, essential to clause."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 1,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 38,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 148,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-14",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784baa77325ae54a86e44a6cb70",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Quotative filler introducing reported speech/thought, droppable without losing proposition"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Clause-medial filler before 'in the end', no semantic content"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 2
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 8,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 87,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "Perhaps",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-15",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784c9757829b183a859d69de4d1",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler hedge before adverb; removable without changing propositional meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 1
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 87,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-16",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784ccfc73798133ef019eb4c4f0",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "kind of",
+            "label": "content",
+            "reason": "Part of noun phrase 'different kind of tool', carries lexical meaning."
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Means 'such as' introducing example, not filler."
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "content",
+            "reason": "Main verb meaning 'would like/desire', essential to clause."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "kind of",
+            "start": 20,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 53,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 115,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "kind of",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-17",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784d1a07117bb6e857b9982bb91",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "sort of",
+            "label": "content",
+            "reason": "modifies 'vague' to convey degree, not a droppable filler"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "filler inserted in 'it's, like, it's fine' with no propositional content"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "sort of",
+            "start": 125,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 1
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 55,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "sort of",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-18",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784d99b77abae77e25e0f2e9058",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "I think",
+            "label": "content",
+            "reason": "Literal verb phrase meaning mental activity, not a hedge."
+          },
+          {
+            "id": "c2",
+            "quote": "maybe",
+            "label": "content",
+            "reason": "Conveys uncertainty about time estimate, cannot be dropped without changing meaning."
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Part of 'would like' expressing desire, not a filler."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 2
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 2,
+          "always_habit": 0,
+          "candidates": 2,
+          "over_cap": 0,
+          "verified": 2,
+          "rejected": 0,
+          "content": 2,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "I think",
+            "start": 0,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          },
+          {
+            "id": "c2",
+            "category": "hedges",
+            "quote": "maybe",
+            "start": 131,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 84,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "I think",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "maybe",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-19",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784e138796bbab95498cc90ccc9",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Hedge approximator before number, droppable without changing core meaning"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "content",
+            "reason": "Part of verb phrase 'would like to' expressing desire, carries meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 36,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 132,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-20",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784e72f7ba8b997a003c151d3ff",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Introduces example meaning 'such as' the two-step approval, carries meaning."
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Hedge filler before 'way faster', removable without changing proposition."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 43,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 100,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-21",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784ec177bf69785b22e93e873ae",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Part of 'feels like' predicate meaning 'seems', not a filler."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 120,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "I'm not sure",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-22",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784f107709199d2a94a44d04191",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "I guess",
+            "label": "habit",
+            "reason": "Hedge softening suggestion, removable without changing core meaning."
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler after 'So,' with no semantic role."
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "content",
+            "reason": "Quotative use in 'we were like' introduces reported thought/speech."
+          },
+          {
+            "id": "m3",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler before 'the queries are huge', deletable without loss."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "I guess",
+            "start": 148,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 2
+          },
+          "summary": {
+            "candidates": 3,
+            "over_cap": 0,
+            "verified": 3,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 4,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 62,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m3",
+              "category": "fillers",
+              "quote": "like",
+              "start": 121,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 3,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "I guess",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-23",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a784f9a97066ac854303472f47bf",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "probably",
+            "label": "content",
+            "reason": "expresses epistemic likelihood about hiring choice, not an empty filler"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "main verb expressing desire for hires, not a filler particle"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "probably",
+            "start": 98,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 25,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "probably",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-24",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7850082751a9c579b14f7a50df0",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "kind of",
+            "label": "habit",
+            "reason": "Hedge softening 'okay', removable without changing core meaning."
+          },
+          {
+            "id": "c2",
+            "quote": "I think",
+            "label": "habit",
+            "reason": "Hedge introducing opinion, sentence works without it."
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Part of comparative phrase 'just like' meaning similar to."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 2
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 2
+        },
+        "summary": {
+          "hits": 2,
+          "always_habit": 0,
+          "candidates": 2,
+          "over_cap": 0,
+          "verified": 2,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "kind of",
+            "start": 16,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          },
+          {
+            "id": "c2",
+            "category": "hedges",
+            "quote": "I think",
+            "start": 95,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 73,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "kind of",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "I think",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-25",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785065c7ab3b42988581a4754c0",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Quotative 'was like' introduces reported speech and carries lexical meaning, not a droppable filler."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 19,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-26",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7850ab07080bc6db05c54bfd10c",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Introduces examples meaning 'such as', essential to meaning"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "content",
+            "reason": "Main verb in 'would like' expressing desire, not a filler"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 1,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 74,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 121,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-27",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78514b67f04babd987a97974271",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "sort of",
+            "label": "habit",
+            "reason": "Hedge softening disagree, could be dropped without changing proposition"
+          },
+          {
+            "id": "c2",
+            "quote": "I mean",
+            "label": "habit",
+            "reason": "Discourse filler introducing clarification, no propositional content"
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Approximator meaning about thirty, carries quantity meaning"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler hedge before mostly, could be dropped without loss"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 2,
+          "always_habit": 0,
+          "candidates": 2,
+          "over_cap": 0,
+          "verified": 2,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "sort of",
+            "start": 5,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          },
+          {
+            "id": "c2",
+            "category": "fillers",
+            "quote": "I mean",
+            "start": 47,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 101,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 131,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "sort of",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "Perhaps",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-28",
+      "language": "en",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7851d2a721abc30e5ae3cb9ed4d",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "maybe",
+            "label": "content",
+            "reason": "Noun object of 'gave us a' meaning an uncertain answer, not a hedge."
+          },
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Main verb 'would like' meaning want changes, not filler."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "maybe",
+            "start": 44,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 94,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "maybe",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-29",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78521297bd9a2b1861b12c35667",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Filler after 'it's' with no semantic role, droppable."
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "habit",
+            "reason": "Hedge before 'half done', droppable without changing core meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 1,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 2
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 9,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 59,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-30",
+      "language": "en",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7852dec763680521eea14b2e4ac",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "like",
+            "label": "content",
+            "reason": "Part of 'looks like' meaning 'it appears that', essential to meaning"
+          },
+          {
+            "id": "m2",
+            "quote": "like",
+            "label": "content",
+            "reason": "Main verb in 'would like' expressing desire for approval, not a filler"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "like": 0
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "like",
+              "start": 6,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "like",
+              "start": 98,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "like",
+            "text": "like",
+            "occurrence": 2,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-01",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78532577b1a9b61b50e4d13630b",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "je pense",
+            "label": "habit",
+            "reason": "Hedge softening assertion, removable without changing core proposal to launch Monday."
+          },
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "habit",
+            "reason": "Filler particle inserted before adjective, adds no semantic content."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "je pense",
+            "start": 139,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 49,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "je pense",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-02",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78537697de694e1b2abd525c538",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "content",
+            "reason": "Means 'type of' project, essential to noun phrase."
+          },
+          {
+            "id": "m2",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final tag filler, droppable without meaning loss."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 16,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 157,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-03",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7853b8675baa4c19d30fdb76963",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "Quoi",
+            "label": "content",
+            "reason": "Part of idiomatic question 'Quoi de neuf' meaning 'what's new', carries propositional meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "Quoi",
+              "start": 0,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "Quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-04",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7853f607bbcb52d8efb0a23e5a6",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "peut-être",
+            "label": "habit",
+            "reason": "Hedge softening 'on pourrait', droppable without changing core proposal."
+          },
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Interrogative pronoun in 'quoi faire' = what to do, essential to meaning."
+          },
+          {
+            "id": "m2",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final tag particle, filler with no propositional content."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "peut-être",
+            "start": 115,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 15,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 161,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "peut-être",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-05",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78549477bee8474ef6c32dd6197",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "content",
+            "reason": "Used as noun meaning gender in filter list age, gender and region, carries semantic content"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 51,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "plutôt",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-06",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7854d587acc9fb6070789daf14a",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "Je crois",
+            "label": "habit",
+            "reason": "Hedge softening assertion, removable without changing core meaning."
+          },
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "habit",
+            "reason": "Approximation filler before number, not referring to a type/kind."
+          },
+          {
+            "id": "m2",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final tag filler with no propositional content."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "Je crois",
+            "start": 89,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 5,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 165,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "Je crois",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-07",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78553157b5fa63240ea38cd59ed",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Interrogative pronoun in 'à quoi ça sert' asks what purpose, essential to meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 2,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-08",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78556d6774a8fa1a126b6556d73",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Interrogative pronoun asking what will be delivered, essential to question meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 66,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-09",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7855a09796b93dd99ec4ad79adf",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "content",
+            "reason": "Used as noun in 'genre musical' meaning musical style, essential to meaning not a filler"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 77,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "plutôt",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-10",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7855e61713c8e17132955d86f92",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "habit",
+            "reason": "Hedge before adjective, removable without changing propositional content"
+          },
+          {
+            "id": "m2",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final discourse particle, adds no propositional meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 1,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 1,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 25,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 150,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-11",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785629a75b2948a5b6cc86fc5e2",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "un peu",
+            "label": "content",
+            "reason": "Quantifies amount of margin, essential to meaning."
+          },
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "content",
+            "reason": "Part of noun phrase 'ce genre de chantier' meaning type, not filler."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "un peu",
+            "start": 27,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 88,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "un peu",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-12",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785671f76b2b3d00fa8681cd524",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "un peu",
+            "label": "content",
+            "reason": "Modifies 'serré' to convey degree, not a removable filler"
+          },
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "habit",
+            "reason": "Filler approximating 'about' before quantity, removable without loss"
+          },
+          {
+            "id": "m2",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final discourse particle with no propositional content"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "un peu",
+            "start": 16,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 58,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 141,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "un peu",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-13",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7856e4b7d2f92fb560d354e7b3a",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Part of 'avoir de quoi payer' meaning 'have enough/means to pay', essential to meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 116,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-14",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785732470d4839d8a800b1771a7",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "Je pense",
+            "label": "habit",
+            "reason": "Hedge softening assertion, removable without changing core proposal"
+          },
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "content",
+            "reason": "Part of 'un genre de' meaning a type/kind of board, carries lexical meaning"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "Je pense",
+            "start": 106,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 29,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "Je pense",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-15",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785813c7316aa45ac70890e12a5",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "Je pense",
+            "label": "content",
+            "reason": "Literal statement of thinking about the presentation, not a hedge."
+          },
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "habit",
+            "reason": "Filler inserted before adjective, removable without changing meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "Je pense",
+            "start": 0,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 149,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "Je pense",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-16",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a7858fc778dd933b79be4f3c30ce",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final filler particle after 'ailleurs,' adds no propositional content and is droppable."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 135,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-17",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78593cf7d54bb9308175da22f18",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Interrogative pronoun in 'en quoi c'est urgent' carries meaning, not a filler."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 18,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "plutôt",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-18",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a78597ea76a2a32de13b006f4292",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "je crois",
+            "label": "content",
+            "reason": "Expresses genuine belief in the team, not a removable hedge."
+          },
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Part of idiom 'quoi qu'il arrive' meaning whatever happens, carries meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "je crois",
+            "start": 9,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 169,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "je crois",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-19",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785a1e173eb9f8b5a8f5096ab60",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "peut-être",
+            "label": "habit",
+            "reason": "Hedge softening 'on pourrait', removable without changing proposal"
+          },
+          {
+            "id": "m1",
+            "quote": "Genre",
+            "label": "habit",
+            "reason": "Sentence-initial filler like 'like', adds no propositional content"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "peut-être",
+            "start": 85,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "Genre",
+              "start": 0,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "Genre",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "hedge",
+            "text": "peut-être",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-20",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785b3ab7e60aff7cd02adec6b19",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final particle with no propositional content, removable without changing meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 156,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "Je ne suis pas sûr",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-21",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785b7cb74bbb29aad32a05af321",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "je pense",
+            "label": "content",
+            "reason": "Part of the quoted utterance from the director, expresses her opinion, not a speaker filler."
+          },
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "content",
+            "reason": "Means 'type/kind of remark', lexical noun, not a filler particle."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "je pense",
+            "start": 32,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 88,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "je pense",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-22",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785bcfe7b6aa95538bedaf29f34",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Part of fixed phrase 'de quoi on parle' meaning 'what we are talking about', carries meaning."
+          },
+          {
+            "id": "m2",
+            "quote": "genre",
+            "label": "habit",
+            "reason": "Hedge approximating 'about three months', could be dropped without losing meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 37,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 118,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-23",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785c1867ebbb48fcd59cc2d6b23",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final particle with no propositional content, droppable without loss of meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 155,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "plutôt",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-24",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785c52077a7873c5b0f4b566d4d",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "un peu",
+            "label": "content",
+            "reason": "Modifies 'débordée' to mean somewhat overwhelmed, carries degree meaning"
+          },
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "content",
+            "reason": "Part of fixed phrase 'tout genre' meaning all kinds, not filler use"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "un peu",
+            "start": 75,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 31,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "un peu",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-25",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785cb0b78638041cb4799e08135",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final particle adding no propositional content, removable filler."
+          },
+          {
+            "id": "m2",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Interrogative pronoun object of 'on montre', essential to question meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 71,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 106,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 2,
+            "gold": "content",
+            "model_only_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-26",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785cf9f784c834c16079a75957c",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "un peu",
+            "label": "content",
+            "reason": "Quantifies amount of time needed, essential to meaning."
+          },
+          {
+            "id": "m1",
+            "quote": "Genre",
+            "label": "habit",
+            "reason": "Approximation filler before estimate, omissible without loss."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "un peu",
+            "start": 15,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "Genre",
+              "start": 55,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "un peu",
+            "occurrence": 1,
+            "gold": "not_hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "genre",
+            "text": "Genre",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-27",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785d4ec711996af97864c59a705",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "Peut-être",
+            "label": "content",
+            "reason": "Expresses genuine uncertainty about future rework, not a removable filler."
+          },
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final particle adds no propositional content and is droppable."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 1,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "Peut-être",
+            "start": 102,
+            "label": "content",
+            "verified": true,
+            "rejection": null,
+            "counted": false
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 185,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "hedge",
+            "text": "Peut-être",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": false
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-28",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785dac77e56b95937523c038883",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "genre",
+            "label": "content",
+            "reason": "Part of idiom 'dans son genre' meaning 'in its category', carries lexical meaning."
+          },
+          {
+            "id": "m2",
+            "quote": "genre",
+            "label": "habit",
+            "reason": "Filler hedge before adjective 'super lent', removable without changing propositional content."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 1,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 48,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "genre",
+              "start": 67,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "genre",
+            "text": "genre",
+            "occurrence": 2,
+            "gold": "filler",
+            "model_only_counts": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-29",
+      "language": "fr",
+      "status": "no_candidates",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785df1a7c238a30de2aa33f73db",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Interrogative pronoun as object of 'commander' in 'je ne sais pas quoi commander', carries core meaning."
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "no_candidates",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 0
+        },
+        "summary": {
+          "hits": 0,
+          "always_habit": 0,
+          "candidates": 0,
+          "over_cap": 0,
+          "verified": 0,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 0
+          },
+          "summary": {
+            "candidates": 1,
+            "over_cap": 0,
+            "verified": 1,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 92,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "Probablement",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": false,
+            "adjudication_counts": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "fr-30",
+      "language": "fr",
+      "status": "adjudicated",
+      "model_only_status": "counted",
+      "attempts": 1,
+      "provider_request_id": "54ca701a1a785e2dd7ccd8349c1a315841119",
+      "reply": {
+        "status": "model_labels",
+        "labels": [
+          {
+            "id": "c1",
+            "quote": "je crois",
+            "label": "habit",
+            "reason": "Hedge softening claim, removable without changing core proposition"
+          },
+          {
+            "id": "m1",
+            "quote": "quoi",
+            "label": "habit",
+            "reason": "Sentence-final filler particle adding no propositional content"
+          },
+          {
+            "id": "m2",
+            "quote": "quoi",
+            "label": "content",
+            "reason": "Part of fixed idiom 'À quoi bon' meaning 'what's the point'"
+          }
+        ],
+        "reason": null
+      },
+      "checks": {
+        "status": "adjudicated",
+        "lexicon_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "adjudicated_count": {
+          "restarts": 0,
+          "fillers": 0,
+          "hedges": 1
+        },
+        "summary": {
+          "hits": 1,
+          "always_habit": 0,
+          "candidates": 1,
+          "over_cap": 0,
+          "verified": 1,
+          "rejected": 0,
+          "content": 0,
+          "ignored_entries": 0
+        },
+        "candidates": [
+          {
+            "id": "c1",
+            "category": "hedges",
+            "quote": "je crois",
+            "start": 160,
+            "label": "habit",
+            "verified": true,
+            "rejection": null,
+            "counted": true
+          }
+        ],
+        "model_only": {
+          "status": "counted",
+          "reason": null,
+          "counts": {
+            "genre": 0,
+            "quoi": 1
+          },
+          "summary": {
+            "candidates": 2,
+            "over_cap": 0,
+            "verified": 2,
+            "rejected": 0
+          },
+          "candidates": [
+            {
+              "id": "m1",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 124,
+              "label": "habit",
+              "verified": true,
+              "rejection": null,
+              "counted": true
+            },
+            {
+              "id": "m2",
+              "category": "fillers",
+              "quote": "quoi",
+              "start": 132,
+              "label": "content",
+              "verified": true,
+              "rejection": null,
+              "counted": false
+            }
+          ]
+        },
+        "occurrences": [
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 1,
+            "gold": "filler",
+            "model_only_counts": true
+          },
+          {
+            "family": "quoi",
+            "text": "quoi",
+            "occurrence": 2,
+            "gold": "content",
+            "model_only_counts": false
+          },
+          {
+            "family": "hedge",
+            "text": "je crois",
+            "occurrence": 1,
+            "gold": "hedge",
+            "lexicon_counts": true,
+            "adjudication_counts": true
+          }
+        ]
+      }
+    }
+  ]
+}

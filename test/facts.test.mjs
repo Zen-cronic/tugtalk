@@ -21,6 +21,7 @@ import { RECORDING_RATE_LIMIT } from '../src/server.mjs';
 import { CAMERA_FIELDS, CAMERA_METHOD } from '../src/camera-metrics.mjs';
 import { NEEDS, NEED_METHOD, ANSWER_CAP, allowedMoves, gateReason } from '../src/counterpart.mjs';
 import { runCounterpartEval } from '../src/counterpart-eval.mjs';
+import { loadHeldout, rescore, applyRules } from '../src/heldout.mjs';
 import { MODEL_BUDGET_MS, ADAPTER_DEADLINE_MS, MIN_START_MS } from '../src/budget.mjs';
 import { MEDIA_CAP_BYTES, MEDIA_DOWNLOAD_LIMIT } from '../src/media.mjs';
 import { BASIS_MAX_SOURCES, BASIS_WINDOW_DAYS, DUE_MAX_DAYS, DRILL_HABITS, checkDueAt } from '../src/drills.mjs';
@@ -419,7 +420,8 @@ function measurementChecks(evalResult) {
     'eval-adjudicated-scripted': () => { assert.match(adj.label, /not live model runs/); return `${a.overall.precision} / ${a.overall.recall}`; },
     'eval-scripted-checks': () => `${adj.labels.rejected} of ${adj.candidates} rejected, ${adj.accepted_labels_against_gold.wrong} wrong accepted`,
     'eval-live-calls': () => `${adj.live_plan.calls}, at most ${adj.live_plan.max_calls_with_retries} with retries`,
-    ...liveChecks(evalResult)
+    ...liveChecks(evalResult),
+    ...heldoutChecks()
   };
 }
 
@@ -452,6 +454,19 @@ function liveChecks(evalResult) {
       }
       return `${verified} of ${labels}; ${traps} on traps, ${habits} on real habits`;
     }
+  };
+}
+
+// The one held-out live run (eval/heldout-live-results.json), rescored from its stored labels.
+function heldoutChecks() {
+  const live = JSON.parse(read('eval/heldout-live-results.json')), { set, sha256 } = loadHeldout();
+  const fixed = x => x.toFixed(3);
+  assert.equal(live.heldout_sha256, sha256, 'the held-out run used the current set'); assert.match(live.ran_at, /^2026-11-04T/);
+  const score = rescore(set.transcripts, live.items), rules = applyRules(score);
+  return {
+    'eval-heldout-model-only': () => { const m = score.classes.model_only; return `${fixed(m.model_only.precision)} / ${fixed(m.model_only.recall)} / ${fixed(m.model_only.f1)} against ${fixed(m.count_all.f1)}`; },
+    'eval-heldout-hedges': () => `${fixed(rules.rule2_hedges_leave_adjudication.lexicon_recall)} against ${fixed(rules.rule2_hedges_leave_adjudication.adjudication_recall)}; rule 1 ${rules.rule1_model_only_ships.pass ? 'passes' : 'fails'}, rule 2 ${rules.rule2_hedges_leave_adjudication.fires ? 'fires' : 'does not fire'}`,
+    'eval-heldout-calls': () => `${live.items.length} calls, ${live.items.reduce((n, i) => n + i.attempts - 1, 0)} retries`
   };
 }
 
