@@ -26,7 +26,7 @@ xcodebuild -project TugTalk.xcodeproj -scheme TugTalk -configuration Debug -deri
 open build/DerivedData/Build/Products/Debug/TugTalk.app
 ```
 
-The app signs with an Apple Development identity (team in `project.yml`); change `DEVELOPMENT_TEAM` to your own. A stable signature keeps the Screen Recording grant across rebuilds. There is no notarized build.
+The app signs with an Apple Development identity (team in `project.yml`); change `DEVELOPMENT_TEAM` to your own. A stable signature keeps the Screen Recording grant across rebuilds. Hardened Runtime is on, with no App Sandbox; the microphone and camera entitlements are in `TugTalk/TugTalk.entitlements`. The `TugTalk.dmg` on the GitHub release is the same app archived in Release, exported with Developer ID and notarized.
 
 ## The companion
 
