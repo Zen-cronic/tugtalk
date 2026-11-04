@@ -4,7 +4,7 @@ Practise on your watch. Your assistant remembers.
 
 **Measured habit counts: precision 0.788, recall 0.852 on 70 synthetic, self-labelled en/fr transcripts (flat word-list baseline 0.754 / 0.852); 0 false counts on 12 clean controls. Recompute with `npm run eval` or `GET /v1/eval`; method and limits in [eval/README.md](eval/README.md).**
 
-For anyone practising how they answer out loud (an interview question, a stand-up update, a point in a meeting) who already asks Muse, Meta's assistant, for help on more than one device. When practice lives in its own app, the assistant never sees it, so each new chat starts from nothing and you explain again what you were working on. TugTalk (formerly Comms Coach) saves each practice to one record that Muse reads fresh in any chat, on any device.
+For anyone practising how they answer out loud (an interview question, a stand-up update, a point in a meeting) who already asks Muse, Meta's assistant, for help on more than one device. When practice lives in its own app, the assistant never sees it, so each new chat starts from nothing and you explain again what you were working on. TugTalk saves each practice to one record that Muse reads fresh in any chat, on any device.
 
 <!-- FOUNDER: one or two sentences in your own words -->
 

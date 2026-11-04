@@ -111,11 +111,11 @@ final class KeepRecordingsMenu {
         }
     }
 
-    /// Saves every kept recording to ~/Downloads/Comms Coach Recordings and shows the folder.
+    /// Saves every kept recording to ~/Downloads/TugTalk Recordings and shows the folder.
     private func saveToDownloads() {
         guard let api = Connection.api()?.api,
               let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else { return }
-        let folder = downloads.appending(path: "Comms Coach Recordings", directoryHint: .isDirectory)
+        let folder = downloads.appending(path: "TugTalk Recordings", directoryHint: .isDirectory)
         busy = true
         note = "Saving kept recordings…"
         Task { [weak self] in
