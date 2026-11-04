@@ -34,6 +34,8 @@ struct ContentView: View {
                 }
                 .overlay(alignment: .top) { HeaderFade(active: scrolled) }
                 .task {
+                    // Once per launch: this runs again on Back from Practise, and loading again threw away the result.
+                    guard case .loading = model.phase else { return }
                     await model.load()
                     #if DEBUG
                     // `-scrollToDrill YES`: shows the drill line below Record, or the drill result, for a screenshot.
