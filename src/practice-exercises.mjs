@@ -86,10 +86,9 @@ export function createPracticeExercise(store,user,body,key){
  });
 }
 export function changePracticeExercise(store,user,id,body,key){
- fields(body,['expected_version','action','confirmed','expected_goal_version','content_version','expected_target_round_version']);
+ // One check of the fields the action accepts (fields() refuses a non-object before body.action is read).
+ fields(body,body?.action==='activate'?['expected_version','action','confirmed','expected_goal_version','content_version']:['expected_version','action','expected_target_round_version']);
  if(!Number.isInteger(body.expected_version)||body.expected_version<1||!['activate','skip','dispute'].includes(body.action))fail('invalid_body','Provide expected_version and a supported action.',400);
- const allowed=body.action==='activate'?['expected_version','action','confirmed','expected_goal_version','content_version']:['expected_version','action','expected_target_round_version'];
- fields(body,allowed);
  return store.mutate(user,'PATCH',`${PRACTICE_EXERCISES_PATH}/${id}`,body,key,()=>{
   let e=store.get(user,KIND,id);
   if(e.version!==body.expected_version)fail('version_conflict','Re-read the practice exercise.');
