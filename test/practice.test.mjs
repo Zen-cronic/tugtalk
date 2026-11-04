@@ -158,3 +158,11 @@ test('unavailable assessments get the fixed reply in the round language, open an
  }
  create('goal-b');assert.equal((await send('en-unavailable',params('goal-b'),unavailable)).reply.question,UNAVAILABLE_REPLIES.en.open);
 }));
+test('a failed or cancelled answer keeps the round version, so the next answer naming it succeeds without a re-read',()=>fixture(async({store,create,params,models,send})=>{
+ const r=create();const pinned=params('goal-a',{'x-practice-round-id':r.id,'x-practice-round-version':String(r.version)});
+ await assert.rejects(send('pinned-fail',pinned,{...models,async transcribe(){throw new Error('failed');}}));
+ const live=createLiveRound({store,models,token:'test-token',start:{type:'start',idempotency_key:'pinned-cancel',goal_id:'goal-a',practice_round_id:r.id,practice_round_version:r.version,speech:false},phases});
+ live.audio(Buffer.alloc(24000*2));live.cancel();assert.equal((await live.done).status,499);
+ const raw=store.get('alice','practice-rounds',r.id);assert.equal(raw.version,r.version);assert.equal(raw.pending,null);assert.equal(raw.reservation_epoch,2);
+ const out=await send('pinned-next',pinned);assert.equal(out.practice.round_id,r.id);assert.equal(out.practice.answer,1);
+}));

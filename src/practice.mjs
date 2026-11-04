@@ -157,7 +157,9 @@ export function failPractice(store, user, reservation, reason = 'failed') {
     const { attempt } = reservation, current = store.get(user, KIND, attempt.round_id), saved = store.get(user, ATTEMPTS, attempt.id);
     if (saved.status !== 'pending' || current.pending?.nonce !== attempt.nonce) return;
     store.put(user, ATTEMPTS, { ...saved, version: saved.version + 1, status: 'failed', failure: reason });
-    store.put(user, KIND, { ...current, pending: null, version: current.version + 1, reservation_epoch: current.reservation_epoch + 1, updated_at: now() });
+    // The round's version stays: a failed or cancelled answer changes nothing a client pins, so the next answer may name
+    // the same version. The new epoch (and the failed attempt) still refuse a late result from this reservation.
+    store.put(user, KIND, { ...current, pending: null, reservation_epoch: current.reservation_epoch + 1, updated_at: now() });
   });
 }
 // Called only inside the voice receipt's transaction; a late or stale result cannot advance state.
