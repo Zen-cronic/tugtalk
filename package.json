@@ -16,7 +16,7 @@
     "stub": "node scripts/local-stub-server.mjs",
     "dashboard:preview": "node scripts/dashboard-preview.mjs",
     "dashboard:start": "node scripts/dashboard-start.mjs",
-    "test:dashboard": "node --test test/dashboard.test.mjs",
+    "test:dashboard": "node --test test/dashboard*.test.mjs",
     "dashboard:build": "node scripts/dashboard-build.mjs"
   }
 }

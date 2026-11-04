@@ -11,6 +11,7 @@ const routes = [
   ['GET', /^\/overview$/, () => '/v1/overview'],
   ['GET', /^\/context$/, () => '/v1/context'],
   ['GET', new RegExp(`^/goals/(${id})$`), m => `/v1/goals/${m[1]}/context`],
+  ['GET', /^\/practice-rounds\/([A-Za-z0-9_-]{1,64})$/, m => `/v1/practice-rounds/${m[1]}`],
   ['GET', /^\/settings$/, () => '/v1/settings'],
   ['PATCH', /^\/settings$/, () => '/v1/settings'],
   ['GET', /^\/media$/, () => '/v1/media'],
@@ -18,7 +19,7 @@ const routes = [
   ['DELETE', new RegExp(`^/media/(${id})$`), m => `/v1/media/${m[1]}`],
 ];
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ttf': 'font/ttf' };
-const assets = new Set(['index.html', 'app.js', 'styles.css', 'icon.svg', 'Anybody.ttf', 'HankenGrotesk.ttf', 'AzeretMono.ttf']);
+const assets = new Set(['index.html', 'app.js', 'practice-view.js', 'styles.css', 'icon.svg', 'Anybody.ttf', 'HankenGrotesk.ttf', 'AzeretMono.ttf']);
 class Failure extends Error { constructor(status, message) { super(message); this.status = status; } }
 async function bytes(stream, max) {
   const chunks = []; let n = 0;

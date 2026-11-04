@@ -55,3 +55,13 @@ npm run dashboard:build
 ```
 
 Tests use a local temporary SQLite database or a fake upstream, never a personal account or model endpoint. Coverage includes unauthorized access, CSRF/origin, login throttling, session expiry/logout, proxy allowlist, response sanitization, timeout, account ownership, fresh updates, settings conflicts, credential revocation and default read-only recording controls.
+
+## Confirmed practice requests
+
+With API contract 0.8.0, Goals also shows the current practice request and each objective's saved AI assessment. These assessments are model judgments, separately labelled from speech counts. Exact quoted spans can be checked against an answer, but neither a quote nor an “addressed” judgment proves truth, success or improvement. Capped and ended rounds never imply success.
+
+The dashboard reads `practice_rounds` and `exercise_basis_status` from the fresh overview. It brackets the full context read with two overview reads whose `snapshot_revision` must match; a change retries once, then fails visibly rather than combining evidence from different revisions. Stale/disputed requests, unknown freshness, pending answer assessments and failed fresh reads do not expose earlier assessment evidence as current. Stale drill bases are excluded from the next-action count and marked for review in history. Voice practices preserve a recorded capture device; absent device metadata is not guessed.
+
+The narrow authenticated `GET /app-api/practice-rounds/{id}` forwards to the existing API read route. The dashboard does not create, revise, end, dispute or recover practice rounds, and does not submit model calls. Use the existing confirmed-request flow in Muse for those actions. Existing backends without practice-round projections continue to display the original goals, transcripts and saved drills.
+
+Separate read-only hosting is configured in [dashboard-deployment.md](dashboard-deployment.md).

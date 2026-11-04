@@ -78,3 +78,10 @@ test('real local API contract preserves account ownership, fresh updates and set
 });
 
 test('recording changes are disabled by default on a live connection',async t=>{const h=await harness(t,{allowRecordingChanges:false});await h.login();assert.equal((await h.request('/app-api/media/a',{method:'DELETE',headers:h.writeHeaders()})).status,403);assert.equal(h.calls.length,0);});
+
+test('practice requests are readable only through the narrow authenticated GET route',async t=>{
+ const h=await harness(t);assert.equal((await h.request('/app-api/practice-rounds/round-1')).status,401);await h.login();
+ assert.equal((await h.request('/app-api/practice-rounds/round-1')).status,200);assert.equal(h.calls[0].url,'https://api.example.test/v1/practice-rounds/round-1');
+ for(const method of ['POST','PATCH','DELETE'])assert.equal((await h.request('/app-api/practice-rounds/round-1',{method,headers:h.writeHeaders(),body:method==='DELETE'?undefined:'{}'})).status,404);
+ assert.equal((await h.request('/app-api/practice-rounds/'+'x'.repeat(65))).status,404);assert.equal(h.calls.length,1);
+});

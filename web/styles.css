@@ -743,3 +743,19 @@ to{
   margin-top:10px;
   overflow-wrap:anywhere
 }
+
+.practice-requests { margin-bottom: 22px; }
+.practice-request { margin-bottom: 14px; }
+.practice-request > h3 { max-width: 720px; line-height: 1.35; }
+.practice-status { white-space: nowrap; }
+.objective-list { margin-top: 20px; }
+.objective { padding: 16px 0; border-top: 1px solid var(--rule); }
+.objective-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.objective-heading .pill { flex-shrink: 0; }
+.objective blockquote { margin: 14px 0 0; padding: 14px 16px; background: var(--cream); border-radius: 12px; font-size: 16px; line-height: 1.5; }
+.objective blockquote span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.outcome-addressed { background: var(--teal); border-color: var(--teal); }
+.outcome-partial { background: var(--blue); border-color: var(--blue); }
+.outcome-not_addressed { background: var(--coral); border-color: var(--coral); }
+.previous-request > summary { font-weight: 700; cursor: pointer; min-height: 30px; }
+@media (max-width: 720px) { .objective-heading { flex-direction: column; gap: 10px; } }
