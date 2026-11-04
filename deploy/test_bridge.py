@@ -809,6 +809,17 @@ class LiveBridgeTests(BridgeTests):
                 self.assertFalse(any(m.get('end') for m in saw), 'never sent as a release')
                 self.assertEqual(sum(1 for m in saw if 'audio' in m), 1 if name == 'frame' else 3, 'nothing past the limit reached the worker')
 
+    async def test_live_oversized_frame_does_not_hide_a_refusal_the_worker_made_itself(self):
+        app = self.bridge(self.volume, worker_path=self.fake('live-large-refused-worker.mjs', """
+            if (m.envelope?.live) { await release(id); return; }
+            // The worker's own refusal lands after the bridge has seen the oversized frame.
+            if (m.cancel) { await acquire(id); respond(id, 429, { error: 'rate_limited', message: 'At most 30 voice rounds per hour.' }, false); out({ id, closed: true }); }
+        """))
+        sent = await self.socket(app, [self.START, ('bytes', bytes(64 * 1024 + 1)), ('text', '{"type":"end"}')])
+        events = [json.loads(e['text']) for e in sent if 'text' in e]
+        self.assertEqual([(e['type'], e.get('status'), e.get('error')) for e in events], [('error', 429, 'rate_limited')],
+                         'the worker\'s own refusal is shown, not "too much audio"')
+
     async def test_spoken_reply_does_not_wait_for_a_model_request_and_is_not_committed(self):
         app = self.bridge(self.volume, worker_path=self.fake('speech-lock-worker.mjs', """
             if (env.path === '/v1/voice-rounds') { await release(id); await pause(400); await acquire(id); respond(id, 200, { ok: 'round' }); return; }

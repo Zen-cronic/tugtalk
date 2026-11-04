@@ -592,7 +592,9 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 response = message['response']
                 body = json.loads(base64.b64decode(response['body_b64']) or b'{}')
                 status = response['status']
-                if session['too_large'] and status != 200:
+                # Only the drop the bridge caused (the worker's 499 for the cancel) is reported as too much audio. A refusal
+                # the worker made on its own (429, 401, 409, ...) keeps its status and message.
+                if session['too_large'] and status == 499:
                     status, body = 413, TOO_LARGE
                 text({'type': 'saved', **body} if status == 200 else {'type': 'error', 'status': status, **body})
                 # The spoken audio may still be streaming; the socket closes once it is done or the client leaves.
