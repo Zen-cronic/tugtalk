@@ -1,4 +1,4 @@
-"""Public landing and private dashboard in one application. Loading this file does not deploy it."""
+"""Public landing and read-only public dashboard in one application. Loading this file does not deploy it."""
 import os
 import json
 from pathlib import Path
@@ -53,6 +53,8 @@ image = (image.add_local_file(ROOT / 'src' / 'dashboard-gateway.mjs', '/app/src/
     env={'DASHBOARD_ORIGIN': origin, 'DASHBOARD_UPSTREAM': upstream,
          'DASHBOARD_BIND': '0.0.0.0', 'DASHBOARD_PORT': '4321',
          'DASHBOARD_LOCAL_HTTP': '0', 'DASHBOARD_ALLOW_RECORDING_CHANGES': '0',
+         # Visitors read the dashboard without a code; every write still needs a sign-in and stays disabled.
+         'DASHBOARD_PUBLIC_READ': '1',
          # Every request arrives through the hosting proxy: sign-in throttling keys on X-Forwarded-For.
          'DASHBOARD_TRUST_PROXY': '1'},
     min_containers=0, max_containers=1, scaledown_window=300,

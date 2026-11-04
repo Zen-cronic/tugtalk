@@ -74,6 +74,7 @@ class DashboardManifestTests(unittest.TestCase):
         self.assertEqual(config['env']['DASHBOARD_ALLOW_RECORDING_CHANGES'], '0')
         self.assertEqual(config['env']['DASHBOARD_LOCAL_HTTP'], '0')
         self.assertEqual(config['env']['DASHBOARD_TRUST_PROXY'], '1')
+        self.assertEqual(config['env']['DASHBOARD_PUBLIC_READ'], '1', 'visitors read without a code; writes stay off')
         self.assertEqual(config['max_containers'], 1)
         self.assertEqual(config['min_containers'], 0)
         self.assertEqual(config['secrets'], ['comms-coach-dashboard'])
