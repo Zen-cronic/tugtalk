@@ -44,7 +44,8 @@ export function exerciseFreshness(store,user,e){
    if(practiceFreshness(store,user,target).status!=='current')reasons.push('target_stale');
    if(e.result){
     const answer=find(store,user,'voice-rounds',e.result.voice_id);
-    if(!answer||answer.deleted||answer.version!==e.result.voice_version||answer.goal_id!==e.goal_id||target.version!==e.result.round_version||target.request_version!==e.result.request_version||answer.practice?.round_id!==target.id||answer.practice?.request_version!==target.request_version)reasons.push('result_changed');
+    // Pinned to the assessed answer: a later lifecycle write on the target (such as end) changes its version, not the result.
+    if(!answer||answer.deleted||answer.version!==e.result.voice_version||answer.goal_id!==e.goal_id||target.answer_sources.at(-1)?.id!==e.result.voice_id||target.request_version!==e.result.request_version||answer.practice?.round_id!==target.id||answer.practice?.request_version!==target.request_version)reasons.push('result_changed');
    }
   }
  }
