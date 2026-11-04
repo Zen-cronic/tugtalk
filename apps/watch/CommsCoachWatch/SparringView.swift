@@ -12,6 +12,7 @@ struct SparringView: View {
     }
 
     var body: some View {
+        VStack(spacing: 4) {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 8) { content }
@@ -42,6 +43,11 @@ struct SparringView: View {
                 }
             }
         }
+            // Stop, and Record on a question, sit below the scroll view, never inside it: on the real watch (build 9)
+            // both did nothing when tapped inside it, right after the step changed and the content scrolled.
+            pinnedAction
+                .padding(.horizontal, 6)
+        }
         .navigationTitle("Practise")
         .task {
             #if DEBUG
@@ -71,6 +77,23 @@ struct SparringView: View {
     }
 
     private func counter(_ answer: Int) -> String { "Answer \(answer)" }
+
+    /// The step's main button, outside the scroll view: Stop while recording, Record on a question.
+    @ViewBuilder private var pinnedAction: some View {
+        switch model.phase {
+        case .recording:
+            Button { model.stop() } label: {
+                Label { Text("Stop") } icon: { RoundedRectangle(cornerRadius: 2).frame(width: 12, height: 12) }
+            }
+            .buttonStyle(CoachButtonStyle())
+            .handGestureShortcut(.primaryAction) // double tap, on watches that have it: a second way to stop
+        case .replying(let shown) where !shown.endsRound:
+            recordButton(shown.spoken ? "Record" : "Answer now")
+                .handGestureShortcut(.primaryAction)
+        default:
+            EmptyView()
+        }
+    }
 
     // Your turn, before the first answer
 
@@ -119,10 +142,6 @@ struct SparringView: View {
             .background(Palette.rack, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Recording. \(counter(answer)).")
-            Button { model.stop() } label: {
-                Label { Text("Stop") } icon: { RoundedRectangle(cornerRadius: 2).frame(width: 12, height: 12) }
-            }
-            .buttonStyle(CoachButtonStyle())
             Text(counter(answer))
                 .face(.text, 13, weight: 600, relativeTo: .caption)
                 .foregroundStyle(Palette.mutedDark)
@@ -170,8 +189,6 @@ struct SparringView: View {
             if shown.endsRound {
                 Button("See result") { model.seeResult() }
                     .buttonStyle(CoachButtonStyle())
-            } else {
-                recordButton(shown.spoken ? "Record" : "Answer now")
             }
             if let quote = shown.quote { QuoteCard(quote: quote).slotIn() }
             VStack(alignment: .leading, spacing: 2) {

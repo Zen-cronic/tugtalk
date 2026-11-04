@@ -134,9 +134,11 @@ struct TugSpeaking: View {
 
     var body: some View {
         if talking && !reduceMotion {
-            TimelineView(.animation(minimumInterval: 1 / 15)) { context in
-                let t = context.date.timeIntervalSinceReferenceDate
-                TugGlyph(size: size, reach: reach, face: .speaking(0.25 + 0.7 * abs(sin(t * 9))))
+            // A 15 Hz TimelineView here rebuilt the screen on every frame, and the real watch dropped taps on the
+            // buttons beside it. The mouth now steps about twice a second, the rate of the recording clock.
+            TimelineView(.periodic(from: .now, by: 0.45)) { context in
+                let step = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 2
+                TugGlyph(size: size, reach: reach, face: .speaking(step == 0 ? 0.9 : 0.35))
             }
         } else {
             TugGlyph(size: size, reach: reach, face: .speaking(talking ? 0.5 : 0))
@@ -150,15 +152,17 @@ struct TugListening: View {
     var size: CGFloat
     var reach: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var taut = false
 
     var body: some View {
         if reduceMotion {
             TugGlyph(size: size, reach: reach, pull: 1, face: .listening)
         } else {
-            TimelineView(.animation(minimumInterval: 1 / 20)) { context in
-                let t = context.date.timeIntervalSinceReferenceDate
-                TugGlyph(size: size, reach: reach, pull: 0.86 + 0.14 * sin(t * 7), face: .listening)
-            }
+            // The tremor is a repeating animation, as on the recording light, not a TimelineView: a 20 Hz
+            // TimelineView rebuilt the screen on every frame, and the real watch dropped taps on Stop (build 9).
+            TugGlyph(size: size, reach: reach, pull: taut ? 1 : 0.72, face: .listening)
+                .animation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true), value: taut)
+                .onAppear { taut = true }
         }
     }
 }
