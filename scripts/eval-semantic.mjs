@@ -29,8 +29,9 @@ export function contextFor(item) {
 
 // Requests sent to Baseten are counted here, retries included. An item starts only when its worst case
 // (VOICE_ATTEMPTS requests) still fits under the cap.
-export function countingFetch(fetchImpl = fetch) {
-  const counter = { sent: 0 };
+// alreadySent: requests an earlier, aborted start of this run already sent, so the cap covers both.
+export function countingFetch(fetchImpl = fetch, alreadySent = 0) {
+  const counter = { sent: alreadySent };
   const wrapped = (url, init) => {
     if (url !== SPARK_URL) throw new Error(`Unexpected request to ${url}`);
     if (counter.sent >= CALL_CAP) return Promise.reject(new Error('Call cap reached.'));
@@ -120,15 +121,15 @@ export function summarize(records, set) {
     pooled: { final: scoreRun(records, 'final_status'), raw: scoreRun(records, 'raw_status'), quote_check: quoteCheck(records) } };
 }
 
-export async function runAll({ env = process.env, fetchImpl = fetch, set = loadSet(), log = () => {} } = {}) {
-  const { wrapped, counter } = countingFetch(fetchImpl);
+export async function runAll({ env = process.env, fetchImpl = fetch, set = loadSet(), log = () => {}, alreadySent = 0, onRecord = () => {} } = {}) {
+  const { wrapped, counter } = countingFetch(fetchImpl, alreadySent);
   const models = { ...createVoiceModel({ env, fetchImpl: wrapped }), counter };
   const records = [];
   for (let run = 1; run <= RUNS; run++) for (const item of set.items) {
     if (counter.sent + VOICE_ATTEMPTS > CALL_CAP) { log(`cap: stopping before run ${run} ${item.id}`); return { records, counter }; }
     const r = await runItem(models, item, run);
-    records.push(r);
-    log(`run ${run} ${item.id}: ${r.assessment_status} ${r.objectives.map(o => `${o.id}=${o.final_status}${o.final_status === o.gold ? '' : `(gold ${o.gold})`}`).join(' ')} [sent ${counter.sent}]`);
+    records.push(r); onRecord(records);
+    log(`run ${run} ${item.id}: ${r.assessment_status}${r.reason ? ` (${r.reason})` : ''} ${r.objectives.map(o => `${o.id}=${o.final_status}${o.final_status === o.gold ? '' : `(gold ${o.gold})`}`).join(' ')} [sent ${counter.sent}]`);
   }
   return { records, counter };
 }
@@ -148,10 +149,14 @@ async function main() {
   if (!(args.includes('--live') && args.includes('--approved'))) { console.log(JSON.stringify({ ...plan, paid_calls: 0, note: 'Add --live --approved to run.' }, null, 2)); return; }
   if (!process.env.BASETEN_API_KEY) { console.error('BASETEN_API_KEY is not set.'); process.exit(1); }
   const started = new Date().toISOString();
-  const { records, counter } = await runAll({ log: line => console.error(line) });
+  const at = args.indexOf('--already-sent'), alreadySent = at === -1 ? 0 : Number(args[at + 1]);
+  if (!Number.isInteger(alreadySent) || alreadySent < 0) { console.error('--already-sent needs a whole number.'); process.exit(1); }
+  const save = (records, summary = null) => writeFileSync(OUT, JSON.stringify({ plan, already_sent_before_this_run: alreadySent, started_at: started,
+    finished_at: summary ? new Date().toISOString() : null, summary, records }, null, 2) + '\n');
+  const { records, counter } = await runAll({ log: line => console.error(line), alreadySent, onRecord: records => save(records) });
   const summary = summarize(records, set);
-  if (summary.requests_sent !== counter.sent) throw new Error('Request count mismatch.');
-  writeFileSync(OUT, JSON.stringify({ plan, started_at: started, finished_at: new Date().toISOString(), summary, records }, null, 2) + '\n');
+  if (summary.requests_sent + alreadySent !== counter.sent) throw new Error('Request count mismatch.');
+  save(records, summary);
   console.log(JSON.stringify(summary, null, 2));
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

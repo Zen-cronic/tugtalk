@@ -1,0 +1,3653 @@
+{
+  "plan": {
+    "set": "semantic-heldout-v1",
+    "items": 40,
+    "objectives": 88,
+    "runs": 2,
+    "planned_requests": 80,
+    "worst_case_with_retries": 160,
+    "call_cap": 120,
+    "model": "meta-models/muse-spark-open-1026",
+    "reasoning_effort": "low",
+    "timeout_ms_per_attempt": 8000
+  },
+  "already_sent_before_this_run": 3,
+  "aborted_start": {
+    "requests_sent": 3,
+    "saved": false,
+    "note": "A first start of this run was stopped by hand after 3 items (s01, s02 unavailable after one request each, s03 all addressed, from its console log); its records were not saved, so the run was restarted from item 1 with those 3 requests counted against the cap. See eval/SEMANTIC.md, Deviations."
+  },
+  "started_at": "2026-11-04T17:12:57.168Z",
+  "finished_at": "2026-11-04T17:18:20.207Z",
+  "summary": {
+    "set": "semantic-heldout-v1",
+    "items": 40,
+    "objectives": 88,
+    "gold": {
+      "addressed": 37,
+      "partial": 25,
+      "not_addressed": 26
+    },
+    "requests_sent": 88,
+    "items_run": 80,
+    "items_not_run": 0,
+    "run1": {
+      "items": 40,
+      "unavailable_items": 5,
+      "final": {
+        "objectives": 88,
+        "right": 58,
+        "accuracy": 0.659,
+        "per_gold_class": {
+          "addressed": {
+            "n": 37,
+            "right": 29,
+            "accuracy": 0.784
+          },
+          "partial": {
+            "n": 25,
+            "right": 7,
+            "accuracy": 0.28
+          },
+          "not_addressed": {
+            "n": 26,
+            "right": 22,
+            "accuracy": 0.846
+          }
+        },
+        "confusion": {
+          "addressed": {
+            "addressed": 29,
+            "partial": 0,
+            "not_addressed": 0,
+            "unclear": 8
+          },
+          "partial": {
+            "addressed": 5,
+            "partial": 7,
+            "not_addressed": 7,
+            "unclear": 6
+          },
+          "not_addressed": {
+            "addressed": 0,
+            "partial": 0,
+            "not_addressed": 22,
+            "unclear": 4
+          }
+        },
+        "false_addressed": {
+          "count": 5,
+          "of": 51,
+          "rate": 0.098,
+          "gold_partial": 5,
+          "gold_not_addressed": 0
+        },
+        "unclear": 18,
+        "round_close": {
+          "false_close": 2,
+          "of_not_done": 33,
+          "true_close": 6,
+          "of_done": 7
+        }
+      },
+      "raw": {
+        "objectives": 88,
+        "right": 71,
+        "accuracy": 0.807,
+        "per_gold_class": {
+          "addressed": {
+            "n": 37,
+            "right": 36,
+            "accuracy": 0.973
+          },
+          "partial": {
+            "n": 25,
+            "right": 10,
+            "accuracy": 0.4
+          },
+          "not_addressed": {
+            "n": 26,
+            "right": 25,
+            "accuracy": 0.962
+          }
+        },
+        "confusion": {
+          "addressed": {
+            "addressed": 36,
+            "partial": 0,
+            "not_addressed": 0,
+            "unclear": 1
+          },
+          "partial": {
+            "addressed": 6,
+            "partial": 10,
+            "not_addressed": 8,
+            "unclear": 1
+          },
+          "not_addressed": {
+            "addressed": 0,
+            "partial": 0,
+            "not_addressed": 25,
+            "unclear": 1
+          }
+        },
+        "false_addressed": {
+          "count": 6,
+          "of": 51,
+          "rate": 0.118,
+          "gold_partial": 6,
+          "gold_not_addressed": 0
+        },
+        "unclear": 0,
+        "round_close": {
+          "false_close": 3,
+          "of_not_done": 33,
+          "true_close": 7,
+          "of_done": 7
+        }
+      },
+      "quote_check": {
+        "claims_with_evidence_required": 52,
+        "kept": 41,
+        "downgraded_to_unclear": 11,
+        "pass_rate": 0.788,
+        "spans_returned": 58,
+        "spans_verified": 54,
+        "span_pass_rate": 0.931
+      }
+    },
+    "run2": {
+      "items": 40,
+      "unavailable_items": 4,
+      "final": {
+        "objectives": 88,
+        "right": 60,
+        "accuracy": 0.682,
+        "per_gold_class": {
+          "addressed": {
+            "n": 37,
+            "right": 25,
+            "accuracy": 0.676
+          },
+          "partial": {
+            "n": 25,
+            "right": 9,
+            "accuracy": 0.36
+          },
+          "not_addressed": {
+            "n": 26,
+            "right": 26,
+            "accuracy": 1
+          }
+        },
+        "confusion": {
+          "addressed": {
+            "addressed": 25,
+            "partial": 0,
+            "not_addressed": 0,
+            "unclear": 12
+          },
+          "partial": {
+            "addressed": 2,
+            "partial": 9,
+            "not_addressed": 10,
+            "unclear": 4
+          },
+          "not_addressed": {
+            "addressed": 0,
+            "partial": 0,
+            "not_addressed": 26,
+            "unclear": 0
+          }
+        },
+        "false_addressed": {
+          "count": 2,
+          "of": 51,
+          "rate": 0.039,
+          "gold_partial": 2,
+          "gold_not_addressed": 0
+        },
+        "unclear": 16,
+        "round_close": {
+          "false_close": 1,
+          "of_not_done": 33,
+          "true_close": 5,
+          "of_done": 7
+        }
+      },
+      "raw": {
+        "objectives": 88,
+        "right": 71,
+        "accuracy": 0.807,
+        "per_gold_class": {
+          "addressed": {
+            "n": 37,
+            "right": 34,
+            "accuracy": 0.919
+          },
+          "partial": {
+            "n": 25,
+            "right": 11,
+            "accuracy": 0.44
+          },
+          "not_addressed": {
+            "n": 26,
+            "right": 26,
+            "accuracy": 1
+          }
+        },
+        "confusion": {
+          "addressed": {
+            "addressed": 34,
+            "partial": 0,
+            "not_addressed": 0,
+            "unclear": 3
+          },
+          "partial": {
+            "addressed": 4,
+            "partial": 11,
+            "not_addressed": 10,
+            "unclear": 0
+          },
+          "not_addressed": {
+            "addressed": 0,
+            "partial": 0,
+            "not_addressed": 26,
+            "unclear": 0
+          }
+        },
+        "false_addressed": {
+          "count": 4,
+          "of": 51,
+          "rate": 0.078,
+          "gold_partial": 4,
+          "gold_not_addressed": 0
+        },
+        "unclear": 0,
+        "round_close": {
+          "false_close": 2,
+          "of_not_done": 33,
+          "true_close": 6,
+          "of_done": 7
+        }
+      },
+      "quote_check": {
+        "claims_with_evidence_required": 49,
+        "kept": 36,
+        "downgraded_to_unclear": 13,
+        "pass_rate": 0.735,
+        "spans_returned": 56,
+        "spans_verified": 54,
+        "span_pass_rate": 0.964
+      }
+    },
+    "agreement": {
+      "final": {
+        "objectives_compared": 88,
+        "same_label": 63,
+        "rate": 0.716,
+        "items_compared": 40,
+        "items_identical": 26,
+        "item_rate": 0.65
+      },
+      "raw": {
+        "objectives_compared": 88,
+        "same_label": 79,
+        "rate": 0.898,
+        "items_compared": 40,
+        "items_identical": 35,
+        "item_rate": 0.875
+      }
+    },
+    "pooled": {
+      "final": {
+        "objectives": 176,
+        "right": 118,
+        "accuracy": 0.67,
+        "per_gold_class": {
+          "addressed": {
+            "n": 74,
+            "right": 54,
+            "accuracy": 0.73
+          },
+          "partial": {
+            "n": 50,
+            "right": 16,
+            "accuracy": 0.32
+          },
+          "not_addressed": {
+            "n": 52,
+            "right": 48,
+            "accuracy": 0.923
+          }
+        },
+        "confusion": {
+          "addressed": {
+            "addressed": 54,
+            "partial": 0,
+            "not_addressed": 0,
+            "unclear": 20
+          },
+          "partial": {
+            "addressed": 7,
+            "partial": 16,
+            "not_addressed": 17,
+            "unclear": 10
+          },
+          "not_addressed": {
+            "addressed": 0,
+            "partial": 0,
+            "not_addressed": 48,
+            "unclear": 4
+          }
+        },
+        "false_addressed": {
+          "count": 7,
+          "of": 102,
+          "rate": 0.069,
+          "gold_partial": 7,
+          "gold_not_addressed": 0
+        },
+        "unclear": 34,
+        "round_close": {
+          "false_close": 3,
+          "of_not_done": 66,
+          "true_close": 11,
+          "of_done": 14
+        }
+      },
+      "raw": {
+        "objectives": 176,
+        "right": 142,
+        "accuracy": 0.807,
+        "per_gold_class": {
+          "addressed": {
+            "n": 74,
+            "right": 70,
+            "accuracy": 0.946
+          },
+          "partial": {
+            "n": 50,
+            "right": 21,
+            "accuracy": 0.42
+          },
+          "not_addressed": {
+            "n": 52,
+            "right": 51,
+            "accuracy": 0.981
+          }
+        },
+        "confusion": {
+          "addressed": {
+            "addressed": 70,
+            "partial": 0,
+            "not_addressed": 0,
+            "unclear": 4
+          },
+          "partial": {
+            "addressed": 10,
+            "partial": 21,
+            "not_addressed": 18,
+            "unclear": 1
+          },
+          "not_addressed": {
+            "addressed": 0,
+            "partial": 0,
+            "not_addressed": 51,
+            "unclear": 1
+          }
+        },
+        "false_addressed": {
+          "count": 10,
+          "of": 102,
+          "rate": 0.098,
+          "gold_partial": 10,
+          "gold_not_addressed": 0
+        },
+        "unclear": 0,
+        "round_close": {
+          "false_close": 5,
+          "of_not_done": 66,
+          "true_close": 13,
+          "of_done": 14
+        }
+      },
+      "quote_check": {
+        "claims_with_evidence_required": 101,
+        "kept": 77,
+        "downgraded_to_unclear": 24,
+        "pass_rate": 0.762,
+        "spans_returned": 114,
+        "spans_verified": 108,
+        "span_pass_rate": 0.947
+      }
+    }
+  },
+  "records": [
+    {
+      "run": 1,
+      "item": "s01",
+      "requests_sent": 2,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78cc3ca7ce887fc3b5fa4dea6f7",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 10043,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I wanted to ask if I could lead the checkout launch in January."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "why",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I ran the payments migration last spring and we shipped it two days early"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "support",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'd probably need some help from you here and there."
+          ],
+          "missing": "Specific support needed not named; vague help only."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s02",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78cd5eb770baa41ee0cbcc9696f",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2639,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Did not clearly state you want to lead the launch; only vague 'more involved somehow'."
+        },
+        {
+          "id": "why",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No concrete reason given for readiness (skills, experience, past results)."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s03",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78ce0367d11baed521d48eba4be",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2669,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Yesterday I finished the export button and got it merged."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "today",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Today I'm, uh, starting on the CSV encoding bug Farah filed."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "blocker",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "No blockers right now."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s04",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78ceaa778fe8ec35b831b7bf7f9",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3218,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "So yesterday I was, I was on a bunch of things, mostly some search stuff."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "today",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Today, today I'll keep going on the search page and get the filters merged."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "blocker",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No blocker named and no statement that there is none."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s05",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "unavailable",
+      "provider_request_id": "54ca701a1a78cf73f752b8bbb6e93003b085e",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 5774,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "late",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "cause",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "date",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s06",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d0dc77d63bf093a41109ecda7",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4143,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "late",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No plain statement that the report will be late."
+        },
+        {
+          "id": "cause",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "There were a few things with the data that we're sorting out."
+          ],
+          "missing": "Vague reference to data issues, no clear reason for delay."
+        },
+        {
+          "id": "date",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No new delivery date given."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s07",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d1df27162969a704cd35c6e33",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 5323,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "situation",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Kwame and I disagreed about whether to rewrite our billing service or patch it."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "action",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I asked if we could each write a one-page plan with costs and put them in front of the lead."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "result",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "We ended up going with one of the plans."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s08",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d32c6737faa3cae28b002b8d3",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1955,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "situation",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific disagreement or context described; only general statements about being easygoing."
+        },
+        {
+          "id": "action",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No actions taken to address a disagreement described."
+        },
+        {
+          "id": "result",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No outcome or result of a disagreement provided."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s09",
+      "requests_sent": 1,
+      "result_status": "unavailable",
+      "reason": "Reply timed out after 8000 ms.",
+      "assessment_status": "unavailable",
+      "provider_request_id": null,
+      "model": null,
+      "model_ms": 8002,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "unavailable",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "figure",
+          "gold": "not_addressed",
+          "raw_status": "unavailable",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "evidence",
+          "gold": "partial",
+          "raw_status": "unavailable",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s10",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d59a075a18e5eee191b61676f",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4221,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "my pay should reflect what I'm doing now"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "figure",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "around ninety-five, ninety-five to a hundred"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "evidence",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've been running onboarding for every new hire on the team, that's eleven people"
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s11",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d6a2673ea866ace0ca862e20f",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2270,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "impact",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No downstream impact stated; answer only gives cause and vague reassurance."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s12",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d72fe791b9591c99532ca2ab0",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3900,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "own",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 2,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s13",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d82427250bf4319587dc9a14a",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2245,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "decision",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "We are not shipping Friday."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s14",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d8b00759c8a3ea07a5b0bbdbd",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3342,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'm not asking you to remove the onboarding animation"
+          ],
+          "missing": "Answer explicitly states it is not asking to remove the animation, so no request to cut it was made."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s15",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78d980e727aba9985761e28ca09",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2859,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        },
+        {
+          "id": "today",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        },
+        {
+          "id": "blocker",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s16",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78da33e7ed7ac1243cec4d3b9d5",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4014,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "specific",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific company detail named; only generic culture comment."
+        },
+        {
+          "id": "fit",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No connection to work experience provided."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s17",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78db2e67e90a997f9d48726ba68",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4424,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "specific",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've seen how much the payment screen has improved this year."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "fit",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've done some front-end work before too."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s18",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "unavailable",
+      "provider_request_id": "54ca701a1a78dc42f7369aaf0606538b78e7f",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3795,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "date",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "reason",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s19",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78dd303734d8f0f15e4b1eadf15",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4973,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "behavior",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "you cut Hana off twice"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "example",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "In yesterday's design review you cut Hana off twice while she was walking through the flows."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "instead",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No clear alternative behavior stated; only vague awareness suggested."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s20",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "unavailable",
+      "provider_request_id": "54ca701a1a78de6747a058f576fda75f141a4",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1829,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "behavior",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "example",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "instead",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s21",
+      "requests_sent": 2,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e01f67cd59c488a838a02f055",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 9918,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "walk me through how the nightly job loads the orders table?"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "time",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific duration given; state minutes/hours needed."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s22",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e145a71d99371dd5720f843ea",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2576,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific help request made - only states being stuck."
+        },
+        {
+          "id": "time",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No time estimate or duration mentioned."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s23",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e1e637ce4ab2554c5e79c8f84",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3574,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'd like to lead the mobile launch."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "start",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No start date or timeframe provided."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s24",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e2c61751ea6840caca2240851",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2788,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "owner",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No owner named; answer states owner still needed."
+        },
+        {
+          "id": "date",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific date given; only vague 'next two weeks' timeframe."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s25",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e3742777cb69257bcc55c4028",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1978,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No description of yesterday's completed work provided"
+        },
+        {
+          "id": "today",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No description of today's planned work provided"
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s26",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e3ef878dea6e024f3986ce051",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4365,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "weakness",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I take on too much"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "improve",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 1,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s27",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e500a7df78660afaa6f1455e4",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2782,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "weakness",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 2,
+          "quotes_verified": 2,
+          "evidence": [
+            "I'm a perfectionist",
+            "Sometimes I work too late because of it."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "improve",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No steps or actions to improve the weakness mentioned."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s28",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e5ae578f58f85c6670b7d8a22",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3820,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "no",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "This sprint is already full with the billing fixes, so it won't make it in."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "alternative",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Maybe later?"
+          ],
+          "missing": "vague deferral, no concrete alternative timeline or workaround offered"
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s29",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e69d1755186ee58e59a6788aa",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1977,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "no",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Did not state feature won't fit this sprint; suggested trying to squeeze it in"
+        },
+        {
+          "id": "alternative",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No alternative timeline or scope offered"
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s30",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e718c705481c61873ea77bf1b",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4940,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'd like to lead the partner launch."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "why",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've been on the partner team for two years."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "plan",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "In the first couple weeks I'd, um, get to know everyone and figure out a plan."
+          ],
+          "missing": "needs concrete actions, owners, or deliverables for first two weeks"
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s31",
+      "requests_sent": 2,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78e9bdb770cbcc3046087a9f0bd",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 10276,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "late",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "the hiring plan is going to be late, like, a week late."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "reason",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Finance hasn't, uh, hasn't signed off on the headcount numbers yet."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "next",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've got a call with Leila from finance on Monday and I'll send you the plan the day after."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s32",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78eacf87cbe9bbdac8c9a983e4d",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2764,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "error",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "we double-charged the March support hours."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "amount",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No credit amount stated."
+        },
+        {
+          "id": "when",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No timing for when credit will be issued."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s33",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "unavailable",
+      "provider_request_id": "54ca701a1a78eb7c871948c086a890061ea4c",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3223,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "reason",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "forward",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s34",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78ec45f71c6ab39e077811fae50",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3341,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I wanted to ask about working from home on Fridays."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "reachable",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'd be around."
+          ],
+          "missing": "specific method/hours for staying reachable not stated"
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s35",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78ed1787b15942ca3f3b120cb4b",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1535,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No direct request for Fridays at home, only general wondering about remote days."
+        },
+        {
+          "id": "reachable",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No mention of how you will stay reachable while working from home."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s36",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78ed7737353add116e751ba11bd",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 5002,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Yesterday, the pricing page, done."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "today",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Today, um, probably some cleanup on it."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "blocker",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "And there's a thing with the build but it's probably fine."
+          ],
+          "missing": "clarify if build issue is a blocker or confirm no blocker"
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s37",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78eeafb79ca9d18e00c879a9b5d",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4012,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "specific",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 3,
+          "quotes_verified": 3,
+          "evidence": [
+            "covering Saturday",
+            "you took the morning",
+            "you even closed out the cash count"
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s38",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78efaa37cd8a84ddc2f7882fad1",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3700,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "fix",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "We're going to make sure it doesn't happen again."
+          ],
+          "missing": "No specific remediation offered (e.g., refund, credit, replacement, or discount)."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s39",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78f09187e918c8f70366ba785e1",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1987,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "part",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific part named; request was for general feedback only."
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "item": "s40",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78f10dc70978a6389b4202a7702",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2786,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "decline",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'm going to pass this time."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s01",
+      "requests_sent": 2,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78f35bf70a3a5f407412ca8d502",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 11515,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I wanted to ask if I could lead the checkout launch in January."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "why",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I ran the payments migration last spring and we shipped it two days early"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "support",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'd probably need some help from you here and there."
+          ],
+          "missing": "specific support not named - e.g., budget, staffing, or decision authority needed"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s02",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78f48b775e1835349a35d55f5c9",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2513,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Did not clearly state you want to lead the launch; only vague 'more involved somehow'."
+        },
+        {
+          "id": "why",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No concrete reason or qualification given for readiness to lead."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s03",
+      "requests_sent": 2,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78f5e1a76ca81433196e427e4e8",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 7306,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Yesterday I finished the export button and got it merged."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "today",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Today I'm, uh, starting on the CSV encoding bug Farah filed."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "blocker",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "No blockers right now."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s04",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78f6f157b718c162c4f9fab961a",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3439,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "So yesterday I was, I was on a bunch of things, mostly some search stuff."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "today",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 1,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        },
+        {
+          "id": "blocker",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No blocker named and no statement that there are none."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s05",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "unavailable",
+      "provider_request_id": "54ca701a1a78f7c8474ba92ca255082ead843",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4563,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "late",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "cause",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "date",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s06",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78f8e6473178ae52fe3a4b2add6",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3943,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "late",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No plain statement that the report will be late."
+        },
+        {
+          "id": "cause",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "There were a few things with the data that we're sorting out."
+          ],
+          "missing": "Vague reference to data issues, no clear reason given."
+        },
+        {
+          "id": "date",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No new delivery date provided."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s07",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "unavailable",
+      "provider_request_id": "54ca701a1a78f9dc17486a40d073e11baf732",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4419,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "situation",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "action",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "result",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s08",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78faf0a789389df9a20df949266",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1647,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "situation",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific disagreement described, only general traits."
+        },
+        {
+          "id": "action",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No actions taken about a disagreement stated."
+        },
+        {
+          "id": "result",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No outcome of a disagreement provided."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s09",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78fb57b746193aae6a1a4adc621",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4646,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'd like to ask for a raise."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "figure",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific figure or range named"
+        },
+        {
+          "id": "evidence",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific measurable result cited, only general tasks"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s10",
+      "requests_sent": 2,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78fdeef77b8a6db433cb9825111",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 11257,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I think my pay should reflect what I'm doing now"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "figure",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "around ninety-five, ninety-five to a hundred"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "evidence",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've been running onboarding for every new hire on the team, that's eleven people."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s11",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78ff39674dd8421a776d58d8c72",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2065,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "impact",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No downstream effects stated; only cause and vague reassurance given."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s12",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a78ffbae7c2092bbd109a90a5846",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3839,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "own",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 2,
+          "quotes_verified": 2,
+          "evidence": [
+            "I should have said something sooner,",
+            "the requirements also kept changing on us."
+          ],
+          "missing": "Still attributes fault to changing requirements instead of solely owning delay."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s13",
+      "requests_sent": 2,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79016f77955a82e751eac7d9d7e",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 7004,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "decision",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "We are not shipping Friday."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s14",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790260378e78abaf6ef898293b9",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4172,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'm not asking you to remove the onboarding animation"
+          ],
+          "missing": "No request to remove the animation was made; answer explicitly declines to ask."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s15",
+      "requests_sent": 2,
+      "result_status": "unavailable",
+      "reason": "Reply did not match the expected shape.",
+      "assessment_status": "unavailable",
+      "provider_request_id": null,
+      "model": null,
+      "model_ms": 8119,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "addressed",
+          "raw_status": "unavailable",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "today",
+          "gold": "addressed",
+          "raw_status": "unavailable",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "blocker",
+          "gold": "addressed",
+          "raw_status": "unavailable",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s16",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790560875b4917e499ec79d1e97",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3455,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "specific",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific company feature named; only generic culture comment."
+        },
+        {
+          "id": "fit",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No connection to work experience provided."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s17",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79063887b088ad5de3ef786c39e",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4288,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "specific",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've seen how much the payment screen has improved this year."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "fit",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've done some front-end work before too."
+          ],
+          "missing": "states front-end experience but doesn't explicitly link skills to improving the payment screen"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s18",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790744b757ea7e92352c6ee9239",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3801,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "date",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "probably the second half of March"
+          ],
+          "missing": "Vague range given; specific calendar date not provided."
+        },
+        {
+          "id": "reason",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "The payment provider needs another round of review on their side before we can go live."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s19",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79083227c48b0e7b84546587ca4",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3746,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "behavior",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 1,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        },
+        {
+          "id": "example",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        },
+        {
+          "id": "instead",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific alternative behavior requested; 'be more aware' is vague."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s20",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79091c87cc4898073e5e0129da1",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2641,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "behavior",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Did not name interrupting or specific behavior, only vague 'energetic'"
+        },
+        {
+          "id": "example",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No concrete example of interruption given"
+        },
+        {
+          "id": "instead",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No alternative behavior requested"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s21",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a7909c157ac38d68a3a3009b3f59",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4279,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "to walk me through how the nightly job loads the orders table?"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "time",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific duration given; 'some time' does not state how much time needed"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s22",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790acc77c689b801d6bd5adb99f",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2024,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific help request made"
+        },
+        {
+          "id": "time",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No time estimate provided"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s23",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790b4b67006be60660ad4eae63c",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2264,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'd like to lead the mobile launch."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "start",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No start date or timeframe provided"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s24",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790bd8e7d08914fe104f0cb0f9f",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3406,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "owner",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "We still need an owner for the fix,"
+          ],
+          "missing": "No owner named; explicitly states owner still needed"
+        },
+        {
+          "id": "date",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "we're hoping to have it sorted out within the next two weeks."
+          ],
+          "missing": "No specific date given; only vague two-week window"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s25",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790cae172708333f81aa85c93d9",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2789,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No tasks or accomplishments from yesterday mentioned."
+        },
+        {
+          "id": "today",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No plan for today mentioned; only promise to post later."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s26",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790d5bf7859bab7c15dbc6c7176",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2901,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "weakness",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I take on too much"
+          ],
+          "missing": ""
+        },
+        {
+          "id": "improve",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'm trying to get better at saying no."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s27",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790e11a77e4b44d0c73b79cf2e0",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3884,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "weakness",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 2,
+          "quotes_verified": 2,
+          "evidence": [
+            "I'm a perfectionist",
+            "Sometimes I work too late because of it."
+          ],
+          "missing": "needs a specific example of the weakness causing a concrete problem"
+        },
+        {
+          "id": "improve",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "no steps to improve the weakness described"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s28",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790f047722f94502808628de45e",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3292,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "no",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "so it won't make it in."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "alternative",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Maybe later?"
+          ],
+          "missing": "needs concrete alternative like next sprint or workaround, not vague deferral"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s29",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a790fd2372d8adf22d5f1d36fa51",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1549,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "no",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No clear statement that it won't fit this sprint; answer suggests trying to squeeze it in."
+        },
+        {
+          "id": "alternative",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No alternative offered."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s30",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a791032d7939bf189ee37c0fedc6",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 5014,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I'd like to lead the partner launch."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "why",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've been on the partner team for two years."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "plan",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "In the first couple weeks I'd, um, get to know everyone and figure out a plan."
+          ],
+          "missing": "needs specific actions for first two weeks, not just getting to know everyone"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s31",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79116c478638a407caa42d66ee5",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3650,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "late",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "the hiring plan is going to be late, like, a week late."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "reason",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "Finance hasn't, uh, hasn't signed off on the headcount numbers yet."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "next",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I've got a call with Leila from finance on Monday and I'll send you the plan the day after."
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s32",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a791250f783abaf5ab40403035ed",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3263,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "error",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "we double-charged the March support hours."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "amount",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No credit amount stated."
+        },
+        {
+          "id": "when",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No timing for credit given."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s33",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79131cc7712ace58ba4aad99835",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3230,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "reason",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "My manager is honestly terrible and the company has no idea what it's doing."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "forward",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No forward-looking framing; answer is only complaints about manager/company."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s34",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a7913e617561b4cdde55c17d94f6",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3005,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "I wanted to ask about working from home on Fridays."
+          ],
+          "missing": ""
+        },
+        {
+          "id": "reachable",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No specific method for staying reachable provided; 'I'd be around' does not say how."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s35",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a7914a2677f2a222b163a4e4ecd2",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 2370,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "ask",
+          "gold": "partial",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No direct request to work from home on Fridays."
+        },
+        {
+          "id": "reachable",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "No statement about how you will stay reachable."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s36",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "unavailable",
+      "provider_request_id": "54ca701a1a7915364773a808f9dc34b1badc5",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4177,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "yesterday",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "today",
+          "gold": "partial",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        },
+        {
+          "id": "blocker",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "unclear",
+          "code_check": "unavailable",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment unavailable."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s37",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79163b8702abe7d83ccc3566fed",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 4128,
+      "round_outcome": "model_assessed_addressed",
+      "objectives": [
+        {
+          "id": "specific",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "addressed",
+          "code_check": "kept",
+          "quotes_returned": 3,
+          "quotes_verified": 3,
+          "evidence": [
+            "covering Saturday",
+            "you took the morning",
+            "you even closed out the cash count"
+          ],
+          "missing": ""
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s38",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79173d873f491b3a709d7a025fc",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 3150,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "fix",
+          "gold": "partial",
+          "raw_status": "partial",
+          "final_status": "partial",
+          "code_check": "kept",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [
+            "We're going to make sure it doesn't happen again."
+          ],
+          "missing": "No specific remedy offered (refund, credit, replacement, discount, etc.) - only vague future prevention."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s39",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a79180247b5280082decb40d6323",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 1823,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "part",
+          "gold": "not_addressed",
+          "raw_status": "not_addressed",
+          "final_status": "not_addressed",
+          "code_check": "kept",
+          "quotes_returned": 0,
+          "quotes_verified": 0,
+          "evidence": [],
+          "missing": "Did not name one specific part to focus feedback on."
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "item": "s40",
+      "requests_sent": 1,
+      "result_status": "model_reply",
+      "reason": null,
+      "assessment_status": "assessed",
+      "provider_request_id": "54ca701a1a791874a75a7b47901df4fb07f1c",
+      "model": "meta-models/muse-spark-open-1026",
+      "model_ms": 5443,
+      "round_outcome": "semantic_open",
+      "objectives": [
+        {
+          "id": "decline",
+          "gold": "addressed",
+          "raw_status": "addressed",
+          "final_status": "unclear",
+          "code_check": "downgraded",
+          "quotes_returned": 1,
+          "quotes_verified": 1,
+          "evidence": [],
+          "missing": "Assessment evidence could not be verified."
+        }
+      ]
+    }
+  ]
+}
