@@ -88,7 +88,7 @@ test('practice requests are readable only through the narrow authenticated GET r
 
 test('one origin serves the public landing and private app with distinct security policies',async t=>{
  const h=await harness(t,{landingRoot:path.resolve('site'),allowRecordingChanges:false});
- const home=await h.request('/');assert.equal(home.status,200);assert.match(home.text,/Practise on your watch/);assert.match(home.text,/href="\/app\/"/);assert.match(home.text,/src="\/motion-init.js"/);
+ const home=await h.request('/');assert.equal(home.status,200);assert.match(home.text,/Practise out loud\. Your assistant remembers\./);assert.match(home.text,/href="\/app\/"/);assert.match(home.text,/src="\/motion-init.js"/);
  assert.ok(!home.text.includes(token));assert.equal(h.calls.length,0);
  assert.match(home.headers.get('content-security-policy'),/fonts.googleapis.com/);
  const app=await h.request('/app/');assert.equal(app.status,200);assert.match(app.text,/Your practice/);
