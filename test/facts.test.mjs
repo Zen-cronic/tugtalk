@@ -121,12 +121,17 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         return low % 1024 === 0 ? `${low / 1024} KiB` : `${low} bytes`;
       },
       'idempotency-key': async () => {
-        // Every length from 1 to 200 on a body that fails validation: a refused key is idempotency_required, an accepted one gets as far as the body.
+        // On a body that fails validation, a refused key is idempotency_required and an accepted one gets as far as the
+        // body. Binary search finds each edge of the accepted range from a length inside it (32), then the lengths on
+        // either side of each edge are checked, about 20 requests instead of one per length.
         const keyAccepted = async length => (await (await fetch(base + '/v1/goals', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': 'k'.repeat(length) }, body: '{}' })).json()).error !== 'idempotency_required';
-        const lengths = [];
-        for (let length = 1; length <= 200; length++) if (await keyAccepted(length)) lengths.push(length);
-        assert.equal(lengths.length, lengths.at(-1) - lengths[0] + 1, 'one unbroken range');
-        return `${lengths[0]}–${lengths.at(-1)} characters`;
+        const inside = 32;
+        assert.equal(await keyAccepted(inside), true); assert.equal(await keyAccepted(1), false); assert.equal(await keyAccepted(1024), false);
+        const edge = async (accepted, refused) => { while (Math.abs(refused - accepted) > 1) { const mid = Math.floor((accepted + refused) / 2); if (await keyAccepted(mid)) accepted = mid; else refused = mid; } return accepted; };
+        const min = await edge(inside, 1), max = await edge(inside, 1024);
+        for (const [length, ok] of [[min - 2, false], [min - 1, false], [min, true], [min + 1, true], [max - 1, true], [max, true], [max + 1, false], [max + 2, false]])
+          assert.equal(await keyAccepted(length), ok, `length ${length}`);
+        return `${min}–${max} characters`;
       },
       'transcribe-model': async () => {
         let sent;
@@ -715,6 +720,7 @@ function drillChecks(base, store) {
         if (r.status !== 200) { refused = r; break; }
         assert.equal(r.data.record.set_via, 'connector'); saved++;
       }
+      assert.ok(refused, `the server refused none of ${saved} drills on one goal`);
       assert.equal(refused.status, 409); assert.equal(refused.data.error, 'drill_open');
       return String(saved);
     },
