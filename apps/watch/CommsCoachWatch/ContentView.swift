@@ -7,10 +7,14 @@ struct ContentView: View {
     @State private var showSetup = ContentView.openSetupOnLaunch
     /// "Practise this answer": a spoken round with the same goal and language.
     @State private var practise = false
+    /// The AI note and the exercise in full, after More. `-expandNote YES` (Debug builds) opens them, for a screenshot.
+    @State private var noteExpanded = ContentView.flag("expandNote")
 
-    static var openSetupOnLaunch: Bool {
+    static var openSetupOnLaunch: Bool { flag("openSetup") }
+
+    static func flag(_ key: String) -> Bool {
         #if DEBUG
-        UserDefaults.standard.bool(forKey: "openSetup")
+        UserDefaults.standard.bool(forKey: key)
         #else
         false
         #endif
@@ -45,7 +49,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .navigationTitle(showingResult ? "Result" : "Coach")
+            .navigationTitle(showingResult ? "Result" : "TugTalk")
             .navigationDestination(isPresented: $showSetup) { SetupList(model: model) }
             .navigationDestination(isPresented: $practise) { SparringView(goal: model.selectedGoal, latestCard: model.latestCard, language: model.language) }
         }
@@ -93,7 +97,7 @@ struct ContentView: View {
                     .padding(.bottom, 6)
                 Text("Analyzing").face(.display, 20, relativeTo: .title3)
                     .foregroundStyle(Palette.inkDark)
-                Text("Counting fillers, unsure words and restarts")
+                Text("Counting fillers, unsure words, restarts")
                     .face(.text, 14, weight: 500, relativeTo: .footnote)
                     .foregroundStyle(Palette.mutedDark)
                     .multilineTextAlignment(.center)
@@ -103,22 +107,23 @@ struct ContentView: View {
             .padding(.top, 8)
         case .done(let receipt):
             result(receipt)
-            Button { Task { await model.startRecording() } } label: {
+            Button { noteExpanded = false; Task { await model.startRecording() } } label: {
                 Label { Text("Record again") } icon: { RecordLamp(lit: false) }
             }
             .buttonStyle(CoachButtonStyle())
             practiseButton
             Button("Change goal") { model.phase = .ready }
-                .buttonStyle(CoachButtonStyle(primary: false))
+                .buttonStyle(CoachButtonStyle(.secondary))
                 .id("actions")
+            savedLine(receipt)
         case .failed(let message):
             failure(message)
             if model.canRetryUpload {
-                Button("Retry upload") { Task { await model.upload() } }
+                Button("Try again") { Task { await model.upload() } }
                     .buttonStyle(CoachButtonStyle())
             }
-            Button("Reload") { Task { await model.load() } }
-                .buttonStyle(CoachButtonStyle(primary: !model.canRetryUpload))
+            Button(model.canRetryUpload ? "Back to start" : "Try again") { Task { await model.load() } }
+                .buttonStyle(CoachButtonStyle(model.canRetryUpload ? .secondary : .primary))
         }
     }
 
@@ -127,7 +132,7 @@ struct ContentView: View {
         Button { practise = true } label: {
             Text("Practise this answer").lineLimit(1).minimumScaleFactor(0.7).padding(.horizontal, 12) // clear of the capsule's curve
         }
-        .buttonStyle(CoachButtonStyle(primary: false))
+        .buttonStyle(CoachButtonStyle(.practise))
         .accessibilityHint("Answer out loud, and Tug asks a follow-up question")
     }
 
@@ -136,27 +141,26 @@ struct ContentView: View {
         NavigationLink {
             SetupList(model: model)
         } label: {
+            // A graphite card with sunflower details, so the solid sunflower Record button below stays the strongest thing on screen.
             HStack(spacing: 6) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(model.selectedGoal?.title ?? "No goal").face(.text, 16, weight: 700, relativeTo: .headline)
-                        .foregroundStyle(Palette.ink)
-                    Text(model.language == "fr" ? "Français" : "English").face(.text, 14, weight: 600, relativeTo: .footnote)
-                        .foregroundStyle(Palette.muted)
-                    if model.settings?.keep_recordings == true {
-                        Text("Keeping recordings").face(.text, 14, weight: 600, relativeTo: .footnote)
-                            .foregroundStyle(Palette.muted)
-                    }
+                        .foregroundStyle(Palette.inkDark)
+                    Text([model.language == "fr" ? "Français" : "English", model.settings?.keep_recordings == true ? "recordings kept" : nil]
+                        .compactMap { $0 }.joined(separator: " · "))
+                        .face(.text, 14, weight: 600, relativeTo: .footnote)
+                        .foregroundStyle(Palette.field)
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(Palette.field)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Palette.field, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Palette.rack, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -184,108 +188,90 @@ struct ContentView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// One hero number, then the two other habits and pace, then the coach's words.
-    /// The hero is always fillers so the screen reads the same way after every capture.
+    /// The three counts first, then words and pace, then one short line of the AI note. More shows the rest.
+    /// The counts come from code; the note is the model's own words, only shortened, never reworded.
     private func result(_ receipt: CaptureReceipt) -> some View {
         let m = receipt.record.metrics
         let analysis = receipt.record.analysis
-        let verdict = analysis.observation.flatMap { CoachText.lead(of: $0, maxWords: 7) }
-        return VStack(alignment: .leading, spacing: 6) {
-            if let verdict {
-                // The coach's own opening clause, so the screen leads with the verdict, not the count.
-                Text(verdict.lead)
-                    .face(.text, 15, weight: 700, relativeTo: .headline)
-                    .foregroundStyle(Palette.inkDark)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            CartChip(fill: Palette.filler, edge: Palette.fillerEdge, radius: 16, edgeHeight: 5) {
-                HStack(alignment: .center, spacing: 6) {
-                    Text("\(m.filler_count)")
-                        .face(.display, 44, relativeTo: .largeTitle)
-                        .monospacedDigit()
-                        .minimumScaleFactor(0.6)
-                        .lineLimit(1)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(m.filler_count == 1 ? "filler" : "fillers").face(.text, 18, weight: 700, relativeTo: .headline)
-                        Text("in \(m.word_count) words").face(.text, 14, weight: 500, relativeTo: .footnote)
-                    }
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, -2) // trim the numeral's line padding so the stats stay above the fold
-            }
-            .accessibilityElement(children: .combine)
-            .slotIn()
-
-            HStack(spacing: 6) {
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
+                SmallMetric(value: m.filler_count, singular: "filler", plural: "fillers", fill: Palette.filler, edge: Palette.fillerEdge)
                 SmallMetric(value: m.hedge_count, singular: "unsure\nword", plural: "unsure\nwords", fill: Palette.hedge, edge: Palette.hedgeEdge)
                 SmallMetric(value: m.restart_count, singular: "restart", plural: "restarts", fill: Palette.restart, edge: Palette.restartEdge)
-                PaceMetric(wpm: m.words_per_minute)
             }
             .slotIn()
+
+            Text("\(m.word_count) words" + (m.words_per_minute.map { " · \($0) wpm" } ?? ""))
+                .face(.text, 14, weight: 600, relativeTo: .footnote)
+                .foregroundStyle(Palette.pace)
+                .padding(.horizontal, 4)
 
             if let drill = receipt.record.drill, drill.line != nil { DrillResultLine(outcome: drill).id("drill") } // Drill.swift
 
-            VStack(alignment: .leading, spacing: 10) {
-                if let verdict {
-                    Text(verdict.rest)
-                        .face(.text, 15, relativeTo: .body)
-                        .foregroundStyle(Palette.inkDark)
-                } else if let observation = analysis.observation {
-                    Text(observation)
-                        .face(.text, 15, relativeTo: .body)
-                        .foregroundStyle(Palette.inkDark)
-                } else {
-                    Text("No observation this time; the counts are saved.")
-                        .face(.text, 15, relativeTo: .body)
-                        .foregroundStyle(Palette.mutedDark)
-                }
-                if let exercise = analysis.suggested_exercise {
-                    // An instruction is a quote with a rule on the left, never a filled block that looks like a button.
-                    HStack(alignment: .top, spacing: 8) {
-                        Capsule().fill(Palette.inkDark).frame(width: 3)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Try").face(.display, 15, relativeTo: .headline)
-                            Text(CoachText.headline(of: exercise, maxWords: 6)).face(.text, 15, weight: 600, relativeTo: .body)
-                        }
-                        .foregroundStyle(Palette.inkDark)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityElement(children: .combine)
-                    .id("try")
-                    NavigationLink {
-                        ScrollView {
-                            Text(exercise).face(.text, 16, weight: 500, relativeTo: .body)
-                                .foregroundStyle(Palette.inkDark)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 6)
-                        }
-                        .navigationTitle("Try")
-                    } label: {
-                        Text("More")
-                    }
-                    .buttonStyle(CoachButtonStyle(primary: false, height: 36))
-                }
-                HStack(alignment: .center, spacing: 4) {
-                    TugGlyph(size: 28, reach: 8, endY: 0.6, pull: 1)
-                    Text("Also in Muse, Meta's assistant, on your phone and Mac.")
-                        .face(.text, 13, weight: 600, relativeTo: .caption)
-                        .foregroundStyle(Palette.inkDark)
-                }
-                .padding(.top, 2)
-                if let note = receipt.record.media?.note {
-                    // Keep my recordings is on: the server kept this answer's audio (or says why it could not).
-                    Text(note)
-                        .face(.text, 13, weight: 600, relativeTo: .caption)
-                        .foregroundStyle(Palette.mutedDark)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .id("observation")
+            note(analysis)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+                .id("observation")
         }
+    }
+
+    /// "AI note": the observation's first sentence, or its first words, with More for the full note and exercise.
+    @ViewBuilder private func note(_ analysis: Analysis) -> some View {
+        let short = analysis.observation.map { CoachText.short($0, maxCharacters: 64) }
+        let hasMore = (short?.cut ?? false) || analysis.suggested_exercise != nil
+        VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("AI note").face(.text, 12, weight: 700, relativeTo: .caption2)
+                    .foregroundStyle(Palette.mutedDark)
+                Text(noteExpanded ? (analysis.observation ?? "") : (short?.text ?? "None this time. Counts saved."))
+                    .face(.text, 14, weight: 500, relativeTo: .footnote)
+                    .foregroundStyle(analysis.observation == nil ? Palette.mutedDark : Palette.inkDark)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            if let exercise = analysis.suggested_exercise {
+                // An instruction is a quote with a rule on the left, never a filled block that looks like a button.
+                HStack(alignment: .top, spacing: 8) {
+                    Capsule().fill(Palette.inkDark).frame(width: 3)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Try").face(.text, 12, weight: 700, relativeTo: .caption2)
+                            .foregroundStyle(Palette.mutedDark)
+                        Text(noteExpanded ? exercise : CoachText.headline(of: exercise, maxWords: 6))
+                            .face(.text, 14, weight: 600, relativeTo: .footnote)
+                            .foregroundStyle(Palette.inkDark)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .combine)
+                .id("try")
+            }
+            if hasMore {
+                Button(noteExpanded ? "Less" : "More") { withAnimation(.easeOut(duration: 0.18)) { noteExpanded.toggle() } }
+                    .buttonStyle(CoachButtonStyle(.secondary, height: 32))
+                    .frame(width: 84)
+            }
+        }
+    }
+
+    /// Under the buttons: where this result also shows up, and whether its audio was kept.
+    private func savedLine(_ receipt: CaptureReceipt) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 4) {
+                TugGlyph(size: 28, reach: 8, endY: 0.6, pull: 1)
+                Text("Also in Muse on your phone and Mac.")
+                    .face(.text, 13, weight: 600, relativeTo: .caption)
+                    .foregroundStyle(Palette.inkDark)
+            }
+            if let note = receipt.record.media?.note {
+                // Keep my recordings is on: the server kept this answer's audio (or says why it could not).
+                Text(note)
+                    .face(.text, 13, weight: 600, relativeTo: .caption)
+                    .foregroundStyle(Palette.mutedDark)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
+        .padding(.top, 2)
     }
 
     /// A worried Tug with a cut string, the error in plain words, and what is still safe, above the action.
@@ -297,7 +283,7 @@ struct ContentView: View {
                 .foregroundStyle(Palette.inkDark)
                 .multilineTextAlignment(.center)
             if model.canRetryUpload {
-                Text("Your answer is saved on the watch.")
+                Text("Answer saved on the watch.")
                     .face(.text, 13, weight: 600, relativeTo: .caption)
                     .foregroundStyle(Palette.mutedDark)
                     .multilineTextAlignment(.center)
@@ -317,7 +303,7 @@ private struct SmallMetric: View {
     var body: some View {
         CartChip(fill: fill, edge: edge) {
             VStack(spacing: 0) {
-                Text("\(value)").face(.display, 22, relativeTo: .title3).monospacedDigit()
+                Text("\(value)").face(.display, 26, relativeTo: .title3).monospacedDigit()
                 // Two lines reserved, so "unsure⏎words" sits one word per line and both chips keep one height;
                 // a word shrinks slightly rather than breaking in the middle.
                 Text(value == 1 ? singular : plural).face(.text, 12, weight: 700, relativeTo: .caption2)
@@ -327,22 +313,6 @@ private struct SmallMetric: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
         }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// Pace is context, not a habit: neutral ink, no chip, and narrower than the habit chips.
-private struct PaceMetric: View {
-    let wpm: Int?
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(wpm.map(String.init) ?? "–").face(.text, 18, weight: 700, relativeTo: .headline).monospacedDigit()
-                .foregroundStyle(Palette.pace)
-            Text("wpm").face(.text, 12, weight: 500, relativeTo: .caption2)
-                .foregroundStyle(Palette.mutedDark)
-        }
-        .frame(width: 38)
         .accessibilityElement(children: .combine)
     }
 }
@@ -452,7 +422,8 @@ private struct SetupList: View {
         }
         .navigationTitle("Setup")
         .confirmationDialog("Turn off Keep my recordings?", isPresented: $confirmOff, titleVisibility: .visible) {
-            Button("Turn off and delete kept recordings", role: .destructive) { Task { await model.setKeepRecordings(false, deleteKept: true) } }
+            // No destructive role: its red would read as fillers. The label says what it deletes.
+            Button("Turn off and delete kept recordings") { Task { await model.setKeepRecordings(false, deleteKept: true) } }
             Button("Turn off") { Task { await model.setKeepRecordings(false) } }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -464,7 +435,7 @@ private struct SetupList: View {
 
     /// What the setting does, how much is kept, and the last error, in plain words.
     private var recordingsFooter: String {
-        var lines = [model.settings?.keep_recordings == true ? "On: your recordings stay in your account. Delete them any time." : "Off: audio is deleted after transcription."]
+        var lines = [model.settings?.keep_recordings == true ? "On: recordings stay in your account until you delete them." : "Off: audio is deleted after transcription."]
         if let kept = model.settings?.kept, kept.recordings > 0 {
             lines.append("\(kept.recordings) kept, \(String(format: "%.1f", Double(kept.bytes) / 1_000_000)) MB.")
         }

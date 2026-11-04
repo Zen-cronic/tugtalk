@@ -137,7 +137,7 @@ struct SparringView: View {
                 .padding(.bottom, 4)
             Text("Thinking").face(.display, 20, relativeTo: .title3)
                 .foregroundStyle(Palette.inkDark)
-            Text("Picking the next question")
+            Text("Picking a follow-up")
                 .face(.text, 14, weight: 500, relativeTo: .footnote)
                 .foregroundStyle(Palette.mutedDark)
                 .multilineTextAlignment(.center)
@@ -190,7 +190,7 @@ struct SparringView: View {
             .padding(.horizontal, 4)
             if !shown.endsRound {
                 Button("End round") { model.endRound() }
-                    .buttonStyle(CoachButtonStyle(primary: false, height: 36))
+                    .buttonStyle(CoachButtonStyle(.secondary))
             }
         }
     }
@@ -200,8 +200,8 @@ struct SparringView: View {
     /// Why the round ended, in code's terms (the server's move gate), or nil when the coach wrapped up on its own.
     private func ending(_ closedBy: String?) -> String? {
         switch closedBy {
-        case "measured_close": "Code ended the round: no unsure words in your last answer."
-        case "answer_cap": "The round ended at answer \(SparringMachine.maxAnswers), the most in one round."
+        case "measured_close": "Ended by code: no unsure words in your last answer."
+        case "answer_cap": "Ended at answer \(SparringMachine.maxAnswers), the limit."
         default: nil
         }
     }
@@ -243,7 +243,7 @@ struct SparringView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)
             } else {
-                Text("No answers were measured in this round.")
+                Text("No answers measured.")
                     .face(.text, 15, relativeTo: .body)
                     .foregroundStyle(Palette.mutedDark)
             }
@@ -251,7 +251,7 @@ struct SparringView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .center, spacing: 4) {
                     TugGlyph(size: 28, reach: 8, endY: 0.6, pull: 1)
-                    Text("Saved for Muse, Meta's assistant, on your phone and Mac.")
+                    Text("Also in Muse on your phone and Mac.")
                         .face(.text, 13, weight: 600, relativeTo: .caption)
                         .foregroundStyle(Palette.inkDark)
                 }
@@ -289,21 +289,21 @@ struct SparringView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 if canRetry {
-                    Text("Your answer is saved on the watch.")
+                    Text("Answer saved on the watch.")
                         .face(.text, 13, weight: 600, relativeTo: .caption)
                         .foregroundStyle(Palette.mutedDark)
                         .multilineTextAlignment(.center)
                 }
             }
             if canRetry {
-                Button("Retry") { model.retry() }
+                Button("Try again") { model.retry() }
                     .buttonStyle(CoachButtonStyle())
             } else if failure.kind == .micOff || failure.kind == .tooShort || failure.kind == .unusableAudio || failure.kind == .noQuestion {
                 recordButton("Try again")
             }
             if failure.kind != .notSignedIn {
                 Button(model.answeredAny ? "End round" : "Back to start") { model.endRound() }
-                    .buttonStyle(CoachButtonStyle(primary: false, height: 36))
+                    .buttonStyle(CoachButtonStyle(.secondary))
             }
             Text(counter(answer))
                 .face(.text, 13, weight: 600, relativeTo: .caption)

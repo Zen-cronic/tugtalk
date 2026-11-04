@@ -47,6 +47,23 @@ enum CoachText {
         return (leadText, restText.prefix(1).uppercased() + restText.dropFirst())
     }
 
+    /// The observation shortened for the wrist, never reworded: its first sentence when that fits in
+    /// `maxCharacters`, otherwise its first words up to a word break, with "…". `cut` is true when text was left out.
+    static func short(_ text: String, maxCharacters: Int) -> (text: String, cut: Bool) {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.count > maxCharacters else { return (text, false) }
+        let tokenizer = NLTokenizer(unit: .sentence)
+        tokenizer.string = text
+        if let sentence = tokenizer.tokens(for: text.startIndex..<text.endIndex).first {
+            let first = text[sentence].trimmingCharacters(in: .whitespacesAndNewlines)
+            if first.count <= maxCharacters, let last = first.last, ".!?".contains(last) { return (first, true) }
+        }
+        var words = text.prefix(maxCharacters).split(separator: " ", omittingEmptySubsequences: true)
+        if text[text.index(text.startIndex, offsetBy: maxCharacters)] != " ", words.count > 1 { words.removeLast() } // no half words
+        let head = words.joined(separator: " ").trimmingCharacters(in: CharacterSet(charactersIn: " ,;:-–—'\"("))
+        return (head + "…", true)
+    }
+
     /// The exercise's name (before any colon or bracket), or its first words when it has no name.
     static func headline(of text: String, maxWords: Int) -> String {
         let name = text.prefix { $0 != ":" && $0 != "(" && $0 != "." }.trimmingCharacters(in: .whitespaces)
@@ -73,10 +90,21 @@ enum CoachText {
             ("No punctuation in this observation at all", nil),
             ("This one sentence is far too long to fit as a lead on a small watch screen, so no lead.", nil),
         ]
+        let shorts: [(String, String)] = [
+            ("Clear and steady delivery throughout. This short test clip doesn't yet show the pause habit you set.",
+             "Clear and steady delivery throughout."),
+            ("Short note.", "Short note."),
+            ("In 40 words at 166 wpm you had 2 fillers, 1 hedge, and 2 restarts including 'Sorry, let me restart'.",
+             "In 40 words at 166 wpm you had 2 fillers, 1 hedge, and 2 restarts including…"),
+        ]
+        let shortFailures = shorts.compactMap { text, expected in
+            let got = short(text, maxCharacters: 80).text
+            return got == expected ? nil : "short: \(text) -> \(got), expected \(expected)"
+        }
         return cases.compactMap { text, expected in
             let got = lead(of: text, maxWords: 7)?.lead
             return got == expected ? nil : "\(text) -> \(got ?? "nil"), expected \(expected ?? "nil")"
-        }
+        } + shortFailures
     }
     #endif
 }

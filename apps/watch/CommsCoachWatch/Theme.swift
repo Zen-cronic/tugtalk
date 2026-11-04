@@ -115,19 +115,56 @@ private struct SlotIn: ViewModifier {
     }
 }
 
-/// Primary action: filled with ink, ink-dark on the dark face. Secondary: an outline of the same ink.
+/// Buttons, one system on every screen. The main action is solid sunflower with ink text, the only solid
+/// button on a screen. Other actions are tinted: teal for a spoken practice round, blue for everything else
+/// (back, change, more). Red is never a button colour: it marks fillers, and the live recording light.
 struct CoachButtonStyle: ButtonStyle {
-    var primary = true
+    enum Kind { case primary, practise, secondary }
+    /// How the tinted buttons are drawn. `tonal` (a translucent fill of the colour, with text in the colour) is the
+    /// chosen look; `filled` and `outlined` were the other two options on the comparison sheet.
+    enum Look: String { case tonal, filled, outlined }
+
+    static var look: Look {
+        #if DEBUG
+        // `-buttonLook filled|outlined|tonal`: renders the other options for a side-by-side comparison.
+        if let raw = UserDefaults.standard.string(forKey: "buttonLook"), let look = Look(rawValue: raw) { return look }
+        #endif
+        return .tonal
+    }
+
+    var kind: Kind = .primary
     var height: CGFloat = 44
 
+    init(_ kind: Kind = .primary, height: CGFloat? = nil) {
+        self.kind = kind
+        self.height = height ?? (kind == .primary ? 44 : 40)
+    }
+
+    /// Kept so older call sites read the same: `primary: false` is a blue secondary.
+    init(primary: Bool, height: CGFloat? = nil) { self.init(primary ? .primary : .secondary, height: height) }
+
+    private var tint: Color {
+        switch kind {
+        case .primary: Palette.field
+        case .practise: Palette.restart
+        case .secondary: Palette.hedge
+        }
+    }
+
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .face(.text, 17, weight: 700, relativeTo: .headline)
-            .foregroundStyle(primary ? Palette.ink : Palette.inkDark)
+        let solid = kind == .primary || Self.look == .filled
+        return configuration.label
+            .face(.text, kind == .primary ? 17 : 16, weight: 700, relativeTo: .headline)
+            .foregroundStyle(solid ? Palette.ink : tint)
             .frame(maxWidth: .infinity, minHeight: height)
             .background {
-                Capsule().fill(primary ? Palette.inkDark : Color.clear)
-                Capsule().strokeBorder(Palette.inkDark, lineWidth: primary ? 0 : 2)
+                if solid {
+                    Capsule().fill(tint)
+                } else if Self.look == .outlined {
+                    Capsule().strokeBorder(tint, lineWidth: 2)
+                } else {
+                    Capsule().fill(tint.opacity(0.3))
+                }
             }
             .contentShape(Capsule())
             .opacity(configuration.isPressed ? 0.7 : 1)
