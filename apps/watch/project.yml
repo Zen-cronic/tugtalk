@@ -46,6 +46,13 @@ targets:
       - path: CommsCoachWatch
     dependencies:
       - package: SparringCore
+    preBuildScripts:
+      # Release only: refuses an empty or placeholder connector key, so an archive never ships without one.
+      - name: Check the connector key (Release)
+        script: '/bin/sh "${SCRIPT_INPUT_FILE_0}"'
+        inputFiles:
+          - $(SRCROOT)/Tools/check-release-key.sh
+        basedOnDependencyAnalysis: false
     info:
       path: CommsCoachWatch/Info.plist
       properties:
