@@ -1,0 +1,462 @@
+{
+  "version": "semantic-heldout-v1",
+  "written": "2026-11-04",
+  "authorship": "Synthetic. We wrote every answer and every gold label for this eval, before any model call on it. Not from real users; plain text, no speech recognition.",
+  "language": "en",
+  "label_definitions": {
+    "addressed": "The answer gives what the objective asks for. As in the product prompt, addressed means the answer responds to the objective, not that it is true or a good outcome; a relevant refusal or a qualified commitment can address it.",
+    "partial": "The answer gives some of the required content but not all of it, or a less specific version that still narrows it (for example 'next week' for a date, 'the data' for a cause).",
+    "not_addressed": "The answer gives none of the required content: the point is absent, off-topic, only gestured at with no content ('soon', 'a few things'), negated, or mentioned without being met ('we still need an owner').",
+    "unclear": "Never a gold label. A model or code-check 'unclear' is scored as wrong against any gold label."
+  },
+  "items": [
+    {
+      "id": "s01", "scenario": "1:1, asking to lead a launch", "tags": ["fillers"],
+      "request_text": "Ask my manager if I can lead the January checkout launch.",
+      "objectives": [
+        { "id": "ask", "text": "State clearly that you want to lead the launch." },
+        { "id": "why", "text": "Give one concrete reason you are ready." },
+        { "id": "support", "text": "Name what you would need from your manager." }
+      ],
+      "answer": "So, um, I wanted to ask if I could lead the checkout launch in January. I ran the payments migration last spring and we shipped it two days early, so I think I know how to keep a release like this on track. Uh, I'd probably need some help from you here and there.",
+      "gold": { "ask": "addressed", "why": "addressed", "support": "partial" },
+      "rationale": { "ask": "Asks directly to lead the January checkout launch.", "why": "Names the payments migration shipped two days early.", "support": "Says help is needed but not what help." }
+    },
+    {
+      "id": "s02", "scenario": "1:1, asking to lead a launch", "tags": ["mentioned_not_met"],
+      "request_text": "Ask my manager if I can lead the January checkout launch.",
+      "objectives": [
+        { "id": "ask", "text": "State clearly that you want to lead the launch." },
+        { "id": "why", "text": "Give one concrete reason you are ready." }
+      ],
+      "answer": "Yeah so the checkout launch, it's, it's a big one. I've been thinking a lot about it. I really like the work the team's doing and I think it's going to be great for customers. Anyway I'd love to be more involved somehow.",
+      "gold": { "ask": "partial", "why": "not_addressed" },
+      "rationale": { "ask": "Wants to be 'more involved somehow', never asks to lead.", "why": "Liking the team's work is not a reason they are ready." }
+    },
+    {
+      "id": "s03", "scenario": "standup", "tags": ["plain"],
+      "request_text": "Give my standup update.",
+      "objectives": [
+        { "id": "yesterday", "text": "Say what you got done yesterday." },
+        { "id": "today", "text": "Say what you will work on today." },
+        { "id": "blocker", "text": "Name any blocker, or say there is none." }
+      ],
+      "answer": "Morning. Yesterday I finished the export button and got it merged. Today I'm, uh, starting on the CSV encoding bug Farah filed. No blockers right now.",
+      "gold": { "yesterday": "addressed", "today": "addressed", "blocker": "addressed" },
+      "rationale": { "yesterday": "Export button finished and merged.", "today": "The CSV encoding bug.", "blocker": "Says there are none." }
+    },
+    {
+      "id": "s04", "scenario": "standup", "tags": ["restarts", "absent"],
+      "request_text": "Give my standup update.",
+      "objectives": [
+        { "id": "yesterday", "text": "Say what you got done yesterday." },
+        { "id": "today", "text": "Say what you will work on today." },
+        { "id": "blocker", "text": "Name any blocker, or say there is none." }
+      ],
+      "answer": "So yesterday I was, I was on a bunch of things, mostly some search stuff. Today, today I'll keep going on the search page and get the filters merged.",
+      "gold": { "yesterday": "partial", "today": "addressed", "blocker": "not_addressed" },
+      "rationale": { "yesterday": "Names an area ('search stuff') but nothing that got done.", "today": "Search page and merging the filters.", "blocker": "Blockers are never mentioned." }
+    },
+    {
+      "id": "s05", "scenario": "explaining a delay to a client", "tags": ["plain"],
+      "request_text": "Tell the client the quarterly report will be late.",
+      "objectives": [
+        { "id": "late", "text": "Say plainly that the report will be late." },
+        { "id": "cause", "text": "Give the reason for the delay." },
+        { "id": "date", "text": "Give a new delivery date." }
+      ],
+      "answer": "Hi Ines, I wanted to give you a heads up that the quarterly report won't be ready on Friday. Our data feed from the warehouse broke on Tuesday and we lost two days of numbers. We'll have it to you sometime next week.",
+      "gold": { "late": "addressed", "cause": "addressed", "date": "partial" },
+      "rationale": { "late": "Won't be ready on Friday.", "cause": "The warehouse data feed broke.", "date": "'Sometime next week' narrows it but gives no date." }
+    },
+    {
+      "id": "s06", "scenario": "explaining a delay to a client", "tags": ["evasive", "vague"],
+      "request_text": "Tell the client the quarterly report will be late.",
+      "objectives": [
+        { "id": "late", "text": "Say plainly that the report will be late." },
+        { "id": "cause", "text": "Give the reason for the delay." },
+        { "id": "date", "text": "Give a new delivery date." }
+      ],
+      "answer": "Hi Kofi, um, so the report, we're, we're making really good progress on it and the team's been working hard. There were a few things with the data that we're sorting out. I'll send an update when we're closer.",
+      "gold": { "late": "not_addressed", "cause": "partial", "date": "not_addressed" },
+      "rationale": { "late": "Never says the report will be late; talks up progress instead.", "cause": "Points at 'the data' without saying what went wrong.", "date": "Promises an update, no date." }
+    },
+    {
+      "id": "s07", "scenario": "interview: a disagreement", "tags": ["plain"],
+      "request_text": "Answer the interview question: tell me about a time you disagreed with a teammate.",
+      "objectives": [
+        { "id": "situation", "text": "Describe the specific disagreement." },
+        { "id": "action", "text": "Say what you did about it." },
+        { "id": "result", "text": "Say how it turned out." }
+      ],
+      "answer": "Sure. On my last team, Kwame and I disagreed about whether to rewrite our billing service or patch it. I asked if we could each write a one-page plan with costs and put them in front of the lead. We ended up going with one of the plans.",
+      "gold": { "situation": "addressed", "action": "addressed", "result": "partial" },
+      "rationale": { "situation": "Rewrite versus patch the billing service.", "action": "Proposed two one-page plans for the lead.", "result": "Says a plan was chosen, not which or what came of it." }
+    },
+    {
+      "id": "s08", "scenario": "interview: a disagreement", "tags": ["off_topic"],
+      "request_text": "Answer the interview question: tell me about a time you disagreed with a teammate.",
+      "objectives": [
+        { "id": "situation", "text": "Describe the specific disagreement." },
+        { "id": "action", "text": "Say what you did about it." },
+        { "id": "result", "text": "Say how it turned out." }
+      ],
+      "answer": "Um, I'd say I'm a really easygoing person, I get along with pretty much everyone. I think communication is super important on any team and I always try to listen first.",
+      "gold": { "situation": "not_addressed", "action": "not_addressed", "result": "not_addressed" },
+      "rationale": { "situation": "No disagreement is described.", "action": "A general habit, not something done in a disagreement.", "result": "No outcome." }
+    },
+    {
+      "id": "s09", "scenario": "1:1, asking for a raise", "tags": ["vague"],
+      "request_text": "Ask my manager for a raise.",
+      "objectives": [
+        { "id": "ask", "text": "Ask for a raise directly." },
+        { "id": "figure", "text": "Name a specific figure or range." },
+        { "id": "evidence", "text": "Point to a specific result you delivered." }
+      ],
+      "answer": "So I wanted to talk about my pay. I'd like to ask for a raise. I've taken on a lot more this year, the vendor stuff and some of the planning.",
+      "gold": { "ask": "addressed", "figure": "not_addressed", "evidence": "partial" },
+      "rationale": { "ask": "'I'd like to ask for a raise.'", "figure": "No number.", "evidence": "Names areas of work, no specific result." }
+    },
+    {
+      "id": "s10", "scenario": "1:1, asking for a raise", "tags": ["paraphrase", "fillers"],
+      "request_text": "Ask my manager for a raise.",
+      "objectives": [
+        { "id": "ask", "text": "Ask for a raise directly." },
+        { "id": "figure", "text": "Name a specific figure or range." },
+        { "id": "evidence", "text": "Point to a specific result you delivered." }
+      ],
+      "answer": "I, uh, I've been here three years and I think my pay should reflect what I'm doing now, so I'm hoping we can get me to around ninety-five, ninety-five to a hundred. Since the spring I've been running onboarding for every new hire on the team, that's eleven people.",
+      "gold": { "ask": "addressed", "figure": "addressed", "evidence": "addressed" },
+      "rationale": { "ask": "Paraphrased but direct: get my pay to around ninety-five.", "figure": "Ninety-five to a hundred.", "evidence": "Ran onboarding for eleven new hires." }
+    },
+    {
+      "id": "s11", "scenario": "explaining a delay to a manager", "tags": ["mentioned_not_met"],
+      "request_text": "Tell my manager the database migration will slip a week.",
+      "objectives": [
+        { "id": "impact", "text": "Say what the slip affects downstream." }
+      ],
+      "answer": "The migration's going to slip a week, mostly because the vendor's API keys came late. That's it really, we're on it.",
+      "gold": { "impact": "not_addressed" },
+      "rationale": { "impact": "Gives the slip and its cause, nothing about what it affects." }
+    },
+    {
+      "id": "s12", "scenario": "explaining a missed deadline", "tags": ["blame_shift"],
+      "request_text": "Explain to my manager why I missed the deadline.",
+      "objectives": [
+        { "id": "own", "text": "Take responsibility without blaming others." }
+      ],
+      "answer": "Honestly the testing took longer than I thought, and, yeah, I should have said something sooner, but the requirements also kept changing on us.",
+      "gold": { "own": "partial" },
+      "rationale": { "own": "Owns not speaking up, then blames the changing requirements." }
+    },
+    {
+      "id": "s13", "scenario": "release decision to the team", "tags": ["negation"],
+      "request_text": "Tell the team whether we're shipping on Friday.",
+      "objectives": [
+        { "id": "decision", "text": "State whether the release ships on Friday." }
+      ],
+      "answer": "We are not shipping Friday. We'll do Tuesday instead, after the security review.",
+      "gold": { "decision": "addressed" },
+      "rationale": { "decision": "A clear no, with the new day." }
+    },
+    {
+      "id": "s14", "scenario": "asking a designer to cut something", "tags": ["negation", "mentioned_not_met"],
+      "request_text": "Ask the designer to cut the onboarding animation.",
+      "objectives": [
+        { "id": "ask", "text": "Ask the designer to remove the onboarding animation." }
+      ],
+      "answer": "Hey Mira, I'm not asking you to remove the onboarding animation, I know you put a lot into it. I just wanted to say the first screen feels slow on older phones.",
+      "gold": { "ask": "not_addressed" },
+      "rationale": { "ask": "Explicitly says they are not asking for the removal." }
+    },
+    {
+      "id": "s15", "scenario": "standup", "tags": ["restarts"],
+      "request_text": "Give my standup update.",
+      "objectives": [
+        { "id": "yesterday", "text": "Say what you got done yesterday." },
+        { "id": "today", "text": "Say what you will work on today." },
+        { "id": "blocker", "text": "Name any blocker, or say there is none." }
+      ],
+      "answer": "Yesterday I, I, sorry, yesterday I finished the, the refund flow tests, all green. Today I'm pairing with Joon on the receipts page. Blocker is I still don't have access to the staging database, I asked IT on Monday.",
+      "gold": { "yesterday": "addressed", "today": "addressed", "blocker": "addressed" },
+      "rationale": { "yesterday": "Refund flow tests finished.", "today": "Pairing on the receipts page.", "blocker": "No staging database access." }
+    },
+    {
+      "id": "s16", "scenario": "interview: why this company", "tags": ["generic"],
+      "request_text": "Answer the interview question: why do you want to work here?",
+      "objectives": [
+        { "id": "specific", "text": "Name something specific about the company that draws you." },
+        { "id": "fit", "text": "Connect it to your work experience." }
+      ],
+      "answer": "Um, well, I've heard it's a great place to work and, you know, the culture seems really good. I'm just looking for a place where I can grow.",
+      "gold": { "specific": "not_addressed", "fit": "not_addressed" },
+      "rationale": { "specific": "'Great place to work' and 'culture' fit any company.", "fit": "No work experience mentioned." }
+    },
+    {
+      "id": "s17", "scenario": "interview: why this company", "tags": ["vague"],
+      "request_text": "Answer the interview question: why do you want to work here?",
+      "objectives": [
+        { "id": "specific", "text": "Name something specific about the company that draws you." },
+        { "id": "fit", "text": "Connect it to your work experience." }
+      ],
+      "answer": "I use your app every week to split rent with my roommates, so I've seen how much the payment screen has improved this year. I'd love to work on that. I've done some front-end work before too.",
+      "gold": { "specific": "addressed", "fit": "partial" },
+      "rationale": { "specific": "The app's improved payment screen.", "fit": "Mentions 'some front-end work' with no detail on how it relates." }
+    },
+    {
+      "id": "s18", "scenario": "explaining a delay to a client", "tags": ["vague_date"],
+      "request_text": "Tell the client the website launch is moving.",
+      "objectives": [
+        { "id": "date", "text": "Give the new launch date." },
+        { "id": "reason", "text": "Explain why it moved." }
+      ],
+      "answer": "Hi Tariq, so the launch is moving to, uh, probably the second half of March. The payment provider needs another round of review on their side before we can go live.",
+      "gold": { "date": "partial", "reason": "addressed" },
+      "rationale": { "date": "'Second half of March' narrows it, no date.", "reason": "The payment provider's extra review." }
+    },
+    {
+      "id": "s19", "scenario": "peer feedback", "tags": ["vague"],
+      "request_text": "Give Bram feedback that he interrupts people in meetings.",
+      "objectives": [
+        { "id": "behavior", "text": "Name the specific behavior." },
+        { "id": "example", "text": "Give a concrete example." },
+        { "id": "instead", "text": "Say what you would like him to do instead." }
+      ],
+      "answer": "Bram, can I give you some feedback? In yesterday's design review you cut Hana off twice while she was walking through the flows. Just, maybe be a bit more aware of it?",
+      "gold": { "behavior": "addressed", "example": "addressed", "instead": "partial" },
+      "rationale": { "behavior": "Cutting Hana off is the interrupting.", "example": "Yesterday's design review, twice.", "instead": "'Be more aware' is not a behavior to do instead." }
+    },
+    {
+      "id": "s20", "scenario": "peer feedback", "tags": ["evasive", "mentioned_not_met"],
+      "request_text": "Give Bram feedback that he interrupts people in meetings.",
+      "objectives": [
+        { "id": "behavior", "text": "Name the specific behavior." },
+        { "id": "example", "text": "Give a concrete example." },
+        { "id": "instead", "text": "Say what you would like him to do instead." }
+      ],
+      "answer": "Hey Bram, um, so overall you're doing great, really. Just sometimes in meetings things get a bit, I don't know, energetic? Anyway, keep it up.",
+      "gold": { "behavior": "partial", "example": "not_addressed", "instead": "not_addressed" },
+      "rationale": { "behavior": "Hints at meeting conduct ('energetic'), never names interrupting.", "example": "None.", "instead": "'Keep it up' asks for no change." }
+    },
+    {
+      "id": "s21", "scenario": "asking a colleague for help", "tags": ["plain"],
+      "request_text": "Ask Olu for help with the data pipeline.",
+      "objectives": [
+        { "id": "ask", "text": "Ask for specific help." },
+        { "id": "time", "text": "Say how much of their time you need." }
+      ],
+      "answer": "Olu, would you have some time this week to walk me through how the nightly job loads the orders table? I keep getting duplicate rows and I can't see where they come from.",
+      "gold": { "ask": "addressed", "time": "partial" },
+      "rationale": { "ask": "A walkthrough of the nightly orders load.", "time": "Says this week, not how much time." }
+    },
+    {
+      "id": "s22", "scenario": "asking a colleague for help", "tags": ["evasive"],
+      "request_text": "Ask Olu for help with the data pipeline.",
+      "objectives": [
+        { "id": "ask", "text": "Ask for specific help." },
+        { "id": "time", "text": "Say how much of their time you need." }
+      ],
+      "answer": "Olu, I've been stuck on the pipeline for a while. It's been really frustrating. I know you're busy, so no worries if not.",
+      "gold": { "ask": "partial", "time": "not_addressed" },
+      "rationale": { "ask": "Implies a request about the pipeline but never says what help.", "time": "No amount of time." }
+    },
+    {
+      "id": "s23", "scenario": "1:1, asking to lead a launch", "tags": ["unrelated_number"],
+      "request_text": "Ask my manager if I can lead the mobile launch.",
+      "objectives": [
+        { "id": "ask", "text": "Ask to lead the launch." },
+        { "id": "start", "text": "Say when you could start." }
+      ],
+      "answer": "I'd like to lead the mobile launch. I've led three smaller releases since 2023 and none of them slipped.",
+      "gold": { "ask": "addressed", "start": "not_addressed" },
+      "rationale": { "ask": "Asks to lead it.", "start": "'Since 2023' is about the past, not a start date." }
+    },
+    {
+      "id": "s24", "scenario": "explaining a delay to a steering group", "tags": ["mentioned_not_met", "vague_date"],
+      "request_text": "Explain the integration delay to the steering group.",
+      "objectives": [
+        { "id": "owner", "text": "Name who owns the fix." },
+        { "id": "date", "text": "Give a date for the fix." }
+      ],
+      "answer": "The integration is delayed because the vendor changed their login flow. We still need an owner for the fix, and we're hoping to have it sorted out within the next two weeks.",
+      "gold": { "owner": "not_addressed", "date": "partial" },
+      "rationale": { "owner": "'We still need an owner' names no one.", "date": "A two-week window, no date." }
+    },
+    {
+      "id": "s25", "scenario": "standup", "tags": ["off_topic"],
+      "request_text": "Give my standup update.",
+      "objectives": [
+        { "id": "yesterday", "text": "Say what you got done yesterday." },
+        { "id": "today", "text": "Say what you will work on today." }
+      ],
+      "answer": "Oh, did everyone see the email about the office move? I think we're going to the fourth floor. Anyway, I'll, I'll post my update in the channel later.",
+      "gold": { "yesterday": "not_addressed", "today": "not_addressed" },
+      "rationale": { "yesterday": "Off-topic; the update is deferred.", "today": "Off-topic; the update is deferred." }
+    },
+    {
+      "id": "s26", "scenario": "interview: biggest weakness", "tags": ["vague"],
+      "request_text": "Answer the interview question: what's your biggest weakness?",
+      "objectives": [
+        { "id": "weakness", "text": "Name a real weakness." },
+        { "id": "improve", "text": "Say what you are doing to improve it." }
+      ],
+      "answer": "I'd say I take on too much. Last quarter I said yes to three projects and the docs on one of them slipped. I'm trying to get better at saying no.",
+      "gold": { "weakness": "addressed", "improve": "partial" },
+      "rationale": { "weakness": "Taking on too much, with a slipped deliverable.", "improve": "States a goal, no concrete step." }
+    },
+    {
+      "id": "s27", "scenario": "interview: biggest weakness", "tags": ["humblebrag"],
+      "request_text": "Answer the interview question: what's your biggest weakness?",
+      "objectives": [
+        { "id": "weakness", "text": "Name a weakness and give an example of it causing a problem." },
+        { "id": "improve", "text": "Say what you are doing to improve it." }
+      ],
+      "answer": "Honestly, I'm a perfectionist, I just care too much about getting things right. Sometimes I work too late because of it.",
+      "gold": { "weakness": "partial", "improve": "not_addressed" },
+      "rationale": { "weakness": "Names one; 'work too late' is a general effect, not an example of a problem.", "improve": "Nothing about improving." }
+    },
+    {
+      "id": "s28", "scenario": "pushing back on scope", "tags": ["vague"],
+      "request_text": "Push back on adding the export feature this sprint.",
+      "objectives": [
+        { "id": "no", "text": "Say clearly that the feature won't fit this sprint." },
+        { "id": "alternative", "text": "Offer an alternative." }
+      ],
+      "answer": "I hear you on the export feature, it's a good idea. This sprint is already full with the billing fixes, so it won't make it in. Maybe later?",
+      "gold": { "no": "addressed", "alternative": "partial" },
+      "rationale": { "no": "'It won't make it in.'", "alternative": "'Maybe later' with no when or how." }
+    },
+    {
+      "id": "s29", "scenario": "pushing back on scope", "tags": ["mentioned_not_met", "hedged"],
+      "request_text": "Push back on adding the export feature this sprint.",
+      "objectives": [
+        { "id": "no", "text": "Say clearly that the feature won't fit this sprint." },
+        { "id": "alternative", "text": "Offer an alternative." }
+      ],
+      "answer": "Yeah, the export feature, um, we can definitely try. It might be tight, but we'll see what we can do, maybe squeeze it in.",
+      "gold": { "no": "not_addressed", "alternative": "not_addressed" },
+      "rationale": { "no": "Agrees to try instead of declining.", "alternative": "None offered." }
+    },
+    {
+      "id": "s30", "scenario": "1:1, asking to lead a launch", "tags": ["vague"],
+      "request_text": "Ask my manager if I can lead the partner launch.",
+      "objectives": [
+        { "id": "ask", "text": "Ask to lead the launch." },
+        { "id": "why", "text": "Give one concrete reason you are ready." },
+        { "id": "plan", "text": "Say what you would do in the first two weeks." }
+      ],
+      "answer": "I'd like to lead the partner launch. I've been on the partner team for two years. In the first couple weeks I'd, um, get to know everyone and figure out a plan.",
+      "gold": { "ask": "addressed", "why": "addressed", "plan": "partial" },
+      "rationale": { "ask": "Asks to lead it.", "why": "Two years on the partner team.", "plan": "'Get to know everyone' is an action; 'figure out a plan' is not a plan." }
+    },
+    {
+      "id": "s31", "scenario": "explaining a delay to a manager", "tags": ["fillers", "restarts"],
+      "request_text": "Tell my manager the hiring plan is late.",
+      "objectives": [
+        { "id": "late", "text": "Say the hiring plan is late." },
+        { "id": "reason", "text": "Give the reason." },
+        { "id": "next", "text": "Say what happens next." }
+      ],
+      "answer": "So, um, the hiring plan is going to be late, like, a week late. Finance hasn't, uh, hasn't signed off on the headcount numbers yet. I've got a call with Leila from finance on Monday and I'll send you the plan the day after.",
+      "gold": { "late": "addressed", "reason": "addressed", "next": "addressed" },
+      "rationale": { "late": "A week late.", "reason": "Finance has not signed off on headcount.", "next": "Monday call, plan the day after." }
+    },
+    {
+      "id": "s32", "scenario": "client call about a billing error", "tags": ["vague", "absent"],
+      "request_text": "Tell the client their invoice was wrong and a credit is coming.",
+      "objectives": [
+        { "id": "error", "text": "Say the invoice had an error." },
+        { "id": "amount", "text": "Say how much the credit is." },
+        { "id": "when", "text": "Say when they will get it." }
+      ],
+      "answer": "Hi Rosa, thanks for flagging the invoice. We've looked into it and yes, we double-charged the March support hours. We'll issue a credit for those.",
+      "gold": { "error": "addressed", "amount": "partial", "when": "not_addressed" },
+      "rationale": { "error": "Double-charged the March support hours.", "amount": "Says what the credit covers, not the amount.", "when": "No timing." }
+    },
+    {
+      "id": "s33", "scenario": "interview: why are you leaving", "tags": ["met_one_violated_other"],
+      "request_text": "Answer the interview question: why are you leaving your current job?",
+      "objectives": [
+        { "id": "reason", "text": "Give the reason you are leaving." },
+        { "id": "forward", "text": "Keep it about what you want next, not complaints." }
+      ],
+      "answer": "My manager is honestly terrible and the company has no idea what it's doing. I'm just done with it.",
+      "gold": { "reason": "addressed", "forward": "not_addressed" },
+      "rationale": { "reason": "A reason is given; truth is not assessed.", "forward": "All complaint, nothing about what they want next." }
+    },
+    {
+      "id": "s34", "scenario": "asking to work from home", "tags": ["vague"],
+      "request_text": "Ask my manager to let me work from home on Fridays.",
+      "objectives": [
+        { "id": "ask", "text": "Ask for Fridays at home." },
+        { "id": "reachable", "text": "Say how you will stay reachable." }
+      ],
+      "answer": "I wanted to ask about working from home on Fridays. I'd be around.",
+      "gold": { "ask": "addressed", "reachable": "partial" },
+      "rationale": { "ask": "Asks about Fridays at home.", "reachable": "'I'd be around' says nothing about how." }
+    },
+    {
+      "id": "s35", "scenario": "asking to work from home", "tags": ["evasive", "absent"],
+      "request_text": "Ask my manager to let me work from home on Fridays.",
+      "objectives": [
+        { "id": "ask", "text": "Ask for Fridays at home." },
+        { "id": "reachable", "text": "Say how you will stay reachable." }
+      ],
+      "answer": "I was kind of wondering, like, how people feel about remote days in general? I know some teams do it.",
+      "gold": { "ask": "partial", "reachable": "not_addressed" },
+      "rationale": { "ask": "Raises remote days in general, not Fridays for themselves.", "reachable": "Not mentioned." }
+    },
+    {
+      "id": "s36", "scenario": "standup", "tags": ["vague", "hedged"],
+      "request_text": "Give my standup update.",
+      "objectives": [
+        { "id": "yesterday", "text": "Say what you got done yesterday." },
+        { "id": "today", "text": "Say what you will work on today." },
+        { "id": "blocker", "text": "Name any blocker, or say there is none." }
+      ],
+      "answer": "Yesterday, the pricing page, done. Today, um, probably some cleanup on it. And there's a thing with the build but it's probably fine.",
+      "gold": { "yesterday": "addressed", "today": "partial", "blocker": "partial" },
+      "rationale": { "yesterday": "Pricing page done.", "today": "'Some cleanup' on it, unspecified.", "blocker": "Mentions a build issue without saying what or whether it blocks." }
+    },
+    {
+      "id": "s37", "scenario": "thanking a colleague", "tags": ["plain"],
+      "request_text": "Thank Ama for covering my Saturday shift.",
+      "objectives": [
+        { "id": "specific", "text": "Say specifically what she did that helped." }
+      ],
+      "answer": "Ama, thanks so much for covering Saturday. Because you took the morning, I made it to my sister's graduation, and you even closed out the cash count, which I never expected.",
+      "gold": { "specific": "addressed" },
+      "rationale": { "specific": "Took the morning and closed out the cash count." }
+    },
+    {
+      "id": "s38", "scenario": "apologizing to a customer", "tags": ["vague"],
+      "request_text": "Apologize to a customer whose delivery was late.",
+      "objectives": [
+        { "id": "fix", "text": "Say what you will do to make it right." }
+      ],
+      "answer": "I'm really sorry your order arrived four days late, that's not okay. We're going to make sure it doesn't happen again.",
+      "gold": { "fix": "partial" },
+      "rationale": { "fix": "A vague promise about the future, nothing for this customer." }
+    },
+    {
+      "id": "s39", "scenario": "asking for feedback", "tags": ["absent"],
+      "request_text": "Ask my manager for feedback on my presentation.",
+      "objectives": [
+        { "id": "part", "text": "Name the one part of the presentation you most want feedback on." }
+      ],
+      "answer": "Hey Pavel, do you have any feedback on my presentation? Anything at all would be helpful.",
+      "gold": { "part": "not_addressed" },
+      "rationale": { "part": "No part is named; 'anything at all'." }
+    },
+    {
+      "id": "s40", "scenario": "declining an invitation", "tags": ["paraphrase"],
+      "request_text": "Decline the invitation to join the new committee.",
+      "objectives": [
+        { "id": "decline", "text": "Say no to joining the committee." }
+      ],
+      "answer": "Thanks for thinking of me for the committee, really. With the audit running through June I just don't have the room to do it well, so I'm going to pass this time.",
+      "gold": { "decline": "addressed" },
+      "rationale": { "decline": "'I'm going to pass this time.'" }
+    }
+  ]
+}
