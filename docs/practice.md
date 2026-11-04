@@ -58,6 +58,10 @@ Goal/source version changes or hidden/deleted sources make the current request s
 
 Count-drill citations to stale/disputed/superseded semantic answers are rejected. New count bases store source versions; existing count bases still check visibility and count consistency. A stale basis is shown in `exercise_basis_status` and cannot create a new measured completion. This change does not add semantic exercise assignment.
 
-## Validation scope
+## Evaluation status
 
-Deterministic tests prove state and validation behavior with mocked responses. Live semantic accuracy and physical-device continuity remain unverified.
+Deterministic tests use mocked model outputs and prove state/validation behavior only. No new live provider evaluation is included. The 24 synthetic candidates and 4 separate calibration examples in `test/fixtures/practice-candidates.json` carry `human_review_pending`, not verified labels. Run `node scripts/eval-practice.mjs` for the lexical and topic/negation heuristic predictions. Neither is a semantic ground truth.
+
+`node scripts/eval-practice.mjs --prepare with_brief` prepares offline requests; `without_brief` and `without_history` remove the named context. This command makes no network call. Human review must freeze an independent label set before recorded responses can be scored with `--score <reviewed-corpus.json> <responses.json>`. Response records require case ID, condition, model, provider request ID and assessment. Report missing responses, abstention, false success and false rejection with denominators separately. Review follow-up usefulness separately. Do not claim model reliability, cross-device usability or learning gain from mocked tests.
+
+The topic/negation baseline is a limited heuristic, especially on useful refusals and uncertainty. It is not a strong semantic baseline. Recorded scoring is binary addressed-versus-other with abstention and ambiguous labels reported separately; it does not establish four-class agreement or satisfy a four-class accuracy gate.
