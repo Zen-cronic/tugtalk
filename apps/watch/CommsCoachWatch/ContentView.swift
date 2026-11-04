@@ -7,8 +7,9 @@ struct ContentView: View {
     @State private var showSetup = ContentView.openSetupOnLaunch
     /// "Practise this answer": a spoken round with the same goal and language.
     @State private var practise = false
-    /// The AI note and the exercise in full, after More. `-expandNote YES` (Debug builds) opens them, for a screenshot.
-    @State private var noteExpanded = ContentView.flag("expandNote")
+    /// The result whose AI note and exercise are shown in full, after More, so every new result opens short.
+    /// `-expandNote YES` (Debug builds) opens the sample result's, for a screenshot.
+    @State private var expandedReceipt: String? = ContentView.flag("expandNote") ? "preview" : nil
 
     static var openSetupOnLaunch: Bool { flag("openSetup") }
 
@@ -107,7 +108,7 @@ struct ContentView: View {
             .padding(.top, 8)
         case .done(let receipt):
             result(receipt)
-            Button { noteExpanded = false; Task { await model.startRecording() } } label: {
+            Button { Task { await model.startRecording() } } label: {
                 Label { Text("Record again") } icon: { RecordLamp(lit: false) }
             }
             .buttonStyle(CoachButtonStyle())
@@ -208,7 +209,7 @@ struct ContentView: View {
 
             if let drill = receipt.record.drill, drill.line != nil { DrillResultLine(outcome: drill).id("drill") } // Drill.swift
 
-            note(analysis)
+            note(analysis, expanded: expandedReceipt == receipt.receipt_id) { expandedReceipt = $0 ? receipt.receipt_id : nil }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 4)
                 .id("observation")
@@ -216,14 +217,14 @@ struct ContentView: View {
     }
 
     /// "AI note": the observation's first sentence, or its first words, with More for the full note and exercise.
-    @ViewBuilder private func note(_ analysis: Analysis) -> some View {
+    @ViewBuilder private func note(_ analysis: Analysis, expanded noteExpanded: Bool, expand: @escaping (Bool) -> Void) -> some View {
         let short = analysis.observation.map { CoachText.short($0, maxCharacters: 64) }
         let hasMore = (short?.cut ?? false) || analysis.suggested_exercise != nil
         VStack(alignment: .leading, spacing: 6) {
             VStack(alignment: .leading, spacing: 1) {
                 Text("AI note").face(.text, 12, weight: 700, relativeTo: .caption2)
                     .foregroundStyle(Palette.mutedDark)
-                Text(noteExpanded ? (analysis.observation ?? "") : (short?.text ?? "None this time. Counts saved."))
+                Text((noteExpanded ? analysis.observation : short?.text) ?? "None this time. Counts saved.")
                     .face(.text, 14, weight: 500, relativeTo: .footnote)
                     .foregroundStyle(analysis.observation == nil ? Palette.mutedDark : Palette.inkDark)
                     .fixedSize(horizontal: false, vertical: true)
@@ -246,7 +247,7 @@ struct ContentView: View {
                 .id("try")
             }
             if hasMore {
-                Button(noteExpanded ? "Less" : "More") { withAnimation(.easeOut(duration: 0.18)) { noteExpanded.toggle() } }
+                Button(noteExpanded ? "Less" : "More") { withAnimation(.easeOut(duration: 0.18)) { expand(!noteExpanded) } }
                     .buttonStyle(CoachButtonStyle(.secondary, height: 32))
                     .frame(width: 84)
             }
