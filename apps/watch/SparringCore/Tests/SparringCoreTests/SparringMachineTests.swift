@@ -310,6 +310,20 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         #expect(m.pendingEndKey == nil)
     }
 
+    @Test func leavingMidUploadEndsTheRoundTheAnswerWillOpen() {
+        // Answer 1 is uploading when the screen closes: the server will save it and hold the round open.
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up = answer(&m, at: t0)
+        #expect(m.leave() == [.endRoundOnServer(key: "end-1")])
+        #expect(m.pendingEndKey == "end-1")
+        #expect(m.replied(key: up.idempotencyKey, receipt("r1")) == [], "the late reply is ignored")
+        guard case .ready(1) = m.phase else { Issue.record("not ready: \(m.phase.name)"); return }
+        // Mid-recording nothing was sent, so nothing is owed.
+        var idle = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        _ = idle.record(at: t0)
+        #expect(idle.leave() == [])
+    }
+
     @Test func aConfirmedEndIsNotSentAgain() {
         var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
         threeAnswers(&m)

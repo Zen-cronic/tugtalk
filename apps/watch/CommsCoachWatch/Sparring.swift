@@ -68,12 +68,13 @@ final class SparringModel: ObservableObject {
     func endRound() { apply(machine.endRound()) }
 
     /// The screen closed: nothing keeps recording or speaking, and no recording is left behind. A round the server
-    /// still holds open is ended there, so the next round, on any device, starts at answer 1.
+    /// still holds open is ended there, so the next round, on any device, starts at answer 1. An answer still
+    /// uploading is not cancelled: the server saves it anyway, so the round end goes after it (`endRound`).
     func leave() {
         apply(machine.leave())
         _ = recorder.stop()
         speaker.stop()
-        uploadTask?.cancel(); speechTask?.cancel()
+        speechTask?.cancel()
         for url in files.values { try? FileManager.default.removeItem(at: url) }
         files = [:]
         #if DEBUG
@@ -129,12 +130,16 @@ final class SparringModel: ObservableObject {
             apply(machine.uploadFailed(key: upload.idempotencyKey, RoundFailure(kind: .tooShort, message: "The recording was not saved. Record again.")))
             return
         }
+        // Read now: leaving the screen deletes the recordings while this upload may still be waiting.
+        guard let wav = try? Data(contentsOf: file) else {
+            apply(machine.uploadFailed(key: upload.idempotencyKey, RoundFailure(kind: .tooShort, message: "The recording was not saved. Record again.")))
+            return
+        }
         let ending = endTask
         uploadTask = Task { [weak self] in
             // A round end on its way goes first, so the server counts this answer as answer 1 of the new round.
             await ending?.value
             do {
-                let wav = try Data(contentsOf: file)
                 let receipt = try await client.send(upload, wav: wav)
                 self?.apply(self?.machine.replied(key: upload.idempotencyKey, receipt) ?? [])
             } catch is CancellationError {
@@ -145,13 +150,15 @@ final class SparringModel: ObservableObject {
         }
     }
 
-    /// Ends the round on the server, after any end already on its way. Unconfirmed, the machine sends it again with the
-    /// same key before the next round's first answer.
+    /// Ends the round on the server, after any end already on its way and after an answer still uploading (so the
+    /// end is stamped after that answer is saved). Unconfirmed, the machine sends it again with the same key before
+    /// the next round's first answer.
     private func endRound(_ key: String) {
         guard let client else { return }
-        let previous = endTask
+        let previous = endTask, upload = uploadTask
         endTask = Task { [weak self] in
             await previous?.value
+            await upload?.value
             guard (try? await client.endRound(idempotencyKey: key)) != nil else { return }
             self?.machine.roundEndSent(key: key)
         }

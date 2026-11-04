@@ -258,7 +258,12 @@ public struct SparringMachine: Sendable {
     }
 
     /// The screen closed. A round the server still holds open is ended there, so the next round starts at answer 1.
-    public mutating func leave() -> [Effect] { owedEnd() }
+    /// An answer still uploading is saved by the server anyway and holds its round open, so it is owed an end too
+    /// (the app sends it after the upload finishes), and its late reply is ignored.
+    public mutating func leave() -> [Effect] {
+        if case .thinking = phase { serverOpen = true; phase = .ready(answer: 1) }
+        return owedEnd()
+    }
 
     /// The server saved (or replayed) the round end sent with this key.
     public mutating func roundEndSent(key: String) { if pendingEndKey == key { pendingEndKey = nil } }
