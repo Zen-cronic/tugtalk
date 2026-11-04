@@ -4,6 +4,7 @@
 // measured result against that basis: one capture, never a trend.
 import { randomUUID } from 'node:crypto';
 import { ApiError } from './store.mjs';
+import { semanticSourceCurrent } from './practice.mjs';
 
 export const DRILL_HABITS = ['filler', 'hedge', 'restart'];
 export const BASIS_MAX_SOURCES = 10;
@@ -74,15 +75,26 @@ export function checkBasis(store, user, goalId, basis, now = Date.now()) {
   if (open) throw withDetails(new ApiError(409, 'drill_open', `Goal already has an open drill (exercise ${open.id}). Record a check-in for it, completed or skipped, before setting another.`), { open_exercise_id: open.id });
 
   const sources = source_ids.map(id => ({ id, source: findSource(store, user, id) }));
-  const refused = sources.map(({ id, source }) => ({ id, reason: refusal(source, now) })).filter(r => r.reason);
+  const refused = sources.map(({ id, source }) => ({ id, reason: source?.kind === 'voice-rounds' && !semanticSourceCurrent(store,user,source.record) ? 'practice_stale' : refusal(source, now) })).filter(r => r.reason);
   if (refused.length) throw withDetails(new ApiError(422, 'basis_source_invalid', 'Cite only measured captures or voice rounds of this account from the last 14 days, not fixtures or hidden sessions.'), { refused });
 
   const field = `${habit}_count`;
-  const per_source = sources.map(({ id, source }) => ({ id, kind: source.kind === 'sessions' ? 'session' : 'voice_round', count: Number.isInteger(source.record.metrics[field]) ? source.record.metrics[field] : 0 }));
+  const per_source = sources.map(({ id, source }) => ({ id, kind: source.kind === 'sessions' ? 'session' : 'voice_round', version: source.record.version, count: Number.isInteger(source.record.metrics[field]) ? source.record.metrics[field] : 0 }));
   const count = per_source.reduce((n, s) => n + s.count, 0);
   if (count !== claimed_count) throw withDetails(new ApiError(422, 'basis_mismatch', `The basis claims ${claimed_count} ${habitWord(habit, claimed_count)}; code counts ${count} in the cited ${source_ids.length === 1 ? 'source' : 'sources'}. Correct claimed_count and retry with a new Idempotency-Key.`),
     { recomputed: { habit, count, per_source: per_source.map(({ id, count }) => ({ id, count })) } });
   return { habit, source_ids: [...source_ids], claimed_count, per_source, checked: 'recounted by the server from stored metrics', checked_at: new Date(now).toISOString() };
+}
+
+// Current provenance for old and new count drills; legacy rows without versions still check visibility/counts.
+export function basisFreshness(store, user, basis) {
+  const stale = (basis.per_source ?? []).filter(ref => {
+    const source = findSource(store,user,ref.id);
+    return !source || source.record.deleted || (ref.version !== undefined && source.record.version !== ref.version)
+      || source.record.metrics?.[`${basis.habit}_count`] !== ref.count
+      || (source.kind === 'voice-rounds' && !semanticSourceCurrent(store,user,source.record));
+  });
+  return { status: stale.length ? 'stale' : 'current', stale_source_ids: stale.map(x=>x.id) };
 }
 
 // The drill a capture names, from its headers. Kept apart from captureParams, whose output other products compare.
@@ -113,6 +125,7 @@ export function recordDrillResult(store, user, session, exerciseId, timestamp = 
   try { exercise = store.get(user, 'exercises', exerciseId); } catch (error) { if (error.status === 404) return { exercise_id: exerciseId, status: 'not_measured', reason: 'not_found' }; throw error; }
   if (!isPlainObject(exercise.basis)) return { exercise_id: exerciseId, status: 'not_measured', reason: 'no_basis' };
   if (store.list(user, 'check-ins').some(c => c.exercise_id === exerciseId)) return { exercise_id: exerciseId, status: 'not_measured', reason: 'already_recorded' };
+  if (basisFreshness(store,user,exercise.basis).status !== 'current') return { exercise_id: exerciseId, status: 'not_measured', reason: 'basis_stale' };
   const { habit, claimed_count: basisCount, source_ids } = exercise.basis;
   const captureCount = session.metrics[`${habit}_count`];
   const measured = { habit, capture_count: captureCount, basis_count: basisCount, basis_sources: source_ids.length, basis_source_word: sourceWord(exercise.basis, source_ids.length),

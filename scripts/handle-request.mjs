@@ -4,6 +4,7 @@
 //   adapter -> worker  {"id", "envelope", "budget_ms"?}   start a request; the adapter holds the database lock for it
 //                      {"id", "go": true}                 the lock is granted again after this request's "acquire"
 //   worker -> adapter  {"ready": true, "dirty"}           once, after the bootstrap token and seed rows are written
+//                      {"id", "phase": "persist", "dirty": true} commit closed database under lock; wait for go
 //                      {"id", "phase": "release"}         done with the database for now (slow model calls follow)
 //                      {"id", "phase": "acquire"}         needs the database again; waits for "go"
 //                      {"id", "head": {status, headers}}  streamed responses only (envelope.stream): the headers,
@@ -83,6 +84,12 @@ async function serve(id, envelope, budgetMs) {
   const dirty = envelope.method !== 'GET' && !SPEECH_PATH.test(envelope.path ?? '');
   let headSent = false, output, aborted = false;
   const phases = {
+    async persist() {
+      closeForCommit();
+      const go = new Promise(resolve => granted.set(id, resolve));
+      await emit({id,phase:'persist',dirty:true});
+      await go;
+    },
     async release() { await emit({ id, phase: 'release' }); },
     async acquire() {
       const go = new Promise(resolve => granted.set(id, resolve));
@@ -129,6 +136,12 @@ async function live(id, envelope, budgetMs) {
   const started = performance.now();
   const opened = reopened; reopened = null;
   const phases = {
+    async persist() {
+      closeForCommit();
+      const go = new Promise(resolve => granted.set(id, resolve));
+      await emit({id,phase:'persist',dirty:true});
+      await go;
+    },
     async release() { await emit({ id, phase: 'release' }); },
     async acquire() {
       const go = new Promise(resolve => granted.set(id, resolve));

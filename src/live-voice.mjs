@@ -1,3 +1,4 @@
+import { failPractice } from './practice.mjs';
 // Live voice rounds: the Mac streams the answer while the key is held, and Meta transcribes it as it arrives.
 // The Mac opens one WebSocket per hold to WS /v1/voice-rounds/live (the hosting adapter, deploy/bridge.py, carries it to
 // the long-lived worker). Its first frame is a JSON start message with the round's parameters; then binary frames of
@@ -54,7 +55,7 @@ export function liveStart(start) {
   // need and reply_mode are X-Counterpart-Need and X-Reply-Mode (src/counterpart.mjs).
   const headers = Object.fromEntries(Object.entries({ 'x-language': text(start.language), 'x-goal-id': text(start.goal_id), 'x-screen-context-id': text(start.screen_context_id),
     'x-prompt-ended-at': text(start.prompt_ended_at), 'x-occurred-at': text(start.occurred_at), 'x-counterpart-need': text(start.need),
-    'x-reply-mode': text(start.reply_mode) }).filter(([, v]) => v !== undefined));
+    'x-reply-mode': text(start.reply_mode), 'x-practice-round-id':text(start.practice_round_id), 'x-practice-round-version':text(start.practice_round_version) }).filter(([, v]) => v !== undefined));
   // speech: false when the Mac speaks the reply with its own voice; the server then makes no audio.
   return { key, params: voiceParams(headers), speak: start.speech !== false };
 }
@@ -201,9 +202,10 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       // A retry is answered from its receipt, before the checks that guard paid calls, as on the WAV route.
       retry = store.hasReceipt(user, key);
       if (!retry) {
-        context = prepareVoiceRound(store, models, user, params);
         if (typeof models.transcribe !== 'function') throw new ApiError(503, 'transcription_unconfigured', 'Transcription is not configured on this deployment.');
         if (!budget.allows(MIN_START_MS.reply + 2_000)) throw new ApiError(503, 'time_budget', 'Not enough time left for this round.');
+        context = prepareVoiceRound(store,models,user,params,key);
+        if(context.practice) await phases.persist?.();
       }
     } catch (error) {
       clearTimeout(capTimer);
@@ -229,11 +231,12 @@ export function createLiveRound({ store, models, token, start, requestId = rando
         // Audio that reached the transcriber is billed, so the hold counts toward the hourly limit. That audit row is a
         // write the hosting adapter must commit (dirty), or a restart would forget it and let the limit be passed.
         const billed = Boolean(transcriber?.sentBytes);
+        failPractice(store,user,context?.practice,'cancelled');
         if (billed) audit(VOICE_ROUNDS_PATH, 499, `live ${why}`);
         const body = why === 'too_large'
           ? { error: 'audio_too_large', message: `Too much audio for one answer (at most ${MAX_LIVE_BYTES} bytes). Nothing was saved.`, request_id: requestId }
           : { error: 'cancelled', message: 'The hold ended before release.', request_id: requestId };
-        return { status: why === 'too_large' ? 413 : 499, body, dirty: billed };
+        return { status: why === 'too_large' ? 413 : 499, body, dirty: billed || Boolean(context?.practice) };
       }
       const releasedAt = performance.now();
       // "Faced the camera" numbers come with the end message, since they are known only at release. The answer is never
@@ -251,7 +254,7 @@ export function createLiveRound({ store, models, token, start, requestId = rando
         const body = voiceResponse(previous);
         emit({ type: 'reply', round_id: body.round_id, transcript: body.transcript, metrics: body.metrics, reply: body.reply, model: body.model,
           provider_request_id: body.provider_request_id, latency_ms: body.latency_ms, transcription: 'replay', replayed: true,
-          ...(body.gate ? { gate: body.gate, reply_mode: body.reply_mode } : {}) });
+          ...(body.gate ? { gate: body.gate, reply_mode: body.reply_mode } : {}), ...(body.practice ? {practice:body.practice,counterpart:body.counterpart} : {}) });
         // No new synthesis either: the device speaks the stored question itself, or asks the speech route for it.
         emit({ type: 'speech_unavailable', error: 'replayed' });
         audit(VOICE_ROUNDS_PATH, 200, 'live replayed');
@@ -276,10 +279,18 @@ export function createLiveRound({ store, models, token, start, requestId = rando
       if (!answer.checked) throw new ApiError(502, 'reply_failed', answer.result?.reason ?? 'Reply failed.');
       const roundId = randomUUID();
       const replyMs = Math.round(performance.now() - releasedAt);
+      let receipt;
+      if(context.practice) {
+        await acquire();
+        receipt=saveVoiceRound(store,user,{params,fingerprintBody:voiceFingerprint(params,audio),key,roundId,transcription,metrics:answer.metrics,
+          result:answer.result,checked:answer.checked,gate:answer.gate,live:true,audio,practice:context.practice,assessment:answer.assessment,counterpart:answer.counterpart,
+          latency:{asr:asrMs,model:answer.modelMs,total:replyMs}});
+        await phases.persist?.();
+      }
       emit({ type: 'reply', round_id: roundId, transcript: transcription.transcript, metrics: answer.metrics, reply: answer.checked.reply,
         model: answer.result.model ?? null, provider_request_id: answer.result.provider_request_id ?? null,
         latency_ms: { asr: asrMs, model: answer.modelMs, release_to_reply: replyMs }, transcription: mode,
-        gate: answer.gate, reply_mode: params.replyMode ?? 'model', counterpart: answer.counterpart });
+        gate: answer.gate, reply_mode: params.replyMode ?? 'model', counterpart: answer.counterpart, ...(receipt?.record.practice ? {practice:receipt.record.practice} : {}) });
       // The spoken reply starts now, alongside the write and the commit.
       const entry = speak ? models.prefetchSpeech?.(roundId, user, answer.checked.reply.question, params.language) ?? null : null;
       const speechDone = (async () => {
@@ -292,7 +303,7 @@ export function createLiveRound({ store, models, token, start, requestId = rando
         catch { emit({ type: 'speech_end', cut_short: true }); }
       })();
       await acquire();
-      const receipt = saveVoiceRound(store, user, { params, fingerprintBody: voiceFingerprint(params, audio), key, roundId, transcription, metrics: answer.metrics,
+      receipt ??= saveVoiceRound(store, user, { params, fingerprintBody: voiceFingerprint(params, audio), key, roundId, transcription, metrics: answer.metrics,
         result: answer.result, checked: answer.checked, gate: answer.gate, live: true, audio, latency: { asr: asrMs, model: answer.modelMs, total: replyMs } });
       audit(VOICE_ROUNDS_PATH, 200, 'live saved');
       // A replayed receipt (an upload with this key was saved first) keeps its own round: the audio made for this one
@@ -302,6 +313,7 @@ export function createLiveRound({ store, models, token, start, requestId = rando
     } catch (error) {
       transcriber?.close();
       await acquire();
+      failPractice(store,user,context?.practice,'inference_or_commit_failed');
       const status = error instanceof ApiError ? error.status : 500;
       audit(VOICE_ROUNDS_PATH, status, 'live failed');
       return { status, body: errorBody(error), dirty: true };

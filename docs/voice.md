@@ -1,5 +1,6 @@
-# Voice rounds (contract 0.7.1)
+# Voice rounds (contract 0.8.0)
 
+For confirmed goal-scoped requests, see [practice.md](practice.md). Its semantic path overrides the lexical move gate below, reserves state before inference, and commits before semantic reply/speech. The behavior below describes legacy rounds on goals without a confirmed practice request.
 A voice round is one spoken exchange of practice. The person holds a key on the Mac and answers out loud. While the key is held, the Mac streams the answer to `WS /v1/voice-rounds/live` and Meta transcribes it as it arrives (below); if that fails, or with `-liveVoice NO`, the Mac posts the clip to `POST /v1/voice-rounds` on release. Meta transcribes it and code measures it. Then Muse Spark Open, playing the other person in the conversation, picks the next move and asks one question, and the Mac speaks it. Code checks the reply before it is returned. The round joins the same record as watch captures and screen cards, so a Muse chat can read it.
 
 Meta's Model API has no text-to-speech model. The spoken reply comes from `POST /v1/voice-rounds/{round_id}/speech` (below), with a Meta voice when one is configured, and otherwise from an on-device Apple voice on the Mac. The whole reply is spoken once it is ready, not word by word.

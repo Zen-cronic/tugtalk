@@ -74,7 +74,7 @@ test('a correct basis is saved with the recount; a wrong count returns 422 with 
     const ex = right.data.record;
     assert.equal(ex.set_via, 'connector'); assert.equal(ex.status, 'assigned');
     assert.deepEqual({ ...ex.basis, checked_at: null }, { habit: 'hedge', source_ids: [a.id, c.id], claimed_count: 4, checked_at: null,
-      per_source: [{ id: a.id, kind: 'session', count: 3 }, { id: c.id, kind: 'session', count: 1 }], checked: 'recounted by the server from stored metrics' });
+      per_source: [{ id: a.id, kind: 'session', version: 1, count: 3 }, { id: c.id, kind: 'session', version: 1, count: 1 }], checked: 'recounted by the server from stored metrics' });
   });
 });
 

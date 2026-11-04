@@ -1,4 +1,4 @@
-# Drills set by Muse (contract 0.7.1)
+# Drills set by Muse (contract 0.8.0)
 
 Muse, the person's own assistant, can set the next drill for a goal. It has to give a reason in numbers, and the server checks that reason before saving anything. The watch then shows the drill, and the next capture records one measured result against it.
 
@@ -58,3 +58,5 @@ The session record gets a `drill` block with the check-in id, and the watch show
 ## What this is not
 
 One capture beside a basis is one measured result. It is not improvement and not a trend, and nothing here says so. The counts are word-list counts from an automatic transcript (`docs/capture.md`), the same number the watch shows.
+
+Source versions are saved on new bases. Fresh context includes `exercise_basis_status`; stale/deleted/changed sources prevent a new measured completion. Semantic voice sources must also belong to a current, undisputed request revision (see [practice.md](practice.md)).

@@ -115,6 +115,33 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         except ValueError: data = raw.decode()
         return sent[0]['status'], data
 
+    async def test_semantic_reservation_is_committed_before_go_and_failure_never_grants_go(self):
+        for should_fail in (False, True):
+            self.volume.fail = should_fail
+            self.volume.events.clear()
+            log = Path(self.temp.name) / f'persist-{should_fail}.txt'
+            app = self.bridge(self.volume, worker_path=self.fake(f'persist-{should_fail}.mjs', f"""
+                const go = new Promise(r => granted.set(id, r));
+                out({{id, phase:'persist', dirty:true}});
+                await go;
+                appendFileSync({json.dumps(str(log))}, 'paid-work-could-start');
+                respond(id,200,{{saved:true}});
+            """))
+            old = self.app
+            self.app = app
+            try:
+                status, data = await self.call('POST', '/v1/voice-rounds', {})
+                self.assertEqual(status, 503 if should_fail else 200)
+                self.assertEqual(log.exists(), not should_fail, 'failed persist never acknowledges go')
+                self.assertEqual(self.volume.events[0], 'commit')
+                self.assertEqual(self.volume.events[-1], 'response')
+            finally:
+                self.app = old
+        self.volume.fail = False
+        self.assertIn('x-practice-round-id', FORWARDED)
+        self.assertIn('x-practice-round-version', FORWARDED)
+        self.assertEqual(route_label('GET','/v1/practice-rounds/private-id'),'GET /v1/practice-rounds/{id}')
+
     async def test_full_loop_runs_on_one_long_lived_worker(self):
         status, context = await self.call('GET','/v1/context')
         self.assertEqual(status,200); self.assertEqual(len(context['sessions']),2)
@@ -690,6 +717,21 @@ class LiveBridgeTests(BridgeTests):
         self.assertEqual([base64.b64decode(m['audio']) for m in saw if 'audio' in m], [b'\\x01\\x02' * 1000, b'\\x03\\x04' * 1000])
         self.assertTrue(any(m.get('end') for m in saw))
         self.assertEqual([m.get('camera') for m in saw if m.get('end')], [camera], 'the camera numbers ride on "end" to the worker')
+
+    async def test_live_semantic_persist_failure_sends_no_reply_or_audio(self):
+        self.volume.fail = True
+        app = self.bridge(self.volume, worker_path=self.fake('semantic-persist-fail.mjs', """
+            if(m.envelope?.live) {
+              const go = new Promise(r => granted.set(id,r));
+              out({id,phase:'persist',dirty:true}); await go;
+              out({id,event:{type:'reply'}}); out({id,audio_out:Buffer.from('audio').toString('base64')});
+              respond(id,200,{saved:true}); out({id,closed:true});
+            }
+        """))
+        sent = await self.socket(app,[self.START,('text','{"type":"end"}')])
+        events=[json.loads(e['text']) for e in sent if 'text' in e]
+        self.assertEqual([e['type'] for e in events],['error'])
+        self.assertFalse(any('bytes' in e for e in sent))
 
     async def test_live_round_whose_commit_fails_is_never_called_saved(self):
         self.volume.fail = True

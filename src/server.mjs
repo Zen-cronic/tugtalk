@@ -1,3 +1,4 @@
+import { PRACTICE_PATH, createPractice, changePractice, getPractice } from './practice.mjs';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
@@ -146,14 +147,14 @@ export function connectorDocument(baseUrl) {
       + `Never put it in chat, URLs or files.`,
     `API host: ${new URL(baseUrl).host}`,
     `Allowed paths: `
-      + `GET /v1/overview, GET /v1/goals/{id}/context, GET /v1/context, GET /v1/receipts, GET /v1/files/evidence.txt, GET /v1/settings, GET /v1/media; `
-      + `POST /v1/goals, /v1/exercises, /v1/check-ins; `
-      + `PATCH /v1/goals/{id}, /v1/sessions/{id}. `
+      + `GET /v1/overview, GET /v1/goals/{id}/context, GET /v1/context, GET /v1/receipts, GET /v1/files/evidence.txt, GET /v1/settings, GET /v1/media, GET /v1/practice-rounds/{id}; `
+      + `POST /v1/goals, /v1/exercises, /v1/check-ins, /v1/practice-rounds; `
+      + `PATCH /v1/goals/{id}, /v1/sessions/{id}, /v1/practice-rounds/{id}. `
       + `No other hosts or endpoints.`,
     `All writes need a fresh Idempotency-Key header (8–128 characters); reuse only to retry the exact request. `
       + `Patches need expected_version from a fresh read. `
       + `A 409 means re-read and explain the conflict; do not blindly overwrite.`,
-    `Contract version 0.7.1: `
+    `Contract version 0.8.0: `
       + `At the start of EVERY goal-related turn fetch GET /v1/overview, even in an existing chat. `
       + `For a goal-specific chat bind to the explicitly selected goal ID and then GET /v1/goals/{id}/context. `
       + `Never infer a goal ID from the most recently used chat. `
@@ -177,6 +178,7 @@ export function connectorDocument(baseUrl) {
       + `Do not claim measured improvement from a single session. `
       + `A check-in with evidence_type measured compares one capture with the drill's basis; describe it as one measured result, not improvement. `
       + `Confirm saved actions only using returned receipt_id and record_version.`,
+    `Practice rounds persist a confirmed request and 1–3 objectives for one goal. Create or revise only after the user confirms the request; never from a scheduled task. Use expected_goal_version and exact source versions. Read practice_rounds in fresh context and GET /v1/practice-rounds/{id}. Their assessment is a fallible model_assessment, not code-measured success, truth or improvement. Source corrections hide stale evidence and require a newly confirmed revision. Closed rounds must be revised before more sparring. End and dispute never mean success. Exact write receipts are historical; re-read current state. No automatic model re-evaluation on reads. Ordinary recordings remain count-only.`,
     `To set a drill, POST /v1/exercises with basis {habit, source_ids, claimed_count}: the sum of that habit's code-measured count over the cited sessions or voice rounds. `
       + `The server recomputes it; a 422 basis_mismatch returns the true count: correct the basis and retry with a new Idempotency-Key. `
       + `One open drill per goal.`,
@@ -229,6 +231,10 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
       if(req.method==='GET'&&path==='/v1/eval') return send(200,runEval());
       if(!path.startsWith('/v1/')) throw new ApiError(404,'not_found','Route not found.');
       user=store.authenticate((req.headers.authorization??'').replace(/^Bearer /,''),req.method==='GET'?'read':'write');
+      const practicePath=path.match(/^\/v1\/practice-rounds\/([A-Za-z0-9_-]{1,64})$/);
+      if(req.method==='GET'&&practicePath) return send(200,getPractice(store,user,practicePath[1]));
+      if(req.method==='POST'&&path===PRACTICE_PATH) return send(200,createPractice(store,user,await bodyOf(req),requireIdempotencyKey(req.headers)));
+      if(req.method==='PATCH'&&practicePath) return send(200,changePractice(store,user,practicePath[1],await bodyOf(req),requireIdempotencyKey(req.headers)));
       if(req.method==='GET'&&path==='/v1/overview') return send(200,{...store.freshContext(user),request_id:requestId});
       const focused=path.match(/^\/v1\/goals\/([^/]+)\/context$/);
       if(req.method==='GET'&&focused) return send(200,{...store.freshContext(user,focused[1]),request_id:requestId});

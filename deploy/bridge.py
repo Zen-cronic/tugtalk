@@ -38,7 +38,8 @@ VIDEO_LIMIT = 1 * 1024 * 1024  # the hands-check clip; matches src/replay.mjs RE
 FORWARDED = ('authorization', 'content-type', 'idempotency-key', 'x-exercise-id',
              'x-goal-id', 'x-language', 'x-capture-device', 'x-occurred-at',
              'x-screen-context-id', 'x-prompt-ended-at', 'x-camera-metrics',
-             'x-counterpart-need', 'x-reply-mode', 'x-replay-segments')
+             'x-counterpart-need', 'x-reply-mode', 'x-replay-segments',
+             'x-practice-round-id', 'x-practice-round-version')
 # Requests that call a model get the long deadline; everything else must finish quickly.
 READ_DEADLINE = 20
 MODEL_DEADLINE = 150
@@ -59,7 +60,7 @@ REMEASURE_ROUTE = re.compile(r'/v1/sessions/[A-Za-z0-9-]{1,64}/remeasure')
 REPLAY_ROUTE = re.compile(r'/v1/voice-rounds/[A-Za-z0-9-]{1,64}/replay')
 # Timing log: one line per request with the route shape (ids replaced), the status and each phase in ms.
 # Never the body, headers, query or ids.
-ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds|media))/(?!(?:live|end)$)[^/]+')
+ROUTE_ID = re.compile(r'(/v1/(?:goals|sessions|exercises|check-ins|screen-contexts|voice-rounds|practice-rounds|media))/(?!(?:live|end)$)[^/]+')
 # Live voice rounds over a WebSocket.
 LIVE_ROUTE = '/v1/voice-rounds/live'
 LIVE_START_TIMEOUT = 10   # the start frame must arrive this soon after the socket opens
@@ -388,7 +389,14 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 # asyncio.Lock has no owner, so a phase out of order must never release another request's hold.
                 if phase in ('release', 'acquire') and (phase == 'release') != held:
                     raise RuntimeError('Worker phase out of order')
-                if phase == 'release':
+                if phase == 'persist':
+                    if not held:
+                        raise RuntimeError('Persist requires the database lock')
+                    state['pending'] = True
+                    if not await settle(timing):
+                        raise RuntimeError('Reservation commit failed')
+                    await worker.send({'id': rid, 'go': True})
+                elif phase == 'release':
                     lock.release(); held = False
                 elif phase == 'acquire':
                     with timing.phase('lock_wait'):
@@ -555,7 +563,14 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 phase = message.get('phase')
                 if phase in ('release', 'acquire') and (phase == 'release') != held:
                     raise RuntimeError('Worker phase out of order')
-                if phase == 'release':
+                if phase == 'persist':
+                    if not held:
+                        raise RuntimeError('Persist requires the database lock')
+                    state['pending'] = True
+                    if not await settle(timing):
+                        raise RuntimeError('Reservation commit failed')
+                    await worker.send({'id': rid, 'go': True})
+                elif phase == 'release':
                     lock.release(); held = False
                 elif phase == 'acquire':
                     with timing.phase('lock_wait'):
