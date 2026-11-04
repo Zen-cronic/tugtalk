@@ -116,7 +116,10 @@ final class CaptureModel: ObservableObject {
     }
 
     func startRecording() async {
+        // A second tap on Record while the first is still starting is ignored, so no recording is left running unseen.
+        guard !recorder.isRecording else { return }
         guard await recorder.requestPermission() else { phase = .failed("Mic is off. Turn it on in Settings."); return }
+        guard !recorder.isRecording else { return }
         do {
             _ = try recorder.start()
             phase = .recording

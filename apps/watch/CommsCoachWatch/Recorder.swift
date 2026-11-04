@@ -31,6 +31,8 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     func start() throws -> URL {
+        // Already recording: the running recording is stopped and deleted first, so no file or timer is orphaned.
+        if isRecording { discardRunning() }
         let session = AVAudioSession.sharedInstance()
         // .spokenAudio is a playback mode; paired with .record a real watch rejects it with OSStatus -50.
         try session.setCategory(.record, mode: .default)
@@ -95,6 +97,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private var fixtureCopy: URL?
 
     func startFixture(_ source: URL) throws -> URL {
+        if isRecording { discardRunning() }
         let url = FileManager.default.temporaryDirectory.appending(path: "capture-\(UUID().uuidString).wav")
         try FileManager.default.copyItem(at: source, to: url)
         fixtureCopy = url
@@ -107,6 +110,14 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         return url
     }
     #endif
+
+    private func discardRunning() {
+        #if DEBUG
+        if let url = fixtureCopy { fixtureCopy = nil; try? FileManager.default.removeItem(at: url) }
+        #endif
+        if let running = recorder { recorder = nil; running.stop(); running.deleteRecording() }
+        finish()
+    }
 
     private func finish() {
         timer?.invalidate(); timer = nil
