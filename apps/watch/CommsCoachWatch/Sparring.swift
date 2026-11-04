@@ -20,8 +20,6 @@ final class SparringModel: ObservableObject {
     private var speechTask: Task<Void, Never>?
     /// The last round end sent to the server (`POST /v1/voice-rounds/end`). The next answer waits for it.
     private var endTask: Task<Void, Never>?
-    /// A round end not yet confirmed outlives this screen, so the next screen sends it (`PendingRoundEndStore`).
-    private let pendingEnds = PendingRoundEndStore()
 
     /// `latestCard`: the account's newest screen card from the overview. With the goal's own card it decides which card,
     /// if any, the round is about (`ScreenCard.pick`), so the round's first reply picks the other person's need from it.
@@ -33,8 +31,7 @@ final class SparringModel: ObservableObject {
         if let forced = UserDefaults.standard.string(forKey: "sparringLanguage") { language = forced }
         #endif
         let card = ScreenCard.pick(goalCard: goal?.latest_screen_context, latest: latestCard, goalID: goal?.id, now: Date())
-        machine = SparringMachine(goalID: goal?.id, language: VoiceLanguage(rawValue: language) ?? .en, screenContextID: card,
-                                  pendingEndKey: pendingEnds.load(now: Date()))
+        machine = SparringMachine(goalID: goal?.id, language: VoiceLanguage(rawValue: language) ?? .en, screenContextID: card)
         if let api = try? CoachAPI.fromBundle() {
             client = RoundClient(requests: RoundRequests(baseURL: api.baseURL, token: api.token))
         } else {
@@ -42,9 +39,6 @@ final class SparringModel: ObservableObject {
         }
         phase = machine.phase
         if client == nil { phase = .failed(answer: 1, failure: .notSignedIn, upload: nil) }
-        #if DEBUG
-        if let step = UserDefaults.standard.string(forKey: "sparringPreview") { previewing = true; phase = Self.previewPhase(step, goalID: goal?.id) }
-        #endif
         // At the cap the recorder stops itself; the answer goes up exactly as a Stop tap would send it.
         recorder.onAutoStop = { [weak self] _ in
             guard let self else { return }
@@ -74,16 +68,12 @@ final class SparringModel: ObservableObject {
     func endRound() { apply(machine.endRound()) }
 
     /// The screen closed: nothing keeps recording or speaking, and no recording is left behind. A round the server
-    /// still holds open is ended there, so the next round, on any device, starts at answer 1. An answer still
-    /// uploading is not cancelled: the server saves it anyway, so the round end goes after it (`endRound`).
+    /// still holds open is ended there, so the next round, on any device, starts at answer 1.
     func leave() {
-        #if DEBUG
-        if previewing { return }
-        #endif
         apply(machine.leave())
         _ = recorder.stop()
         speaker.stop()
-        speechTask?.cancel()
+        uploadTask?.cancel(); speechTask?.cancel()
         for url in files.values { try? FileManager.default.removeItem(at: url) }
         files = [:]
         #if DEBUG
@@ -139,16 +129,12 @@ final class SparringModel: ObservableObject {
             apply(machine.uploadFailed(key: upload.idempotencyKey, RoundFailure(kind: .tooShort, message: "Recording not saved.")))
             return
         }
-        // Read now: leaving the screen deletes the recordings while this upload may still be waiting.
-        guard let wav = try? Data(contentsOf: file) else {
-            apply(machine.uploadFailed(key: upload.idempotencyKey, RoundFailure(kind: .tooShort, message: "Recording not saved.")))
-            return
-        }
         let ending = endTask
         uploadTask = Task { [weak self] in
             // A round end on its way goes first, so the server counts this answer as answer 1 of the new round.
             await ending?.value
             do {
+                let wav = try Data(contentsOf: file)
                 let receipt = try await client.send(upload, wav: wav)
                 self?.apply(self?.machine.replied(key: upload.idempotencyKey, receipt) ?? [])
             } catch is CancellationError {
@@ -159,18 +145,14 @@ final class SparringModel: ObservableObject {
         }
     }
 
-    /// Ends the round on the server, after any end already on its way and after an answer still uploading (so the
-    /// end is stamped after that answer is saved). Unconfirmed, the machine sends it again with the same key before
-    /// the next round's first answer.
+    /// Ends the round on the server, after any end already on its way. Unconfirmed, the machine sends it again with the
+    /// same key before the next round's first answer.
     private func endRound(_ key: String) {
         guard let client else { return }
-        let previous = endTask, upload = uploadTask, pendingEnds = pendingEnds
-        pendingEnds.save(key, at: Date())
+        let previous = endTask
         endTask = Task { [weak self] in
             await previous?.value
-            await upload?.value
             guard (try? await client.endRound(idempotencyKey: key)) != nil else { return }
-            pendingEnds.confirmed(key) // even after the screen has closed
             self?.machine.roundEndSent(key: key)
         }
     }
@@ -218,32 +200,6 @@ final class SparringModel: ObservableObject {
 
     #if DEBUG
     private var driver: Task<Void, Never>?
-    /// DEBUG `-sparringPreview ready|recording|thinking|question|done|failed`: that step with sample words, for
-    /// screenshots. A local machine is walked through its own transitions; no effect runs, so nothing is recorded or sent.
-    private var previewing = false
-
-    private static func previewPhase(_ step: String, goalID: String?) -> SparringMachine.Phase {
-        var m = SparringMachine(goalID: goalID, language: .en)
-        let start = Date(timeIntervalSinceNow: -10)
-        _ = m.record(at: start)
-        if step == "recording" { return m.phase }
-        _ = m.stop(at: start.addingTimeInterval(8))
-        if step == "thinking" { return m.phase }
-        guard case .thinking(_, let upload) = m.phase else { return m.phase }
-        if step == "failed" { _ = m.uploadFailed(key: upload.idempotencyKey, .offline); return m.phase }
-        let receipt = VoiceRoundReceipt(
-            round_id: "preview", receipt_id: "preview", replayed: false,
-            transcript: "I think we should ship the smaller version first, because it lets us test with real users this week.",
-            metrics: VoiceMetrics(word_count: 20, words_per_minute: 150, filler_count: 0, hedge_count: 1, restart_count: 0),
-            reply: VoiceReply(move: "probe", question: "What would you cut if the launch slipped a week?",
-                              quote: "ship the smaller version first", quote_verified: true))
-        _ = m.replied(key: upload.idempotencyKey, receipt)
-        _ = m.speechStarted(roundID: "preview", provider: "wit")
-        _ = m.speechFinished(roundID: "preview", at: Date())
-        if step == "question" { return m.phase }
-        if step == "done" { _ = m.endRound(); return m.phase }
-        return .ready(answer: 1)
-    }
 
     /// DEBUG `-sparringAutoplay YES`: plays the whole round without taps, for simulator captures. Each answer
     /// records for `-sparringHoldSeconds` (default 3), and waits `-sparringPauseSeconds` (default 3) on
