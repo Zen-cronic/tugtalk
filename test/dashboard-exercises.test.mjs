@@ -32,3 +32,7 @@ test('an exercise ended before any answer reads as skipped, never as a recorded 
  const html=renderPracticeExercises({practice_exercises:[{...exercise,state:'skipped',persisted_state:'skipped',activation:{round_id:'r'},result:null,latest_attempt:null}]},'goal-a');
  assert.match(html,/Skipped/);assert.ok(!html.includes('An attempt was recorded'));
 });
+test('exercise and practice cards use the same outcome wording',()=>{
+ const html=renderPracticeExercises({practice_exercises:[{...exercise,state:'assessed_addressed',result:assessment}]},'goal-a');
+ assert.match(html,/AI: addressed/);assert.ok(!html.includes('AI: answered'));
+});
