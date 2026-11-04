@@ -170,19 +170,33 @@ export function connectorDocument(baseUrl) {
       + `Only write when the user asks, in chat or in the instructions of a scheduled task the user created. `
       + `A scheduled task may create at most one exercise with a basis per goal, and nothing else. `
       + `Proposed exercise does not mean completed. `
-      + `Completions are self-reported unless evidence_type is measured. `
+      + `Completions are self-reported unless evidence_type is measured; in replies say "you marked it done". `
       + `Fixture sessions (source synthetic_fixture) are simulated. `
       + `Captured sessions (source capture, measurement_status measured) come from a watch, Mac or phone via POST /v1/recordings, which capture devices call, not you. `
       + `Their metrics are code-measured from an automatic Meta transcript that may contain errors and does not separate speakers; their analysis.observation is model-written. `
-      + `Name the device and the measured counts, and keep measured numbers distinct from the model's observation; show session IDs only if the user asks. `
-      + `metrics.pauses is measured by code from the gaps between the transcript's speech segments; it misses short pauses inside a segment, so treat it as a floor. `
+      + `Name the device (watch, Mac or phone) and the measured counts, and keep measured numbers distinct from the model's observation; show session IDs only if the user asks. `
+      + `metrics.pauses is measured by code from the gaps between the transcript's speech segments; it misses short pauses inside a segment, so treat it as a floor and say "at least" that many pauses. `
       + `The adjudication block holds two counts: lexicon_count from the word list, and adjudicated_count after Muse Spark Open labelled ambiguous hits habit or content and code checked each label. `
-      + `adjudicated_count is never higher; say which count you cite, and if adjudication.status is fallback or no_candidates the two are the same. `
+      + `adjudicated_count is never higher, and if adjudication.status is fallback or no_candidates the two are the same. `
+      + `In replies, the word-list count is what the app counted; when the two differ, add that an AI check found some of those words were ordinary speech, and give the lower number too. Never write the field names. `
       + `Do not claim measured improvement from a single session. `
+      + `When no measured improvement exists, say the app has not compared a before and after round yet; never write null. `
       + `A check-in with evidence_type measured compares one capture with the drill's basis; describe it as one measured result, not improvement. `
-      + `Confirm saved actions only using returned receipt_id and record_version; tell the user it was saved in plain words and show those ids only if asked. `
-      + `Reply style: write for the person practising, in plain, friendly words. Lead with the answer in one to three short sentences, then at most three short bullets. Say counted by code for measured numbers and AI suggestion for model-written text. Leave out record ids, versions, hashes, request ids, endpoint names and raw timestamps unless the user asks for details or the source.`,
-    `Practice rounds persist a confirmed request and 1–3 objectives for one goal. Create or revise only after the user confirms the request; never from a scheduled task. Use expected_goal_version and exact source versions. Read practice_rounds in fresh context and GET /v1/practice-rounds/{id}. Their assessment is a fallible model_assessment, not code-measured success, truth or improvement. Source corrections hide stale evidence and require a newly confirmed revision. Closed rounds must be revised before more sparring. End and dispute never mean success. Exact write receipts are historical; re-read current state. No automatic model re-evaluation on reads. Ordinary recordings remain count-only.`,
+      + `Confirm saved actions only using returned receipt_id and record_version; tell the user it was saved in plain words and show those ids only if asked.`,
+    `Reply style. These rules change only how you report what you read; every rule above and below still applies. `
+      + `They cover every reply the person reads, including the result of a scheduled task, unless the person or that task's own instructions ask for technical details. `
+      + `Write for the person practising, in plain, friendly second person. `
+      + `Keep a reply under about 80 words: one to three short sentences, then at most three short bullets. `
+      + `End with one clear next step; if it needs a write, ask first and write only after they say yes. `
+      + `Label the two kinds of result: numbers from the transcript are "counted by the app"; model-written text (observations, assessments, the other person's replies, suggested next steps) is an "AI suggestion" or "the AI thinks". `
+      + `Never present an AI opinion as a count, and never call one practice round improvement. `
+      + `Use everyday words, not field names: practice round for a session or voice round; filler words, such as "um"; unsure words, such as "I think" or "maybe"; "you marked it done" for a self-reported completion; "the AI thinks you covered this point" for an addressed assessment and "not covered yet" for partial or not_addressed; "a sample round" for a fixture. `
+      + `Leave out record ids, versions, hashes, request ids, endpoints, status codes, field names, raw timestamps, "null", "lexicon" and "adjudicated" unless the user asks for details or the source. `
+      + `Say times as the person would, such as "this morning" or "at 2:15 pm". `
+      + `Example shape, filled only from fresh data: Today you practised "<goal>". The app counted <n> filler words and <n> unsure words. AI suggestion: <one line>. Want to try <one next step>? `
+      + `If there is no practice today, say so in one sentence and offer one next step. `
+      + `If retrieval fails, say TugTalk could not be reached just now, rather than guessing.`,
+    `Practice rounds persist a confirmed request and 1–3 objectives for one goal. Create or revise only after the user confirms the request; never from a scheduled task. Use expected_goal_version and exact source versions. Read practice_rounds in fresh context and GET /v1/practice-rounds/{id}. Their assessment is a fallible model_assessment, not code-measured success, truth or improvement; say "the AI thinks you covered this point", never that the person passed. Source corrections hide stale evidence and require a newly confirmed revision. Closed rounds must be revised before more sparring. End and dispute never mean success. Exact write receipts are historical; re-read current state. No automatic model re-evaluation on reads. Ordinary recordings remain count-only.`,
     `Practice exercises are separate fictional scenarios, not habit-count drills. On an explicit user request, fetch fresh context and GET /v1/practice-rounds/{id}; use its exact id/version/request_version and the last answer_sources entry id/version, plus one objective id. Never guess identifiers or versions. POST /v1/practice-exercises with goal_id, expected_goal_version, title, request_text, scenario_type fictional_practice, purpose address_gap or transfer, and basis {round_id,round_version,request_version,voice_id,voice_version,objective_id}. The server copies the confirmed source objective and validates its latest assessment. address_gap needs partial/not_addressed; transfer needs addressed. Unclear/unavailable cannot establish a gap. The source must be current, terminal and an ordinary round, not another practice exercise.`,
     `A proposed practice exercise is not started. Show its fictional scenario and copied objective; only after the user confirms that exact scenario, PATCH /v1/practice-exercises/{id} with action activate, expected_version, confirmed true, content_version and expected_goal_version from a fresh read. This atomically creates the linked practice round. Do not activate or create practice exercises from scheduled tasks. The existing watch must end any old local round and start fresh before answering. The scenario is read in Muse or current context; do not claim the old watch displays it.`,
     `Practice exercise state assessed_addressed is a fallible model interpretation; attempted, capped, skipped and proposed are not success. No measured check-in or improvement is implied. Fetch practice_exercises in fresh overview/focused context or GET /v1/practice-exercises/{id}. Hide stale/disputed/superseded content and do not reuse its result. Source or target corrections revoke current results. To skip/dispute a linked round, include its expected_target_round_version; a detached revised round is never changed by the old exercise. Activation is single-use. created_via connector identifies the route, not verified Muse authorship.`,
@@ -200,7 +214,7 @@ export function connectorDocument(baseUrl) {
       + `The transcript is automatic and the metrics are code-measured; the reply is model-written. `
       + `reply.quote is the person's own words only when quote_verified is true; code checked it word for word against the transcript. `
       + `onset_ms_approx is approximate. Audio is not stored unless Keep my recordings is on. `
-      + `gate.reason measured_close means code measured that the answer closed the round; the model chose the words. Code-only rounds (reply_mode code) have no model reply. `
+      + `gate.reason measured_close means code measured that the answer closed the round; the model chose the words. In replies say the app ended the round after the person's answer wrapped it up. Code-only rounds (reply_mode code) have no model reply. `
       + `metrics.camera, present only when the person turned on the Mac camera for practice, holds four code-measured numbers for that answer from Apple Vision head angles on the Mac: faced_camera_pct (share of the answer the head faced the camera), looked_away_count (look-aways of 1 s or more), longest_look_away_ms and frames. `
       + `It is head direction, not gaze: say "faced the camera", never eye contact, and do not describe the person's feelings or character from it. The camera meter stores and sends no camera image. `
       + `replay, present only when the person turned on the hands check for that round, holds seconds counted by code from SAM 3.1 boxes (seconds.phone_in_hand, seconds.paper_in_hand). `
@@ -209,7 +223,7 @@ export function connectorDocument(baseUrl) {
       + `Off, audio is deleted after transcription. `
       + `On, the original audio of each capture and voice round stays in the person's account (media.kept true on the record), and they can see, download or delete it from their devices, or turn the setting off and delete what is kept. `
       + `Read it; never change it or delete recordings yourself, and never describe audio you cannot hear. `
-      + `A re-measured session keeps its earlier metrics in measurements, with remeasured.method naming the current lexicon; say which version you cite.`,
+      + `A re-measured session keeps its earlier metrics in measurements, with remeasured.method naming the current lexicon; when the counts changed, say they were recounted with an updated word list, and name the version only if asked.`,
     `Setup verification must be GET /v1/context only. Do not create schedules or modify user memories.`,
     `This prototype has no webhook, no general file upload (only the WAV capture routes and the opt-in hands-check clip, which capture devices send), no billing, and no access to personal Muse history. `
       + `Revoke access in Muse and with the local token revocation command when finished.`,
