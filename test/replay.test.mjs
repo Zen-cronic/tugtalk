@@ -164,6 +164,9 @@ test('checkSeconds: a number the model writes must be a measured second, or code
   assert.equal(checkSeconds('Vous aviez votre téléphone en main 3 secondes.', replay, 'fr').replaced, false);
   assert.match(checkSeconds('Vous aviez votre téléphone 9 secondes.', replay, 'fr').question, /pendant 3 s\./);
   assert.deepEqual(checkSeconds('Phone for 4 s.', { seconds: { phone_in_hand: 0, paper_in_hand: 0 } }), { question: null, replaced: true, reason: 'nothing_counted' });
+  // The model is sent "paper: 0 seconds", so a question that repeats the 0 it was sent is kept.
+  assert.equal(checkSeconds('Phone 3 seconds, paper 0 seconds. Again, hands free?', replay).replaced, false);
+  assert.equal(checkSeconds('Three seconds on your phone and zero on paper. Again?', replay).replaced, false);
   assert.match(checkSeconds('', { seconds: { phone_in_hand: 0, paper_in_hand: 2 } }).question, /held a paper for 2 s/);
 });
 

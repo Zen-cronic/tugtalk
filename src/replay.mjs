@@ -303,8 +303,10 @@ const CODE_LINE = {
 export function checkSeconds(question, replay, language = 'en') {
   const lang = Object.hasOwn(NUMBER_WORDS, language) ? language : 'en';
   const seconds = replay?.seconds ?? {};
-  const counted = Object.entries(IN_HAND).map(([, name]) => [name, Math.round(seconds[name] ?? 0)]).filter(([, s]) => s > 0);
-  const allowed = new Set(counted.map(([, s]) => s));
+  const sent = Object.entries(IN_HAND).map(([, name]) => [name, Math.round(seconds[name] ?? 0)]);
+  const counted = sent.filter(([, s]) => s > 0);
+  // Every number the model was sent is allowed, 0 included: "paper: 0 seconds" is a measured fact it may repeat.
+  const allowed = new Set(sent.map(([, s]) => s));
   const text = String(question ?? '');
   const digits = [...text.matchAll(/\d+(?:[.,]\d+)?/g)].map(m => Number(m[0].replace(',', '.')));
   const words = [...text.toLowerCase().matchAll(/\p{L}+/gu)].map(m => NUMBER_WORDS[lang].indexOf(m[0])).filter(n => n >= 0
