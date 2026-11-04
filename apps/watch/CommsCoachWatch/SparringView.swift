@@ -22,7 +22,7 @@ struct SparringView: View {
             .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 4 } action: { _, now in
                 scrolled = now
             }
-            .mask(alignment: .top) { HeaderFade(active: scrolled) }
+            .overlay(alignment: .top) { HeaderFade(active: scrolled) }
             .onChange(of: model.phase.name) { _, name in
                 #if DEBUG
                 // `-sparringScrollToEnd YES`: shows the end of each step, for simulator captures.

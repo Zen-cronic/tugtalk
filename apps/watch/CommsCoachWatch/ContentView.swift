@@ -32,7 +32,7 @@ struct ContentView: View {
                 .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 4 } action: { _, now in
                     scrolled = now
                 }
-                .mask(alignment: .top) { HeaderFade(active: scrolled) }
+                .overlay(alignment: .top) { HeaderFade(active: scrolled) }
                 .task {
                     await model.load()
                     #if DEBUG
@@ -372,17 +372,20 @@ struct ProgressDots: View {
 
 /// Scrolled content fades out before it reaches the clock and title band, so text never shows behind the title.
 /// Static, so it is the same with Reduce Motion.
+/// It is an overlay in the face's own black that never takes a touch, not a mask on the scroll view: with the
+/// mask on (once the content had scrolled), the real watch scrolled but dropped every tap on the buttons (build 10).
 struct HeaderFade: View {
     /// Off at rest, so nothing below the large title is touched; on once the content scrolls under the title.
     let active: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(height: active ? 44 : 0)
-            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: active ? 10 : 0)
-            Color.black
+            Palette.face.frame(height: active ? 44 : 0)
+            LinearGradient(colors: [Palette.face, Palette.face.opacity(0)], startPoint: .top, endPoint: .bottom).frame(height: active ? 10 : 0)
+            Color.clear
         }
         .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 }
 
