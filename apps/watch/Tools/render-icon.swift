@@ -1,5 +1,7 @@
 // Renders the watch app icon (Assets.xcassets/AppIcon.appiconset/AppIcon.png): Tug on the sunflower
 // field, ink outline and string, no text, as an opaque 1024 px PNG. Uses the can geometry from Tug.swift.
+// A script can't import the app target, so the palette below is a copy of Theme.swift's (field, ink, tugBody, tugRim,
+// tugInner); test/watch-build-config.test.mjs fails if the two differ. Theme.swift is the source of truth.
 // Usage: swift apps/watch/Tools/render-icon.swift apps/watch/CommsCoachWatch/Assets.xcassets/AppIcon.appiconset/AppIcon.png
 import SwiftUI
 import AppKit
@@ -68,12 +70,11 @@ struct Icon: View {
     let renderer = ImageRenderer(content: Icon())
     renderer.scale = 1
     guard let src = renderer.cgImage else { fatalError("render failed") }
-    // Flatten into an opaque RGB bitmap: App Store icons must not carry an alpha channel.
+    // Flatten into an opaque RGB bitmap: App Store icons must not carry an alpha channel. The Canvas fills every pixel
+    // with the field colour, so nothing shows through.
     let space = CGColorSpace(name: CGColorSpace.sRGB)!
     guard let ctx = CGContext(data: nil, width: 1024, height: 1024, bitsPerComponent: 8, bytesPerRow: 0, space: space,
                               bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { fatalError("context failed") }
-    ctx.setFillColor(CGColor(red: 0xF6 / 255.0, green: 0xB7 / 255.0, blue: 0x30 / 255.0, alpha: 1))
-    ctx.fill(CGRect(x: 0, y: 0, width: 1024, height: 1024))
     ctx.draw(src, in: CGRect(x: 0, y: 0, width: 1024, height: 1024))
     let flat = ctx.makeImage()!
     let url = URL(fileURLWithPath: path) as CFURL
@@ -82,4 +83,8 @@ struct Icon: View {
     guard CGImageDestinationFinalize(dest) else { fatalError("write failed") }
 }
 
+guard CommandLine.arguments.count == 2 else {
+    FileHandle.standardError.write(Data("usage: swift apps/watch/Tools/render-icon.swift <output.png>\n".utf8))
+    exit(64)
+}
 MainActor.assumeIsolated { render(to: CommandLine.arguments[1]) }

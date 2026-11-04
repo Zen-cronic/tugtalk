@@ -63,3 +63,21 @@ test('watch Info.plist: project.yml is its one source, so the committed file hol
     assert.match(plist, new RegExp(`<key>${key}</key>\\n\\t<string>${value.replace(/[$()]/g, '\\$&')}</string>`), key);
   }
 });
+
+const iconScript = `${watch}Tools/render-icon.swift`;
+
+test('watch icon script: its palette is the app theme\'s, so the icon cannot drift from the in-app Tug', () => {
+  const theme = readFileSync(`${watch}CommsCoachWatch/Theme.swift`, 'utf8'), script = readFileSync(iconScript, 'utf8');
+  for (const name of ['field', 'ink', 'tugBody', 'tugRim', 'tugInner']) {
+    const hex = source => source.match(new RegExp(`let ${name} = Color\\(hex: (0x[0-9A-Fa-f]{6})\\)`))?.[1];
+    assert.ok(hex(theme), `Theme.swift defines ${name}`);
+    assert.equal(hex(script), hex(theme), name);
+  }
+});
+
+test('watch icon script: without an output path it prints its usage and exits 64 instead of crashing', { skip: process.platform !== 'darwin' && 'needs swift on macOS' }, () => {
+  const r = spawnSync('swift', [iconScript], { encoding: 'utf8', timeout: 120_000 });
+  assert.equal(r.status, 64, r.stderr);
+  assert.match(r.stderr, /^usage: swift apps\/watch\/Tools\/render-icon\.swift <output\.png>/);
+  assert.doesNotMatch(readFileSync(iconScript, 'utf8'), /ctx\.fill\(/, 'no fill under the opaque Canvas');
+});
