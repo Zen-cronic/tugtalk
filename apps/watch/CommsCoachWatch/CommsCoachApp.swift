@@ -69,6 +69,22 @@ final class CaptureModel: ObservableObject {
             phase = .done(.preview(observation: UserDefaults.standard.string(forKey: "previewObservation"), kept: arguments.contains("-previewRecordingKept")))
             return
         }
+        // `-previewPhase recording|uploading|failed`: that screen with sample data, without the microphone or a request.
+        // `-previewFailure "<text>"` sets the failed screen's message (default: the offline line, with Retry).
+        if let step = UserDefaults.standard.string(forKey: "previewPhase") {
+            isPreview = true
+            goals = [GoalSummary(id: "preview", title: "State the main point first", target: "")]
+            selectedGoal = goals.first
+            switch step {
+            case "recording": phase = .recording
+            case "uploading": phase = .uploading
+            default:
+                pending = PendingCapture(file: FileManager.default.temporaryDirectory.appending(path: "preview.wav"), key: "preview",
+                                         goalID: nil, language: language, occurredAt: Date())
+                phase = .failed(UserDefaults.standard.string(forKey: "previewFailure") ?? "Lost connection.")
+            }
+            return
+        }
         #endif
         phase = .loading
         do {

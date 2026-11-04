@@ -42,6 +42,9 @@ final class SparringModel: ObservableObject {
         }
         phase = machine.phase
         if client == nil { phase = .failed(answer: 1, failure: .notSignedIn, upload: nil) }
+        #if DEBUG
+        if let step = UserDefaults.standard.string(forKey: "sparringPreview") { previewing = true; phase = Self.previewPhase(step, goalID: goal?.id) }
+        #endif
         // At the cap the recorder stops itself; the answer goes up exactly as a Stop tap would send it.
         recorder.onAutoStop = { [weak self] _ in
             guard let self else { return }
@@ -74,6 +77,9 @@ final class SparringModel: ObservableObject {
     /// still holds open is ended there, so the next round, on any device, starts at answer 1. An answer still
     /// uploading is not cancelled: the server saves it anyway, so the round end goes after it (`endRound`).
     func leave() {
+        #if DEBUG
+        if previewing { return }
+        #endif
         apply(machine.leave())
         _ = recorder.stop()
         speaker.stop()
@@ -212,6 +218,32 @@ final class SparringModel: ObservableObject {
 
     #if DEBUG
     private var driver: Task<Void, Never>?
+    /// DEBUG `-sparringPreview ready|recording|thinking|question|done|failed`: that step with sample words, for
+    /// screenshots. A local machine is walked through its own transitions; no effect runs, so nothing is recorded or sent.
+    private var previewing = false
+
+    private static func previewPhase(_ step: String, goalID: String?) -> SparringMachine.Phase {
+        var m = SparringMachine(goalID: goalID, language: .en)
+        let start = Date(timeIntervalSinceNow: -10)
+        _ = m.record(at: start)
+        if step == "recording" { return m.phase }
+        _ = m.stop(at: start.addingTimeInterval(8))
+        if step == "thinking" { return m.phase }
+        guard case .thinking(_, let upload) = m.phase else { return m.phase }
+        if step == "failed" { _ = m.uploadFailed(key: upload.idempotencyKey, .offline); return m.phase }
+        let receipt = VoiceRoundReceipt(
+            round_id: "preview", receipt_id: "preview", replayed: false,
+            transcript: "I think we should ship the smaller version first, because it lets us test with real users this week.",
+            metrics: VoiceMetrics(word_count: 20, words_per_minute: 150, filler_count: 0, hedge_count: 1, restart_count: 0),
+            reply: VoiceReply(move: "probe", question: "What would you cut if the launch slipped a week?",
+                              quote: "ship the smaller version first", quote_verified: true))
+        _ = m.replied(key: upload.idempotencyKey, receipt)
+        _ = m.speechStarted(roundID: "preview", provider: "wit")
+        _ = m.speechFinished(roundID: "preview", at: Date())
+        if step == "question" { return m.phase }
+        if step == "done" { _ = m.endRound(); return m.phase }
+        return .ready(answer: 1)
+    }
 
     /// DEBUG `-sparringAutoplay YES`: plays the whole round without taps, for simulator captures. Each answer
     /// records for `-sparringHoldSeconds` (default 3), and waits `-sparringPauseSeconds` (default 3) on
