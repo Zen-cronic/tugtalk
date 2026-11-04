@@ -12,7 +12,7 @@ enum MascotLayout {
 }
 
 /// The name System Settings shows for this app.
-let appDisplayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Comms Coach"
+let appDisplayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "TugTalk"
 
 /// Keeps the last two words of a line together, so no heading or question ends on a lone word.
 func noWidow(_ text: String) -> String {

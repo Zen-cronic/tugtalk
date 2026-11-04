@@ -114,7 +114,7 @@ final class GateTests: XCTestCase {
         let capture = CountingCapture()
         // A deny list edited down to nothing still never reads the companion, by bundle id or by process.
         let pipeline = ScreenContextPipeline(gate: CaptureGate(denyList: [], ownProcessID: 4242), capturer: capture)
-        for app in [FrontApp(name: "Comms Coach", bundleID: CaptureGate.ownBundleID, processID: 4),
+        for app in [FrontApp(name: "TugTalk", bundleID: CaptureGate.ownBundleID, processID: 4),
                     FrontApp(name: "Renamed copy", bundleID: "com.example.other", processID: 4242)] {
             do { _ = try await pipeline.run(app: app, secureInput: false); XCTFail("should refuse \(app.name)") }
             catch { XCTAssertEqual(error as? CaptureError, .ownWindow) }

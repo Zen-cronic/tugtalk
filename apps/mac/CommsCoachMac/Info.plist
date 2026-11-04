@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Comms Coach</string>
+	<string>TugTalk</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Comms Coach</string>
+	<string>TugTalk</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -25,12 +25,12 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Only if you turn on Use the Camera During Practice: while you hold Control-Option-T, Comms Coach checks on this Mac which way your head points. No picture is saved or sent, unless you turn on the hands check for a round: then a short silent clip of that round goes to Meta's SAM 3.1 and only the seconds are kept.</string>
+	<string>Only if you turn on Use the Camera During Practice: while you hold Control-Option-T, TugTalk checks on this Mac which way your head points. No picture is saved or sent, unless you turn on the hands check for a round: then a short silent clip of that round goes to Meta's SAM 3.1 and only the seconds are kept.</string>
 	<key>NSCameraUseContinuityCameraDeviceType</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Comms Coach listens only while you hold Control-Option-T. That one recording is sent for a voice reply, then deleted from this Mac.</string>
+	<string>TugTalk listens only while you hold Control-Option-T. That one recording is sent for a voice reply, then deleted from this Mac.</string>
 </dict>
 </plist>

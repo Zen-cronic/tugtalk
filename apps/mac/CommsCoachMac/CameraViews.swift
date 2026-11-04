@@ -180,7 +180,7 @@ struct CameraExplainerView: View {
                         Spacer()
                     }
                 case .denied:
-                    CoachText("Turn on Comms Coach in Privacy & Security › Camera, then choose Use the Camera During Practice again.")
+                    CoachText("Turn on TugTalk in Privacy & Security › Camera, then choose Use the Camera During Practice again.")
                     HStack(spacing: 8) {
                         Button("Open System Settings", action: onSettings).buttonStyle(CartButtonStyle()).keyboardShortcut(.defaultAction)
                         Button("Close", action: onClose).buttonStyle(CartButtonStyle(primary: false)).keyboardShortcut(.cancelAction)
@@ -200,7 +200,7 @@ struct CameraExplainerView: View {
     private var heading: String {
         switch step {
         case .ask: "Use the camera during practice?"
-        case .denied: "Camera is off for Comms Coach"
+        case .denied: "Camera is off for TugTalk"
         case .on: "Camera on for practice"
         }
     }

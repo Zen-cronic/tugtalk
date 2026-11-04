@@ -141,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if !others.isEmpty {
             hotkeyLog.error("\(others.count, privacy: .public) other copy of the companion is running; ⌃⌥T presses may go to it instead")
-            model.set(.notice("Another copy of Comms Coach is running. Quit it so ⌃⌥T works here."), collapseAfter: 10)
+            model.set(.notice("Another copy of TugTalk is running. Quit it so ⌃⌥T works here."), collapseAfter: 10)
         }
         hotkeys.onRegistrationFailed = { [weak self] combo in self?.shortcutTaken(combo) }
         hotkeys.register(Hotkeys.capture) { [weak self] in self?.capture(trigger: "hotkey") }
@@ -156,7 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Another copy holds a shortcut: say so, and keep the notice for the top bar, which then never offers the keys.
     private func shortcutTaken(_ combo: Hotkeys.Combo) {
-        let notice = "Another copy of Comms Coach is using \(combo.label). Quit it to use the shortcut here."
+        let notice = "Another copy of TugTalk is using \(combo.label). Quit it to use the shortcut here."
         if combo.label == Hotkeys.talk.label || model.hotkeyNotice == nil { model.hotkeyNotice = notice }
         model.set(.notice(notice), collapseAfter: 10)
     }

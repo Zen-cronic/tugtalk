@@ -33,7 +33,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kaungzinhein.commscoach.watch
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Comms Coach
+        INFOPLIST_KEY_CFBundleDisplayName: TugTalk
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         TARGETED_DEVICE_FAMILY: "1,2"
       configs:
@@ -49,7 +49,7 @@ targets:
     info:
       path: CommsCoachWatch/Info.plist
       properties:
-        CFBundleDisplayName: Comms Coach
+        CFBundleDisplayName: TugTalk
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
