@@ -21,6 +21,9 @@
   --coral:#ff9f8f;
   --blue:#9fc3ff;
   --teal:#8fdcd9;
+  --filler-edge:#e5412f;
+  --unsure-edge:#2f6fe0;
+  --restart-edge:#13918c;
   --focus:#1e5fd8;
   font-family:Hanken,Arial,sans-serif;
   color:var(--ink);
@@ -107,6 +110,21 @@ button.primary:hover{
   justify-content:center;
   min-height:44px
 }
+.button-outline{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  padding:10px 15px;
+  border:1.5px solid var(--ink);
+  border-radius:11px;
+  background:white;
+  font-weight:700;
+  text-decoration:none
+}
+.button-outline:hover{
+  background:var(--cream)
+}
 .quiet{
   border-color:transparent;
   background:transparent
@@ -128,7 +146,8 @@ button.primary:hover{
   display:flex;
   align-items:center;
   gap:10px;
-  text-decoration:none
+  text-decoration:none;
+  min-height:44px
 }
 .brand img{
   width:38px;
@@ -151,9 +170,13 @@ button.primary:hover{
 .intro{
   display:flex;
   justify-content:space-between;
-  align-items:end;
-  gap:20px;
-  margin-bottom:28px
+  align-items:center;
+  flex-wrap:wrap;
+  gap:16px;
+  margin-bottom:22px
+}
+.intro h1{
+  font-size:clamp(30px,3vw,40px)
 }
 .eyebrow{
   font-family:Azeret,monospace;
@@ -169,14 +192,12 @@ button.primary:hover{
 }
 .refresh{
   display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:10px
+  align-items:center;
+  gap:14px
 }
 .freshness{
-  font-size:12px;
-  max-width:250px;
-  text-align:right
+  font-size:13px;
+  color:var(--muted)
 }
 .tabs{
   display:flex;
@@ -189,7 +210,12 @@ button.primary:hover{
   border-radius:0;
   background:transparent;
   padding:13px 0 12px;
-  color:var(--muted)
+  color:var(--muted);
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  font-weight:700;
+  text-decoration:none
 }
 .tab[aria-current=page]{
   color:var(--ink);
@@ -226,15 +252,16 @@ button.primary:hover{
   letter-spacing:0
 }
 .pill{
-  font-family:Azeret,monospace;
-  font-size:10px;
+  font-size:12px;
+  font-weight:600;
   display:inline-flex;
   padding:6px 9px;
   border:1px solid var(--rule);
   border-radius:99px;
   background:white;
   letter-spacing:0;
-  line-height:1.3
+  line-height:1.3;
+  white-space:nowrap
 }
 .goal{
   display:block;
@@ -272,10 +299,6 @@ button.primary:hover{
   line-height:1.55
 }
 .detail-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:18px;
   margin:2px 0 20px
 }
 .detail-head p{
@@ -301,15 +324,69 @@ button.primary:hover{
 }
 .practice-grid{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 290px;
+  grid-template-columns:minmax(0,1fr) 300px;
   gap:20px;
-  align-items:start
+  align-items:start;
+  margin-top:20px
+}
+.practice-grid.single{
+  grid-template-columns:minmax(0,1fr)
+}
+.practice-grid .practice-requests{
+  margin:0
+}
+.session{
+  padding:28px
+}
+.session .card-header{
+  margin-bottom:16px
 }
 .transcript{
-  font-size:20px;
-  line-height:1.55;
-  margin:18px 0 24px;
+  font-size:21px;
+  font-weight:500;
+  line-height:1.5;
+  margin:0 0 24px;
+  padding:18px 20px;
+  background:var(--cream);
+  border-radius:14px;
   overflow-wrap:anywhere
+}
+.session-split{
+  display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
+  gap:28px;
+  align-items:start
+}
+.session-split.single{
+  grid-template-columns:minmax(0,1fr)
+}
+.session-split .eyebrow{
+  margin-bottom:10px
+}
+.session .feedback{
+  margin:0;
+  border-top:0;
+  padding:2px 0 2px 20px;
+  border-left:3px solid var(--ink)
+}
+.session .feedback p{
+  font-size:16px;
+  line-height:1.5;
+  font-weight:600
+}
+.session .feedback .caption{
+  font-weight:400;
+  font-size:12px
+}
+.ai-question{
+  margin-top:12px
+}
+.ai-question span{
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  color:var(--muted);
+  margin-bottom:3px
 }
 .metrics{
   display:grid;
@@ -317,21 +394,24 @@ button.primary:hover{
   gap:10px
 }
 .metric{
-  padding:14px 12px;
+  padding:14px 12px 12px;
   border-radius:12px;
-  background:var(--coral)
+  background:var(--coral);
+  border-bottom:4px solid var(--filler-edge)
 }
-.metric:nth-child(2){
-  background:var(--blue)
+.metric.unsure{
+  background:var(--blue);
+  border-bottom-color:var(--unsure-edge)
 }
-.metric:nth-child(3){
-  background:var(--teal)
+.metric.restart{
+  background:var(--teal);
+  border-bottom-color:var(--restart-edge)
 }
 .metric strong{
   display:block;
   font-family:Anybody;
-  font-size:31px;
-  line-height:1.15
+  font-size:40px;
+  line-height:1.05
 }
 .metric span{
   font-size:13px;
@@ -378,10 +458,8 @@ button.primary:hover{
 .next p{
   font-size:15px
 }
-.basis{
-  margin-top:22px;
-  border-top:1px solid #17141155;
-  padding-top:15px;
+.next .basis{
+  margin-top:16px;
   font-size:13px;
   line-height:1.55
 }
@@ -432,6 +510,14 @@ button.primary:hover{
 }
 .empty a{
   margin-top:23px
+}
+.empty .rows{
+  margin-top:20px;
+  max-width:590px
+}
+.pill.on{
+  background:var(--ground);
+  border-color:var(--ink)
 }
 .coverage{
   display:grid;
@@ -548,7 +634,13 @@ footer{
   border-top:1px solid var(--rule);
   display:flex;
   gap:20px;
-  justify-content:space-between
+  justify-content:space-between;
+  align-items:center
+}
+footer a{
+  display:inline-flex;
+  align-items:center;
+  min-height:44px
 }
 #message:empty{
   display:none
@@ -558,23 +650,12 @@ footer{
   .practice-grid{
   grid-template-columns:1fr
 }
-.next{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  column-gap:25px
-}
-.next .eyebrow,.next h3{
-  grid-column:1/-1
-}
-.next .basis{
-  margin:0;
-  border:0;
-  padding:0
-}
 .next .button-link{
-  grid-column:1/-1;
-  width:auto;
-  justify-self:start
+  width:auto
+}
+.session-split{
+  grid-template-columns:minmax(0,1fr);
+  gap:24px
 }
 .layout{
   grid-template-columns:240px minmax(0,1fr)
@@ -599,18 +680,11 @@ footer{
   padding:26px 18px 35px
 }
 .intro{
-  align-items:start;
-  flex-direction:column;
-  gap:16px
+  gap:12px
 }
 .refresh{
-  flex-direction:row;
-  align-items:center;
   width:100%;
   justify-content:space-between
-}
-.freshness{
-  text-align:left
 }
 .tabs{
   gap:24px
@@ -619,32 +693,42 @@ footer{
   display:block
 }
 .goals{
-  display:flex;
-  gap:10px;
-  overflow:auto;
-  padding:2px 2px 10px;
-  margin-bottom:14px
+  display:grid;
+  gap:8px;
+  margin-bottom:8px
 }
-.goal{
-  min-width:210px;
+.goal,.goal.active{
   margin:0;
-  flex:1
+  padding:12px 16px;
+  min-height:56px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px
 }
-.aside-note{
-  display:none
+.goal strong{
+  margin:0;
+  font-size:16px
+}
+.goal span{
+  white-space:nowrap
 }
 .detail-head{
-  margin-top:12px
+  margin-top:28px
 }
-.detail-head>.pill{
-  display:none
+.intro h1{
+  font-size:28px
 }
-.card{
+.card,.session{
   padding:20px;
   border-radius:18px
 }
 .transcript{
-  font-size:18px
+  font-size:18px;
+  padding:16px
+}
+.metric strong{
+  font-size:34px
 }
 .metric{
   padding:12px 9px
@@ -693,7 +777,8 @@ footer{
 }
 footer{
   flex-direction:column;
-  gap:8px
+  align-items:flex-start;
+  gap:4px
 }
 .row{
   align-items:flex-start
@@ -710,12 +795,11 @@ footer{
   transition:background .15s ease
 }
  .card{
-  animation:appear .18s ease
+  animation:appear .18s cubic-bezier(.34,1.56,.64,1)
 }
 @keyframes appear{
   from{
-  opacity:.6;
-  transform:translateY(3px)
+  transform:translateY(8px)
 }
 to{
   opacity:1;
@@ -736,8 +820,7 @@ to{
 }
 .record-details summary{
   cursor:pointer;
-  padding:6px 0;
-  min-height:32px
+  padding:12px 0
 }
 .record-details p{
   margin-top:10px;
@@ -763,3 +846,144 @@ to{
 .conversation-exercise .exercise-scenario { margin-top: 16px; font-size: 18px; line-height: 1.6; max-width: 720px; }
 .conversation-exercise blockquote { margin: 14px 0 0; padding: 14px 16px; background: var(--cream); border-radius: 12px; font-size: 16px; line-height: 1.5; }
 .conversation-exercise blockquote span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+
+/* Mono is for small uppercase labels only, with ligatures off */
+.eyebrow,.account small{
+  font-variant-ligatures:none;
+  font-feature-settings:"liga" 0,"calt" 0
+}
+
+/* One style for every AI caveat */
+.ai-note{
+  font-size:12px;
+  line-height:1.5;
+  color:var(--muted);
+  margin-top:12px;
+  padding-left:10px;
+  border-left:2px solid var(--rule)
+}
+.session .feedback .ai-note{
+  font-weight:400;
+  font-size:12px
+}
+
+/* Goal view: goals and history share the left rail; the session card is the one heavy outline */
+.layout{
+  grid-template-rows:auto 1fr
+}
+.layout>aside{
+  grid-column:1;
+  grid-row:1
+}
+.layout>main{
+  grid-column:2;
+  grid-row:1/3
+}
+.layout>.history{
+  grid-column:1;
+  grid-row:2;
+  align-self:start;
+  margin-top:20px
+}
+.history .row{
+  padding:12px 0
+}
+.history .sidebar-title{
+  margin-bottom:4px
+}
+.practice-request,.conversation-exercise{
+  border:1px solid var(--rule)
+}
+.next{
+  border-color:var(--blue);
+  display:flex;
+  flex-direction:column;
+  align-items:stretch
+}
+.next .button-link{
+  margin-top:auto;
+  padding-top:12px
+}
+.next .basis{
+  margin-bottom:22px
+}
+.practice-grid{
+  align-items:stretch
+}
+.practice-grid .practice-requests{
+  display:flex;
+  flex-direction:column
+}
+.practice-grid .practice-request{
+  flex:1;
+  margin-bottom:0
+}
+
+/* Sample data label */
+.notice.demo{
+  display:inline-flex;
+  background:var(--ground);
+  border:0;
+  border-radius:99px;
+  padding:6px 14px;
+  font-size:12px;
+  font-weight:600;
+  margin-bottom:18px
+}
+
+/* Recordings */
+.recording audio{
+  border:1.5px solid var(--ink);
+  border-radius:99px;
+  background:var(--cream)
+}
+.recording audio::-webkit-media-controls-panel{
+  background:var(--cream)
+}
+.recording audio::-webkit-media-controls-play-button{
+  background-color:var(--paper);
+  border-radius:99px
+}
+.recordings-list>.caption{
+  margin:0 0 4px
+}
+.recording{
+  padding:20px 0;
+  margin-top:16px
+}
+button.quiet.danger{
+  color:#a72419;
+  padding-left:4px;
+  padding-right:4px
+}
+button.quiet.danger:hover{
+  background:#fff0ec
+}
+
+@media(max-width:1100px){
+  .next .button-link{
+    margin-top:22px
+  }
+}
+@media(max-width:720px){
+  .layout>.history{
+    margin-top:28px
+  }
+  .intro .page-title{
+    position:absolute;
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    clip:rect(0 0 0 0);
+    white-space:nowrap
+  }
+  .intro{
+    margin-bottom:12px
+  }
+  .notice.demo{
+    margin-bottom:12px
+  }
+  .tabs{
+    margin-bottom:20px
+  }
+}

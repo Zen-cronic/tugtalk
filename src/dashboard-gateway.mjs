@@ -52,6 +52,7 @@ async function jsonBody(req) {
 function cookieValue(req, name) {
   return (req.headers.cookie ?? '').split(';').map(v => v.trim()).find(v => v.startsWith(`${name}=`))?.slice(name.length + 1) ?? '';
 }
+const shellRoutes = new Set(['/app/goals', '/app/conversations', '/app/recordings']);
 export function createDashboard({ origin, upstream, token, password, secure = true, webRoot = fileURLToPath(new URL('../web/', import.meta.url)), landingRoot = null, fetchImpl = fetch, now = Date.now, demo = false, allowRecordingChanges = false, sessionMs = 8 * 60 * 60 * 1000, timeoutMs = 10000, trustProxy = false, failureDelayMs = LOGIN_FAILURE_DELAY_MS }) {
   const publicURL = new URL(origin), apiURL = new URL(upstream);
   if (!['http:', 'https:'].includes(publicURL.protocol) || (!secure && !['127.0.0.1', 'localhost', '[::1]'].includes(publicURL.hostname))) throw new Error('Insecure cookies are allowed only on loopback.');
@@ -142,7 +143,8 @@ export function createDashboard({ origin, upstream, token, password, secure = tr
         res.writeHead(200, { ...headers, 'Content-Security-Policy': publicPolicy, 'Content-Type': mime[path.extname(publicFile)] });
         res.end(req.method === 'HEAD' ? undefined : data); return;
       }
-      const file = route === '/' || route === '/app' || route === '/app/' ? 'index.html' : route.startsWith('/app/') ? route.slice(5) : '';
+      // The app shell is served only for these exact tab paths; every other /app/ path must be a listed asset.
+      const file = route === '/' || route === '/app' || route === '/app/' || shellRoutes.has(route) ? 'index.html' : route.startsWith('/app/') ? route.slice(5) : '';
       if (!assets.has(file)) throw new Failure(404, 'Page not found.');
       const data = await readFile(path.join(webRoot, file));
       res.writeHead(200, { ...headers, 'Content-Type': mime[path.extname(file)] }); res.end(req.method === 'HEAD' ? undefined : data);
