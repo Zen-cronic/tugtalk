@@ -227,3 +227,22 @@ export function createModelClients({ env = process.env, fetchImpl = fetch } = {}
     }
   };
 }
+
+// The length of a PCM WAV from its header, or null when the header cannot be read. Never throws.
+// header: the file's first bytes (enough to reach the data chunk); totalBytes: the whole file's size, so a header
+// read alone gives the length. The fmt chunk gives rate, channels and bits; the data chunk gives the byte count.
+export function wavDurationMs(header, totalBytes = header?.length ?? 0) {
+  if (!Buffer.isBuffer(header) || header.length < 12 || header.toString('ascii', 0, 4) !== 'RIFF' || header.toString('ascii', 8, 12) !== 'WAVE') return null;
+  let offset = 12, format;
+  while (offset + 8 <= header.length) {
+    const id = header.toString('ascii', offset, offset + 4), size = header.readUInt32LE(offset + 4);
+    if (id === 'fmt ' && offset + 24 <= header.length) format = { code: header.readUInt16LE(offset + 8), channels: header.readUInt16LE(offset + 10), rate: header.readUInt32LE(offset + 12), bits: header.readUInt16LE(offset + 22) };
+    if (id === 'data') {
+      if (!format || format.code !== 1 || !format.channels || !format.rate || !format.bits) return null;
+      const bytes = Math.min(size, Math.max(0, totalBytes - offset - 8));
+      return Math.round(bytes / (format.rate * format.channels * (format.bits / 8)) * 1000);
+    }
+    offset += 8 + size + (size % 2);
+  }
+  return null;
+}

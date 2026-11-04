@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { Store, digest } from '../src/store.mjs';
 import { createApp } from '../src/server.mjs';
 import { keepMedia, MEDIA_CAP_BYTES, MEDIA_DOWNLOAD_LIMIT } from '../src/media.mjs';
+import { wavDurationMs } from '../src/capture.mjs';
 
 function wav(seconds = 1, rate = 16000, tone = 330) {
   const samples = Math.round(seconds * rate), data = Buffer.alloc(samples * 2);
@@ -98,7 +99,7 @@ test('keep recordings: on keeps the original WAV with its hash, once per exact r
     assert.equal(first.status, 200);
     const record = first.data.record;
     assert.equal(record.audio_retained, true);
-    assert.deepEqual({ ...record.media, kept_at: undefined }, { kept: true, kind: 'audio', bytes: audio.length, sha256: digest(audio), content_type: 'audio/wav', kept_at: undefined });
+    assert.deepEqual({ ...record.media, kept_at: undefined }, { kept: true, kind: 'audio', bytes: audio.length, sha256: digest(audio), content_type: 'audio/wav', kept_at: undefined, duration_ms: 1500 });
     assert.equal(record.media.sha256, record.audio_sha256);
     assert.deepEqual(readFileSync(join(mediaDir('alice'), `${record.id}.wav`)), audio, 'the stored file is the uploaded bytes');
     // An exact retry replays the receipt: no model call, no second file.
@@ -260,4 +261,37 @@ test('keep recordings: the overview reads the setting and the kept counts from t
     assert.equal(hidden.status, 200);
     assert.deepEqual(await same(), { keep_recordings: true, version: 2, kept_recordings: 1, kept_bytes: audio.length });
   });
+});
+
+test('keep recordings: the listing gives each audio file its length, from the WAV header, for new and earlier files', async () => {
+  await withServer(async ({ call, post, setKeep, store, mediaDir }) => {
+    await setKeep(true);
+    const capture = (await post('/v1/recordings', wav(2.25), { key: 'length-capture-1' })).data.record;
+    assert.equal((await post('/v1/voice-rounds', wav(0.9, 24000), { key: 'length-round-1' })).status, 200);
+    const round = store.list('alice', 'voice-rounds')[0];
+    assert.equal(capture.media.duration_ms, 2250, 'the length is stored on the media reference when the file is kept');
+    // A file kept before duration_ms existed: the listing reads the stored file's header instead.
+    const earlier = store.get('alice', 'sessions', capture.id);
+    store.put('alice', 'sessions', { ...earlier, media: { ...earlier.media, duration_ms: undefined } });
+    const listed = (await call('GET', '/v1/media')).data.media;
+    const byId = Object.fromEntries(listed.map(item => [item.id, item.duration_ms]));
+    assert.equal(byId[capture.id], 2250);
+    assert.equal(byId[round.id], 900, 'a voice round at 24 kHz');
+    assert.ok(listed.every(item => !('data' in item)), 'the listing carries no audio');
+  });
+});
+
+test('wav length: rate, channels and bit depth come from the fmt chunk; an unreadable header gives null', () => {
+  const header = (rate, channels, bits, dataBytes, extra = Buffer.alloc(0)) => {
+    const h = Buffer.alloc(44); h.write('RIFF', 0); h.writeUInt32LE(Math.min(0xffffffff, 36 + extra.length + dataBytes), 4); h.write('WAVE', 8); h.write('fmt ', 12); h.writeUInt32LE(16, 16);
+    h.writeUInt16LE(1, 20); h.writeUInt16LE(channels, 22); h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * channels * bits / 8, 28); h.writeUInt16LE(channels * bits / 8, 32); h.writeUInt16LE(bits, 34);
+    h.write('data', 36); h.writeUInt32LE(dataBytes, 40);
+    return extra.length ? Buffer.concat([h.subarray(0, 36), extra, h.subarray(36)]) : h;
+  };
+  assert.equal(wavDurationMs(header(24000, 1, 16, 24000 * 2 * 8), 44 + 24000 * 2 * 8), 8000, 'a header read alone uses the file size');
+  assert.equal(wavDurationMs(header(48000, 2, 16, 48000 * 4 * 3), 44 + 48000 * 4 * 3), 3000);
+  const list = Buffer.alloc(12); list.write('LIST', 0); list.writeUInt32LE(4, 4); list.write('INFO', 8);
+  assert.equal(wavDurationMs(header(16000, 1, 16, 32000, list), 56 + 32000), 1000, 'other chunks before data are skipped');
+  assert.equal(wavDurationMs(header(16000, 1, 16, 0xffffffff), 44 + 16000), 500, 'an open-ended data size is capped at the file');
+  for (const bad of [Buffer.from('not a wav file at all'), Buffer.alloc(0), null, header(16000, 1, 16, 10).subarray(0, 30)]) assert.equal(wavDurationMs(bad), null);
 });

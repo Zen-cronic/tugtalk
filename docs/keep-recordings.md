@@ -16,7 +16,7 @@ Why keep it: you can listen back and compare attempts, track progress across ses
 With the setting on, each `POST /v1/recordings` and `POST /v1/voice-rounds` saves the uploaded WAV, byte for byte, in the same write as its record:
 
 - the file goes next to the database, at `media/<user>/<id>.wav` (on Modal: `/data/media/<user>/<id>.wav`, on the same volume), written to a temporary name, flushed and renamed;
-- the record gets `media: { kept: true, kind: "audio", bytes, sha256, content_type: "audio/wav", kept_at }` and `audio_retained: true`;
+- the record gets `media: { kept: true, kind: "audio", bytes, sha256, content_type: "audio/wav", kept_at, duration_ms }`, where `duration_ms` is the length read from the WAV header and `audio_retained: true`;
 - the hosting adapter commits the volume before it answers, so the file and its record are acknowledged together;
 - an exact retry (same `Idempotency-Key`, same audio) replays the receipt and writes nothing again;
 - a voice round that fails (502) saves nothing, and keeps nothing.
@@ -29,7 +29,7 @@ The API accepts `kind: "video"` (`.mp4`) for a later clip feature; only audio is
 
 | Method | Path | Does |
 |---|---|---|
-| GET | `/v1/media` | Your kept recordings: `id`, `record_kind` (`sessions` or `voice-rounds`), `bytes`, `sha256`, `kept_at`, `occurred_at`. No audio. Plus `recordings`, `bytes`, `cap_bytes`. |
+| GET | `/v1/media` | Your kept recordings: `id`, `record_kind` (`sessions` or `voice-rounds`), `bytes`, `sha256`, `kept_at`, `occurred_at`, `duration_ms` (from the WAV header; for a file kept before it was stored, read from the stored file's header; `null` if unreadable). No audio. Plus `recordings`, `bytes`, `cap_bytes`. |
 | GET | `/v1/media/{id}` | The audio, `audio/wav`, with `X-Media-Sha256`. Another account's id, or one that is not kept, is a 404. 120 downloads per hour. |
 | DELETE | `/v1/media/{id}` | Deletes the file and the record's reference. The record gets a new version with `media: { kept: false, deleted_at }` and `audio_retained: false`. Needs `Idempotency-Key`. |
 | DELETE | `/v1/media` | Deletes every kept recording, and anything else in your media folder. Needs `Idempotency-Key`. |

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {renderPracticeRounds,drillBasisStatus,practiceRecords,readyDrills,readStablePractice} from '../web/practice-view.js';
+import {renderPracticeRounds,drillBasisStatus,practiceRecords,readyDrills,readStablePractice,recordingLength} from '../web/practice-view.js';
 const round={id:'round-1',version:2,request_version:1,goal_id:'a',state:'open',persisted_state:'open',freshness:{status:'current'},request_text:'When can you deliver?',answer_count:1,objectives:[{id:'delivery',text:'Explain the delivery commitment.'}],assessment:{status:'assessed',objectives:[{id:'delivery',status:'partial',evidence:[{start:0,end:6,quote:'Friday'}],missing:'The dependency is still missing.'}]},current_question:'What does Friday depend on?'};
 test('practice view uses actual goal-scoped objective results and escapes supplied text',()=>{
  const html=renderPracticeRounds({practice_rounds:[round,{...round,id:'other',goal_id:'b',request_text:'PRIVATE_OTHER_GOAL'}]},'a');
@@ -36,4 +36,9 @@ test('snapshot read retries a source correction and refuses continuously changin
  let index=0;const replies=[{snapshot_revision:'before'},{goals:[{version:1}]},{snapshot_revision:'after'},{snapshot_revision:'after'},{goals:[{version:2}]},{snapshot_revision:'after'}];
  const snapshot=await readStablePractice(async()=>replies[index++]);assert.equal(snapshot.context.goals[0].version,2);assert.equal(index,6);
  let revision=0;await assert.rejects(readStablePractice(async route=>route==='context'?{goals:[]}:{snapshot_revision:String(++revision)}),/changed while loading/);
+});
+test('a kept recording shows its length as m:ss without loading the audio',()=>{
+ assert.equal(recordingLength(8293),'0:08');assert.equal(recordingLength(500),'0:01');assert.equal(recordingLength(0),'0:00');
+ assert.equal(recordingLength(65400),'1:05');assert.equal(recordingLength(180000),'3:00');
+ for(const unknown of [undefined,null,NaN,-1,'8000'])assert.equal(recordingLength(unknown),'',String(unknown));
 });

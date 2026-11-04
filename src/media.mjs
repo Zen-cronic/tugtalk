@@ -3,16 +3,17 @@
 //
 // Files live next to the database, under <database dir>/media/<user>/<id>.<ext> (on Modal: /data/media/...), so the
 // hosting adapter's volume commit, which runs before every write is answered, holds the file and its record together.
-// The record that owns a file carries media: { kept: true, kind, bytes, sha256, content_type, kept_at }; that
+// The record that owns a file carries media: { kept: true, kind, bytes, sha256, content_type, kept_at, duration_ms }; that
 // reference is the only index. A file is written inside the record's write transaction, so a retry that replays the
 // receipt never writes it twice.
 //
 // Kept audio is never logged and never sent to any model, except when the person asks for a re-transcription
 // (POST /v1/sessions/{id}/remeasure with retranscribe: true, src/remeasure.mjs).
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeSync } from 'node:fs';
+import { closeSync, existsSync, fstatSync, fsyncSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { ApiError, digest } from './store.mjs';
 import { keepRecordingsOn } from './settings.mjs';
+import { wavDurationMs } from './capture.mjs';
 
 // Only audio is wired today. Video is accepted by the API so a later clip feature needs no new storage shape.
 export const MEDIA_KINDS = { audio: { ext: 'wav', content_type: 'audio/wav' }, video: { ext: 'mp4', content_type: 'video/mp4' } };
@@ -38,11 +39,28 @@ export function mediaPath(store, user, id, kind = 'audio') {
 function owners(store, user) {
   return MEDIA_RECORD_KINDS.flatMap(kind => store.list(user, kind).filter(r => r.media?.kept === true).map(record => ({ kind, record })));
 }
-const view = ({ kind, record }) => ({ id: record.id, record_kind: kind, record_version: record.version, kind: record.media.kind, bytes: record.media.bytes,
-  sha256: record.media.sha256, content_type: record.media.content_type, kept_at: record.media.kept_at, occurred_at: record.occurred_at ?? null, record_hidden: record.deleted === true });
+// The audio's length from the stored file's WAV header, for files kept before duration_ms was recorded. Only the
+// header is read, and the answer is cached by content digest, so a listing does not reread the audio. null if unreadable.
+const durations = new Map();
+function storedDurationMs(store, user, record) {
+  if (record.media.kind !== 'audio') return null;
+  const cached = durations.get(record.media.sha256);
+  if (cached !== undefined) return cached;
+  let ms = null, fd;
+  try {
+    fd = openSync(mediaPath(store, user, record.id, 'audio'), 'r');
+    const header = Buffer.alloc(4096), n = readSync(fd, header, 0, header.length, 0);
+    ms = wavDurationMs(header.subarray(0, n), fstatSync(fd).size);
+  } catch { ms = null; } finally { if (fd !== undefined) closeSync(fd); }
+  if (ms !== null && record.media.sha256) durations.set(record.media.sha256, ms);
+  return ms;
+}
+const view = (store, user) => ({ kind, record }) => ({ id: record.id, record_kind: kind, record_version: record.version, kind: record.media.kind, bytes: record.media.bytes,
+  sha256: record.media.sha256, content_type: record.media.content_type, kept_at: record.media.kept_at, occurred_at: record.occurred_at ?? null, record_hidden: record.deleted === true,
+  duration_ms: Number.isFinite(record.media.duration_ms) ? record.media.duration_ms : storedDurationMs(store, user, record) });
 
 export function listMedia(store, user) {
-  return owners(store, user).map(view).sort((a, b) => (b.occurred_at ?? '').localeCompare(a.occurred_at ?? '') || b.id.localeCompare(a.id));
+  return owners(store, user).map(view(store, user)).sort((a, b) => (b.occurred_at ?? '').localeCompare(a.occurred_at ?? '') || b.id.localeCompare(a.id));
 }
 export function mediaUsage(store, user) {
   const list = owners(store, user);
@@ -60,7 +78,9 @@ export function keepMedia(store, user, kind, id, bytes, meta = {}) {
   const temp = `${path}.part`, fd = openSync(temp, 'w', 0o600);
   try { writeSync(fd, bytes); fsyncSync(fd); } finally { closeSync(fd); }
   renameSync(temp, path);
-  return { kept: true, kind, bytes: bytes.length, sha256: digest(bytes), content_type: meta.content_type ?? MEDIA_KINDS[kind].content_type, kept_at: new Date().toISOString() };
+  const durationMs = kind === 'audio' ? wavDurationMs(bytes) : null;
+  return { kept: true, kind, bytes: bytes.length, sha256: digest(bytes), content_type: meta.content_type ?? MEDIA_KINDS[kind].content_type, kept_at: new Date().toISOString(),
+    ...(durationMs !== null ? { duration_ms: durationMs } : {}) };
 }
 
 // The one call the recording and voice-round routes make, inside their write transaction, just before the record
@@ -89,7 +109,7 @@ function owner(store, user, id) {
 export function getMedia(store, user, id) {
   const found = owner(store, user, id), path = mediaPath(store, user, id, found.record.media.kind);
   if (!existsSync(path)) throw new ApiError(404, 'not_found', 'The kept recording file is missing.');
-  return { ...view(found), data: readFileSync(path) };
+  return { ...view(store, user)(found), data: readFileSync(path) };
 }
 
 // Removes the file and the record's reference to it; the record gets a new version. Runs inside a write transaction.

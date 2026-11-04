@@ -103,3 +103,10 @@ export function groupVoiceAnswers(records, overview) {
   const rounds=known.map(round=>({round,answers:answersOf(round)})).sort((a,b)=>String(latest(b.round)).localeCompare(String(latest(a.round))));
   return {voice, spoken:voice.filter(v=>!known.some(r=>r.id===v.practice?.round_id)), rounds};
 }
+// A kept recording's length as m:ss ("0:08"), from the listing's duration_ms, so the Recordings tab can show it
+// without preloading the audio. Empty when the length is unknown.
+export function recordingLength(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  const seconds = Math.round(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
