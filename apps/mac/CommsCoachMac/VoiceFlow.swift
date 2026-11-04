@@ -349,7 +349,7 @@ final class VoiceFlow {
         // The server's answer number decides where a round starts (another device may have ended the last one).
         if next.counterpart?.answer == 1 { tally.reset() }
         let counted = tally.record(metrics, endsRound: next.endsRound, at: Date())
-        roundEnd.replied(endsRound: next.endsRound, at: Date())
+        roundEnd.replied(endsRound: next.endsRound, at: Date(), roundID: next.roundID)
         next.round = counted.round
         next.summary = counted.summary
         // The server's answer number decides where the round starts; the need is dropped at the wrap-up.
@@ -560,12 +560,12 @@ final class VoiceFlow {
     private func sendRoundEnd(_ key: String, why: String) {
         guard let api = Connection.api()?.api else { return }
         voiceLog.notice("round ended without a wrap-up (\(why, privacy: .public)); telling the coach")
-        let previous = endTask
+        let previous = endTask, after = roundEnd.pendingAfterRound
         endsInFlight += 1
         endTask = Task { [weak self] in
             await previous?.value
             do {
-                _ = try await api.endVoiceRound(idempotencyKey: key)
+                _ = try await api.endVoiceRound(idempotencyKey: key, afterRound: after)
                 self?.roundEnd.sent(key)
                 voiceLog.notice("round end saved")
             } catch {

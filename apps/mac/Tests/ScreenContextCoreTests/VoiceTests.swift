@@ -416,5 +416,30 @@ final class RoundEndTests: XCTestCase {
             XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
         }
         XCTAssertEqual(Set(SequenceProtocol.bodies), [Data("{}".utf8)])
+        XCTAssertNil(SequenceProtocol.requests[0].value(forHTTPHeaderField: "X-After-Round"), "no last answer, no header")
+    }
+
+    func testTheIdleEndNamesThisMacsLastAnswerSoAWatchRoundIsNotCut() {
+        var end = RoundEnd(); let key = keys()
+        end.replied(endsRound: false, at: t0, roundID: "mac-round-1")
+        end.replied(endsRound: false, at: t0.addingTimeInterval(20), roundID: "mac-round-2")
+        let late = end.beforeAnswer(at: t0.addingTimeInterval(20 + RoundEnd.idleGap + 1), newKey: key)
+        XCTAssertEqual(late, "end-1")
+        XCTAssertEqual(end.pendingAfterRound, "mac-round-2", "the server skips this end if the watch answered after mac-round-2")
+        XCTAssertEqual(end.beforeAnswer(at: t0.addingTimeInterval(1_000), newKey: key), late)
+        XCTAssertEqual(end.pendingAfterRound, "mac-round-2", "a resend names the same answer")
+        end.sent(late!)
+        XCTAssertNil(end.pendingAfterRound)
+    }
+
+    func testTheEndRequestCarriesXAfterRound() async throws {
+        SequenceProtocol.requests = []; SequenceProtocol.bodies = []
+        SequenceProtocol.answers = [.status(200, #"{"receipt_id":"rc-end-2","saved":true,"replayed":false,"record":{"id":"latest","version":0,"ended_at":null,"skipped":"answered_since"}}"#)]
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SequenceProtocol.self]
+        let api = CoachAPI(baseURL: URL(string: "http://127.0.0.1:4319")!, token: "local-test-token", session: URLSession(configuration: configuration))
+        let receipt = try await api.endVoiceRound(idempotencyKey: "mac-round-end-2", afterRound: "mac-round-2", backoff: { _ in .zero })
+        XCTAssertEqual(receipt, RoundEndReceipt(receipt_id: "rc-end-2", replayed: false), "a skipped end is still a confirmed one")
+        XCTAssertEqual(SequenceProtocol.requests.first?.value(forHTTPHeaderField: "X-After-Round"), "mac-round-2")
     }
 }
