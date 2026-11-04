@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import SparringCore
+import WatchKit
 
 /// One spoken practice round on the wrist. `SparringMachine` (SparringCore) decides each step; this performs it:
 /// the microphone, the upload to `POST /v1/voice-rounds`, and speaking the question, with the coach's
@@ -78,7 +79,15 @@ final class SparringModel: ObservableObject {
         }
     }
 
-    func stop() { apply(machine.stop(at: Date())) }
+    func stop() {
+        let effects = machine.stop(at: Date())
+        if effects.isEmpty {
+            // Nothing was recording: say so with a tap on the wrist rather than doing nothing.
+            print("practice Stop ignored in step \(machine.phase.name)")
+            WKInterfaceDevice.current().play(.failure)
+        }
+        apply(effects)
+    }
     func retry() { apply(machine.retry()) }
     func seeResult() { apply(machine.skipToResult()) }
     func endRound() { apply(machine.endRound()) }
