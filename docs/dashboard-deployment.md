@@ -43,10 +43,10 @@ Do not guess a live endpoint host. Confirm the target workspace and endpoint nam
 After deployment and secret provisioning are explicitly approved, the command in the configured Modal environment is:
 
 ```sh
-poetry run modal deploy deploy/dashboard_app.py
+python -m modal deploy deploy/dashboard_app.py --profile <profile> --env <environment>
 ```
 
-Pass the two public origins through the command environment. The manifest references the named secret without embedding its values. It does not enable recording writes or keep a container permanently warm.
+Use the Python executable from the existing configured environment; this product checkout has no Poetry project of its own. Select the intended Modal profile and environment explicitly. Pass the two public origins through the command environment. The manifest references the named secret without embedding its values. It does not enable recording writes or keep a container permanently warm.
 
 ## Runtime behavior and live acceptance
 
