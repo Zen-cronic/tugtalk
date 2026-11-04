@@ -149,3 +149,24 @@ test('round end: an end that names its last answer changes nothing once another 
     assert.equal((await both.end('mac-end-after-2', {}, 'not a round id!')).status, 400);
   });
 });
+
+test('round end: an end that names an answer the server has not saved applies, whether never saved or deleted', async () => {
+  await withCoach(async ({ account, store }) => {
+    const both = account('missing');
+    assert.equal((await both.watch()).counterpart.answer, 1);
+    assert.equal((await both.watch()).counterpart.answer, 2);
+    // The Mac names an answer the server never saved (its upload never landed): nothing to compare, so the end applies.
+    const unsaved = await both.end('mac-end-unsaved', {}, 'never-saved-round');
+    assert.equal(unsaved.status, 200); assert.equal(unsaved.record.skipped, undefined); assert.match(unsaved.record.ended_at, /^\d{4}-/);
+    assert.equal((await both.watch()).counterpart.answer, 1, 'the next answer starts a new round');
+    // A named answer that was deleted is not saved any more either.
+    const mine = await both.mac();
+    assert.equal(mine.counterpart.answer, 2);
+    assert.equal((await both.watch()).counterpart.answer, 3);
+    const saved = store.get('missing', 'voice-rounds', mine.round_id);
+    store.put('missing', 'voice-rounds', { ...saved, deleted: true });
+    const deleted = await both.end('mac-end-deleted', {}, mine.round_id);
+    assert.equal(deleted.record.skipped, undefined); assert.match(deleted.record.ended_at, /^\d{4}-/);
+    assert.equal((await both.mac()).counterpart.answer, 1);
+  });
+});
