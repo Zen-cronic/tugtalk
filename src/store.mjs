@@ -111,7 +111,7 @@ export class Store {
         // The hands check (src/replay.mjs), only on a round the person turned it on for: seconds counted by code.
         ...(r.replay?{replay:{method:r.replay.method,fps:r.replay.fps,frames:r.replay.frames,seconds:r.replay.seconds}}:{})};
       const practice=practiceViews(this,user,goalId,memo);
-      const practiceExercises=practiceExerciseViews(this,user,goalId);
+      const practiceExercises=practiceExerciseViews(this,user,goalId,memo);
       const basisStatus=context.exercises.filter(e=>!goalId||e.goal_id===goalId).filter(e=>e.basis).map(e=>({exercise_id:e.id,...basisFreshness(this,user,e.basis,memo)}));
       const extension=this.extendFresh?this.extendFresh({user,goalId,context}):undefined;
       const revised={goals:context.goals,exercises:context.exercises,check_ins:context.check_ins,sessions:context.sessions};

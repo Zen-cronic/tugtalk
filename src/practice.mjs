@@ -51,14 +51,14 @@ function event(store, user, round, action, extra = {}) {
 export function practiceFreshness(store, user, round, memo = null) {
   const known = memo?.get(round.id);
   if (known) return known;
-  const freshness = computeFreshness(store, user, round);
+  const freshness = computeFreshness(store, user, round, memo);
   memo?.set(round.id, freshness);
   return freshness;
 }
-function computeFreshness(store, user, round) {
+function computeFreshness(store, user, round, memo) {
   const refs = [{ kind: 'goals', id: round.goal_id, version: round.goal_version }, ...round.sources, ...(round.answer_sources ?? [])];
   const stale = refs.filter(ref => { const s = find(store, user, ref.kind, ref.id); return !s || s.deleted || s.version !== ref.version || (ref.kind !== 'goals' && s.goal_id !== round.goal_id); });
-  if(round.practice_exercise&&!exerciseHooks.dependencyCurrent(store,user,round))stale.push({kind:'practice-exercises',id:round.practice_exercise.id});
+  if(round.practice_exercise&&!exerciseHooks.dependencyCurrent(store,user,round,memo))stale.push({kind:'practice-exercises',id:round.practice_exercise.id});
   return { status: stale.length ? 'stale' : 'current', stale_sources: stale.map(({ kind, id }) => ({ kind, id })) };
 }
 export function projectPractice(store, user, round, memo = null) {

@@ -13,7 +13,12 @@ function save(store,user,e,action){store.put(user,KIND,e);appendEvent(store,user
 function sameLink(round,e){return Boolean(round&&e.activation&&round.id===e.activation.round_id&&round.request_version===e.activation.request_version&&round.goal_id===e.goal_id&&round.practice_exercise?.id===e.id&&round.practice_exercise.content_version===e.content_version&&round.practice_exercise.basis_digest===digest(JSON.stringify(e.basis)));}
 
 // Original source only. Never reads the target, preventing dependency recursion through activation.
-export function exerciseBasisReasons(store,user,e){
+// memo: the read's freshness memo (src/practice.mjs practiceFreshness); exercise entries use prefixed keys.
+export function exerciseBasisReasons(store,user,e,memo=null){
+ const known=memo?.get(`basis:${e.id}`);if(known)return known;
+ const reasons=basisReasons(store,user,e,memo);memo?.set(`basis:${e.id}`,reasons);return reasons;
+}
+function basisReasons(store,user,e,memo){
  const b=e.basis,source=find(store,user,'practice-rounds',b.round_id),voice=find(store,user,'voice-rounds',b.voice_id),goal=find(store,user,'goals',e.goal_id);
  const reasons=[];
  if(!goal||goal.deleted||goal.version!==e.goal_version)reasons.push('goal_changed');
@@ -22,18 +27,20 @@ export function exerciseBasisReasons(store,user,e){
  const sameRequest=Boolean(source&&source.request_version===b.request_version);
  // Refuse chains before calling practiceFreshness: a corrupt cycle cannot recurse.
  if(!source||source.practice_exercise||source.goal_id!==e.goal_id||(sameRequest&&source.state==='disputed'))reasons.push('source_round_changed');
- else if(sameRequest&&practiceFreshness(store,user,source).status!=='current')reasons.push('source_round_stale');
+ else if(sameRequest&&practiceFreshness(store,user,source,memo).status!=='current')reasons.push('source_round_stale');
  if(!voice||voice.deleted||voice.version!==b.voice_version||voice.goal_id!==e.goal_id||voice.practice?.round_id!==b.round_id||voice.practice?.request_version!==b.request_version||(sameRequest&&source.answer_sources.at(-1)?.id!==b.voice_id))reasons.push('source_answer_changed');
  if(!source||!voice?.practice?.assessment||digest(JSON.stringify(voice.practice.assessment))!==b.assessment_digest||(sameRequest&&digest(JSON.stringify(source.assessment))!==b.assessment_digest))reasons.push('source_assessment_changed');
  return reasons;
 }
 // Called by A's target freshness: state/content + original basis, never the target result.
-export function exerciseDependencyCurrent(store,user,round){
+export function exerciseDependencyCurrent(store,user,round,memo=null){
  const link=round.practice_exercise,e=find(store,user,KIND,link.id);
- return Boolean(e&&sameLink(round,e)&&!e.superseded&&e.state!=='disputed'&&(e.state!=='skipped'||round.state==='ended')&&exerciseBasisReasons(store,user,e).length===0);
+ return Boolean(e&&sameLink(round,e)&&!e.superseded&&e.state!=='disputed'&&(e.state!=='skipped'||round.state==='ended')&&exerciseBasisReasons(store,user,e,memo).length===0);
 }
-export function exerciseFreshness(store,user,e){
- const reasons=exerciseBasisReasons(store,user,e);
+export function exerciseFreshness(store,user,e,memo=null){
+ const known=memo?.get(`exercise:${e.id}`);if(known)return known;
+ // A copy: the memoized basis reasons are shared.
+ const reasons=[...exerciseBasisReasons(store,user,e,memo)];
  if(e.superseded)reasons.push('superseded');
  if(e.state==='disputed')reasons.push('disputed');
  if(e.activation){
@@ -41,7 +48,7 @@ export function exerciseFreshness(store,user,e){
   if(!sameLink(target,e))reasons.push('target_revised_or_missing');
   else {
    if(target.state==='disputed')reasons.push('target_disputed');
-   if(practiceFreshness(store,user,target).status!=='current')reasons.push('target_stale');
+   if(practiceFreshness(store,user,target,memo).status!=='current')reasons.push('target_stale');
    if(e.result){
     const answer=find(store,user,'voice-rounds',e.result.voice_id);
     // Pinned to the assessed answer: a later lifecycle write on the target (such as end) changes its version, not the result.
@@ -49,16 +56,17 @@ export function exerciseFreshness(store,user,e){
    }
   }
  }
- return {status:reasons.length?'stale':'current',reasons:[...new Set(reasons)]};
+ const freshness={status:reasons.length?'stale':'current',reasons:[...new Set(reasons)]};
+ memo?.set(`exercise:${e.id}`,freshness);return freshness;
 }
-export function projectExercise(store,user,e){
- const freshness=exerciseFreshness(store,user,e),unusable=freshness.status!=='current'||e.state==='disputed';
+export function projectExercise(store,user,e,memo=null){
+ const freshness=exerciseFreshness(store,user,e,memo),unusable=freshness.status!=='current'||e.state==='disputed';
  return {...e,...(unusable?{title:null,request_text:null,objective:null,result:null,latest_attempt:null,basis:{...e.basis,source_outcome:null}}:{}),
   persisted_state:e.state,state:unusable&&!['skipped','disputed'].includes(e.state)?'stale':e.state,freshness,evidence_type:'model_assessment',
   assessment_scope:'One model-assessed practice attempt, not measured improvement or demonstrated learning transfer.'};
 }
 export const getPracticeExercise=(store,user,id)=>projectExercise(store,user,store.get(user,KIND,id));
-export const practiceExerciseViews=(store,user,goalId)=>store.list(user,KIND).filter(e=>!goalId||e.goal_id===goalId).map(e=>projectExercise(store,user,e));
+export const practiceExerciseViews=(store,user,goalId,memo=null)=>store.list(user,KIND).filter(e=>!goalId||e.goal_id===goalId).map(e=>projectExercise(store,user,e,memo));
 export function createPracticeExercise(store,user,body,key){
  fields(body,['goal_id','expected_goal_version','title','request_text','scenario_type','purpose','basis']);
  if(!text(body.goal_id,64)||!ID.test(body.goal_id)||!Number.isInteger(body.expected_goal_version)||!text(body.title,160)||!text(body.request_text,2000)||body.scenario_type!=='fictional_practice'||!['address_gap','transfer'].includes(body.purpose))fail('invalid_body','Provide a goal/version, title, fictional request and supported purpose.',400);

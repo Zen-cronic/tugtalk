@@ -146,3 +146,17 @@ test('practice rounds reach exercises through registered hooks, whichever module
   assert.equal(out.trim(),'exerciseDependencyCurrent practiceExerciseChanged',first);
  }
 });
+test('one read computes each exercise and practice freshness once, with byte-identical output',()=>fixture(async({store,source,propose,activate,answer,key})=>{
+ const done=activate(propose(await source()));await answer();
+ const open=activate(propose(await source('goal-b')));const s3=await source('goal-a','partial');const hidden=propose(s3,{purpose:'address_gap'});
+ store.put('u','voice-rounds',{...s3.voice,version:s3.voice.version+1,deleted:true});
+ assert.equal(getPracticeExercise(store,'u',hidden.id).state,'stale');assert.equal(getPracticeExercise(store,'u',done.id).state,'assessed_addressed');assert.equal(getPracticeExercise(store,'u',open.id).state,'active');
+ const views=()=>{const strip=({as_of,...rest})=>rest;return JSON.stringify([strip(store.freshContext('u')),strip(store.freshContext('u','goal-a')),strip(store.freshContext('u','goal-b')),strip(store.context('u'))]);};
+ const counts=new Map(),real=store.freshnessMemo.bind(store);
+ store.freshnessMemo=()=>{const m=real();return {get:k=>m.get(k),set:(k,v)=>{counts.set(k,(counts.get(k)??0)+1);m.set(k,v);}};};
+ const memoized=views();
+ assert.ok([...counts.values()].every(n=>n<=4),'each item is computed at most once per read (four reads)');
+ assert.ok([...counts.keys()].some(k=>k.startsWith('exercise:'))&&[...counts.keys()].some(k=>k.startsWith('basis:')));
+ store.freshnessMemo=()=>({get(){},set(){}});
+ assert.equal(memoized,views(),'the memo changes no byte of any view');
+}));
