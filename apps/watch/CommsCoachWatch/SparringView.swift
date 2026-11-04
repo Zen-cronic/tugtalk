@@ -1,7 +1,7 @@
 import SparringCore
 import SwiftUI
 
-/// "Practise this answer": up to three spoken answers, each followed by the other person's question.
+/// "Practise this answer": up to four spoken answers, each followed by the other person's question.
 /// Tap Record, answer out loud, tap Stop. Tug thinks, then asks; you answer again.
 struct SparringView: View {
     @StateObject private var model: SparringModel
