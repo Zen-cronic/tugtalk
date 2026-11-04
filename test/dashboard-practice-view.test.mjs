@@ -4,7 +4,7 @@ import {renderPracticeRounds,drillBasisStatus,practiceRecords,readyDrills,readSt
 const round={id:'round-1',version:2,request_version:1,goal_id:'a',state:'open',persisted_state:'open',freshness:{status:'current'},request_text:'When can you deliver?',answer_count:1,objectives:[{id:'delivery',text:'Explain the delivery commitment.'}],assessment:{status:'assessed',objectives:[{id:'delivery',status:'partial',evidence:[{start:0,end:6,quote:'Friday'}],missing:'The dependency is still missing.'}]},current_question:'What does Friday depend on?'};
 test('practice view uses actual goal-scoped objective results and escapes supplied text',()=>{
  const html=renderPracticeRounds({practice_rounds:[round,{...round,id:'other',goal_id:'b',request_text:'PRIVATE_OTHER_GOAL'}]},'a');
- assert.match(html,/AI: partly addressed/);assert.match(html,/Friday/);assert.match(html,/AI judgment, not a measurement/);assert.ok(!html.includes('PRIVATE_OTHER_GOAL'));
+ assert.match(html,/AI: partly addressed/);assert.match(html,/Friday/);assert.match(html,/Practice round: AI feedback/);assert.ok(!html.includes('round-1'));assert.ok(!html.includes('PRIVATE_OTHER_GOAL'));
  const escaped=renderPracticeRounds({practice_rounds:[{...round,request_text:'<img onerror=alert(1)>'}]},'a');assert.ok(!escaped.includes('<img'));assert.match(escaped,/&lt;img/);
 });
 test('stale, disputed, unknown freshness and failed refresh hide request and assessment evidence',()=>{
@@ -22,8 +22,8 @@ test('pending and unavailable assessments abstain; capped and ended states do no
  assert.match(renderPracticeRounds({practice_rounds:[{...round,state:'addressed'}]},'a'),/not proof/);
 });
 test('open round precedes history and stale drill basis is not treated as current',()=>{
- const html=renderPracticeRounds({practice_rounds:[{...round,id:'closed',state:'ended',persisted_state:'ended',mutation_order:9},{...round,id:'open',mutation_order:1}]},'a');
- assert.ok(html.indexOf('Record open')<html.indexOf('Record closed'));
+ const html=renderPracticeRounds({practice_rounds:[{...round,id:'closed',request_text:'CLOSED_REQUEST',state:'ended',persisted_state:'ended',mutation_order:9},{...round,id:'open',request_text:'OPEN_REQUEST',mutation_order:1}]},'a');
+ assert.ok(html.indexOf('OPEN_REQUEST')<html.indexOf('CLOSED_REQUEST'));
  assert.equal(drillBasisStatus({exercise_basis_status:[{exercise_id:'e',status:'stale'}]},'e'),'stale');assert.equal(drillBasisStatus({},'e'),'unknown');
  assert.equal(renderPracticeRounds({},'a'),'');
  assert.deepEqual(readyDrills([{id:'e'},{id:'fresh'}],[],{exercise_basis_status:[{exercise_id:'e',status:'stale'}]}).map(e=>e.id),['fresh']);

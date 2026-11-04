@@ -518,10 +518,6 @@ button.primary:hover{
   margin-top:20px;
   max-width:590px
 }
-.pill.on{
-  background:var(--ground);
-  border-color:var(--ink)
-}
 .coverage{
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -834,21 +830,6 @@ to{
 }
 
 
-.record-details{
-  margin-top:18px;
-  border-top:1px solid var(--rule);
-  padding-top:14px;
-  font-size:12px;
-  color:var(--muted)
-}
-.record-details summary{
-  cursor:pointer;
-  padding:12px 0
-}
-.record-details p{
-  margin-top:10px;
-  overflow-wrap:anywhere
-}
 
 .practice-requests { margin-bottom: 22px; }
 .practice-request { margin-bottom: 14px; }
@@ -1133,9 +1114,6 @@ button.quiet.danger:hover{
 }
 .muse-chats p{
   color:var(--muted)
-}
-.muse-chats .rows{
-  margin-top:14px
 }
 .muse-chats .button-link{
   margin-top:18px

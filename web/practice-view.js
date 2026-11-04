@@ -28,7 +28,7 @@ export function renderPracticeRounds(overview, goalId, { fresh = true, shownQues
       const matches=array(assessment?.objectives).filter(o=>o.id===objective.id), result=matches.length===1?matches[0]:null;
       const valid=result&&Object.hasOwn(outcomes,result.status), outcome=valid?outcomes[result.status]:'Not assessed';
       return `<article class="objective"><div class="objective-heading"><strong>${escape(objective.text)}</strong><span class="pill outcome-${valid?escape(result.status):'waiting'}">${escape(outcome)}</span></div>${valid?`${array(result.evidence).map(e=>`<blockquote><span>Your words</span>“${escape(e.quote)}”</blockquote>`).join('')}${result.missing?`<p class="caption">${escape(result.missing)}</p>`:''}`:''}</article>`;
-    }).join('')}</div>${round.assessment?.status==='unavailable'&&!round.pending?'<p class="notice under">The AI could not check this answer, so no point counts as covered.</p>':''}${round.state==='open'&&!round.pending&&round.current_question&&round.current_question!==shownQuestion?`<div class="feedback"><h3>AI’s next question</h3><p>${escape(round.current_question)}</p></div>`:''}${round.state==='open'?'':`<p class="caption">${escape(explanation)}</p>`}<p class="ai-note">AI judgment, not a measurement.</p>`}<details class="record-details"><summary>Record details</summary><p>Record ${escape(round.id)}, version ${Number.isInteger(round.version)?round.version:'—'}<br>Source status: ${escape(round.freshness?.status??'unavailable')}</p></details>`;
+    }).join('')}</div>${round.assessment?.status==='unavailable'&&!round.pending?'<p class="notice under">The AI could not check this answer, so no point counts as covered.</p>':''}${round.state==='open'&&!round.pending&&round.current_question&&round.current_question!==shownQuestion?`<div class="feedback"><h3>AI’s next question</h3><p>${escape(round.current_question)}</p></div>`:''}${round.state==='open'?'':`<p class="caption">${escape(explanation)}</p>`}`}`;
     return index===0?`<section class="card practice-request">${contents}</section>`:`<details class="card practice-request previous-request"><summary>Earlier round: ${escape(label)}</summary><div class="under">${contents}</div></details>`;
   }).join('')}</section>`;
 }
@@ -58,7 +58,7 @@ export async function readStablePractice(read) {
 }
 
 const exerciseStates = {
-  proposed:['Not started','This exercise has not been started.'],
+  proposed:['Not started',''],
   active:['In progress','In progress, not a completed result.'],
   assessed_addressed:['AI thinks you covered this point','The AI checked this answer against the objective.'],
   attempted:['Attempted','Attempted, without a claim that the point was covered.'],
@@ -69,7 +69,7 @@ export function renderPracticeExercises(overview, goalId, {fresh=true}={}) {
   const exercises=array(overview?.practice_exercises).filter(e=>e.goal_id===goalId)
     .sort((a,b)=>Number(b.state==='active')-Number(a.state==='active')||String(b.updated_at??'').localeCompare(String(a.updated_at??'')));
   if(!exercises.length)return '';
-  const heading='<div class="sidebar-title"><h2>Conversation exercises</h2></div><p class="caption">Separate from drills that count fillers or restarts.</p>';
+  const heading='<div class="sidebar-title"><h2>Conversation exercises</h2></div>';
   if(!fresh)return `<section class="conversation-exercises under">${heading}<section class="card under"><h3>Refresh to see the latest practice.</h3></section></section>`;
   let anyResult=false;
   const items=exercises.map(exercise=>{
@@ -84,7 +84,7 @@ export function renderPracticeExercises(overview, goalId, {fresh=true}={}) {
     const badge=exercise.state==='assessed_addressed'&&usable&&!resultMismatch?'AI assessment':null;
     const label=resultMismatch?'AI result unavailable':stateLabel;
     if(outcome&&!resultMismatch)anyResult=true;
-    return `<article class="card conversation-exercise under"><div class="card-header"><div class="eyebrow">${showScenario?'Fictional practice scenario':'Exercise status'}</div>${showScenario||badge?`<span class="pill">${escape(badge??label)}</span>`:''}</div>${showScenario?`<h3>${escape(exercise.title??'Saved conversation exercise')}</h3><p class="exercise-scenario">${escape(exercise.request_text??'No scenario text available.')}</p><p class="caption">${exercise.purpose==='transfer'?'Try the point in a new situation.':exercise.purpose==='address_gap'?'Practise a point you missed earlier.':''}</p>`:`<h3>${escape(label)}</h3>`}${usable&&exercise.objective?.text?`<div class="feedback"><h3>Objective</h3><p>${escape(exercise.objective.text)}</p></div>`:''}${outcome&&!resultMismatch?`<div class="feedback"><div class="objective-heading"><h3>AI assessment</h3><span class="pill outcome-${escape(outcome.status)}">${escape(outcomes[outcome.status])}</span></div>${array(outcome.evidence).map(e=>`<blockquote><span>Words cited by the AI</span>“${escape(e.quote)}”</blockquote>`).join('')}${outcome.missing?`<p class="caption">${escape(outcome.missing)}</p>`:''}</div>`:''}<p class="caption">${escape(resultMismatch?'The current assessment could not be confirmed. Refresh to check it.':explanation)}</p><details class="record-details"><summary>Exercise details</summary><p>Record ${escape(exercise.id)}, version ${Number.isInteger(exercise.version)?exercise.version:'—'}<br>Source status: ${escape(exercise.freshness?.status??'unavailable')}<br>Saved by: ${exercise.created_via==='connector'?'a connected assistant or app; creator not identified':'not recorded'}</p></details></article>`;
+    return `<article class="card conversation-exercise under"><div class="card-header"><div class="eyebrow">${showScenario?'Fictional practice scenario':'Exercise status'}</div>${showScenario||badge?`<span class="pill">${escape(badge??label)}</span>`:''}</div>${showScenario?`<h3>${escape(exercise.title??'Saved conversation exercise')}</h3><p class="exercise-scenario">${escape(exercise.request_text??'No scenario text available.')}</p><p class="caption">${exercise.purpose==='transfer'?'Try the point in a new situation.':exercise.purpose==='address_gap'?'Practise a point you missed earlier.':''}</p>`:`<h3>${escape(label)}</h3>`}${usable&&exercise.objective?.text?`<div class="feedback"><h3>Objective</h3><p>${escape(exercise.objective.text)}</p></div>`:''}${outcome&&!resultMismatch?`<div class="feedback"><div class="objective-heading"><h3>AI assessment</h3><span class="pill outcome-${escape(outcome.status)}">${escape(outcomes[outcome.status])}</span></div>${array(outcome.evidence).map(e=>`<blockquote><span>Words cited by the AI</span>“${escape(e.quote)}”</blockquote>`).join('')}${outcome.missing?`<p class="caption">${escape(outcome.missing)}</p>`:''}</div>`:''}${resultMismatch||explanation?`<p class="caption">${escape(resultMismatch?'The current assessment could not be confirmed. Refresh to check it.':explanation)}</p>`:''}</article>`;
   }).join('');
   return `<section class="conversation-exercises under" aria-label="Conversation exercises">${heading}${items}${anyResult?'<p class="ai-note">AI assessments look at single answers. They are not measured learning.</p>':''}</section>`;
 }

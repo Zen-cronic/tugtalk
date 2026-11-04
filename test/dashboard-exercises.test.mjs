@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {renderPracticeExercises} from '../web/practice-view.js';
 const exercise={id:'exercise-1',version:1,content_version:1,goal_id:'goal-a',goal_version:1,title:'A fictional handoff',request_text:'Tell a fictional teammate when to expect the draft.',scenario_type:'fictional_practice',purpose:'address_gap',objective:{id:'delivery',text:'Explain the delivery commitment.'},state:'proposed',persisted_state:'proposed',freshness:{status:'current'},superseded:false,created_via:'connector',updated_at:'2026-11-03T20:00:00Z'};
 const assessment={evidence_type:'model_assessment',assessment:{status:'assessed',objectives:[{id:'delivery',status:'addressed',evidence:[{start:0,end:6,quote:'Friday'}],missing:''}]}};
-test('conversation exercise view separates fictional proposed practice from count drills and assistant authorship',()=>{
+test('conversation exercise view labels fictional proposed practice without record ids or versions',()=>{
  const html=renderPracticeExercises({practice_exercises:[exercise,{...exercise,goal_id:'other',title:'OTHER_ACCOUNT_GOAL'}]},'goal-a');
- assert.match(html,/Fictional practice scenario/);assert.match(html,/has not been started/);assert.match(html,/Separate from drills that count fillers or restarts/);assert.match(html,/creator not identified/);assert.ok(!html.includes('Muse'));assert.ok(!html.includes('OTHER_ACCOUNT_GOAL'));assert.ok(!/<button|<form/.test(html));
+ assert.match(html,/Fictional practice scenario/);assert.match(html,/Not started/);assert.ok(!html.includes('exercise-1'));assert.ok(!html.includes('version'));assert.ok(!html.includes('Muse'));assert.ok(!html.includes('OTHER_ACCOUNT_GOAL'));assert.ok(!/<button|<form/.test(html));
  const escaped=renderPracticeExercises({practice_exercises:[{...exercise,title:'<img src=x onerror=alert(1)>'}]},'goal-a');assert.ok(!escaped.includes('<img'));assert.match(escaped,/&lt;img/);
 });
 test('stale, disputed, superseded, unknown and failed reads hide all scenario and result content',()=>{
