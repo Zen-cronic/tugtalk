@@ -164,3 +164,29 @@ How the run is done:
 - **A completed run is final.** It is never repeated to improve a number, and the prompt, the label check and the scoring do not change between these rules and the run. Only a run that crashes before writing `heldout-live-results.json` may be started once more.
 - If the run does not complete, the flag stays off and the README is unchanged.
 - One caveat, stated in advance: hedges are scored with the model-only words in the same call. If rule 1 fails, the hosted app adjudicates without them, so its hedge labels come from a slightly different request than the one measured here.
+
+### Held-out live run, Nov 4
+
+One run, on November 4, 2026 (`ran_at` 17:05 UTC), exactly as registered above: `meta-models/muse-spark-open-1026`, `reasoning_effort: "low"`, temperature 0, model-only words on. **60 calls, all HTTP 200 with `finish_reason` `stop` on the first attempt, no retries**, 99 s in all. Every model-only word got a label that passed code's check, so all 60 transcripts are `counted`. The set is **a synthetic held-out set: 60 transcripts written and labelled by a separate agent, not real speech.** Every label, check and Baseten request id is in `heldout-live-results.json`; `npm run eval -- --heldout` recomputes the score from the stored labels.
+
+| Model-only words (86) | Precision | Recall | F1 |
+|---|---|---|---|
+| Count-none (today) | n/a | 0.000 | 0.000 |
+| Count-all (add them to the list) | 0.512 | 1.000 | 0.677 |
+| **Model-only, live** | **1.000** | **0.886** | **0.940** |
+
+By word: "genre" 9 of 9 and "quoi" 11 of 11 fillers found with no false counts; "like" 19 of 24 (F1 0.884). The 5 misses are fillers the model called content (two in `en-06`, one each in `en-22`, `en-25`, `en-27`). It counted no content "like", "genre" or "quoi" as a filler.
+
+| Hedge spans (44) | Precision | Recall | F1 |
+|---|---|---|---|
+| Lexicon | 0.676 | 0.742 | 0.708 |
+| **Adjudication, live** | **1.000** | **0.484** | **0.652** |
+
+The model removed all 11 non-hedges the word list counted, and 8 of the 23 real hedges it found ("Maybe", "Probably", "sort of", "maybe", "probably", "un peu" twice, "Peut-être"). That is the same pattern as the Nov 2 run: probability and degree words read as meaning.
+
+Against the rules:
+
+1. **Rule 1 passes.** Model-only F1 0.940 beats count-all (0.677) and count-none (0), and precision 1.000 is above 0.8. By the rule, `ADJUDICATE_MODEL_ONLY=1` ships on the hosted app.
+2. **Rule 2 fires.** Adjudicated hedge recall 0.484 is 0.258 below the lexicon's 0.742, more than the 0.2 allowed. By the rule, hedges stop being adjudication candidates. Adjudication also has a lower hedge F1 than the word list alone (0.652 against 0.708), so on hedges the model made the count worse, not better.
+
+This commit records the result only; it does not change the code or the hosted app. Caveats: the set is synthetic and small (44 fillers, 31 hedges), so one or two labels move these numbers. And the mirror of the caveat stated in advance applies: once hedges leave adjudication, the hosted request no longer carries them, so its model-only labels come from a slightly different request than the one measured here.

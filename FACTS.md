@@ -67,6 +67,9 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-live-vs-lexicon` | Lexicon-only F1 on the same run, and live hedge recall against the lexicon's | F1 0.819; hedge recall 0.333 against 0.889 | `eval/live-results.json` |
 | `eval-live-attempts` | Live run: calls made, and first replies that needed a retry | 42 calls, 0 retries | `attempts` per item in `eval/live-results.json` |
 | `eval-live-labels` | Live labels that passed code's check, and content labels on traps and on real habits | 51 of 51; 12 on traps, 11 on real habits | `eval/live-results.json` labels against the gold spans of `eval/corpus.json` |
+| `eval-heldout-model-only` | Held-out live run, Nov 4, on a synthetic set written and labelled by a separate agent: model-only words precision / recall / F1, against count-all F1 | 1.000 / 0.886 / 0.940 against 0.677 | `eval/heldout-live-results.json`, rescored from its stored labels (its set SHA-256 matches `eval/heldout-v1.json`) |
+| `eval-heldout-hedges` | Same run: hedge recall, lexicon against adjudication, and the pre-registered rules | 0.742 against 0.484; rule 1 passes, rule 2 fires | `applyRules` on the rescored `eval/heldout-live-results.json` |
+| `eval-heldout-calls` | Same run: calls made, and first replies that needed a retry | 60 calls, 0 retries | `attempts` per item in `eval/heldout-live-results.json` |
 
 ## Voice rounds
 
