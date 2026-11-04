@@ -1,6 +1,6 @@
 # Separate read-only dashboard hosting
 
-`deploy/dashboard_app.py` describes a separate Modal app, `comms-coach-dashboard`. It runs the Node gateway behind HTTPS with one container and no database volume. It adds only the explicit built-asset allowlist and the two gateway entrypoint modules to its image; it does not package the repository, local preview passwords or provider keys.
+`deploy/dashboard_app.py` describes a separate Modal app, `comms-coach-dashboard`. It runs the Node gateway behind HTTPS with one container and no database volume. Its small Python entrypoint is serialized explicitly so container startup does not depend on importing an omitted deployment module. It adds only the explicit built-asset allowlist and the two gateway entrypoint modules to its image; it does not package the repository, local preview passwords or provider keys.
 
 The manifest deliberately fixes `DASHBOARD_ALLOW_RECORDING_CHANGES=0` and `DASHBOARD_LOCAL_HTTP=0`. Browsers can review records and listen to/download kept audio; recording settings and deletion remain disabled. There are no model calls. The existing connector remains the authoritative store.
 

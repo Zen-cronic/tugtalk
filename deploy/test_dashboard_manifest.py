@@ -1,5 +1,7 @@
 """Offline manifest checks: fake Modal decorators, no account or cloud calls."""
 import os
+import subprocess
+import tempfile
 from pathlib import Path
 import runpy
 import sys
@@ -63,6 +65,31 @@ class DashboardManifestTests(unittest.TestCase):
         self.assertEqual(config['max_containers'], 1)
         self.assertEqual(config['min_containers'], 0)
         self.assertEqual(config['secrets'], ['comms-coach-dashboard'])
+
+    def test_entrypoint_loads_without_deployment_source_module(self):
+        # Exercise the installed SDK's actual transport, in a child with no repository on sys.path.
+        with patch.dict(os.environ, {
+            'DASHBOARD_ORIGIN': 'https://dashboard.example.test',
+            'DASHBOARD_UPSTREAM': 'https://connector.example.test',
+        }):
+            loaded = runpy.run_path(str(MANIFEST))
+        info = loaded['web']._get_source_info()
+        self.assertTrue(info.is_serialized())
+        payload = info.serialized_function()
+        child = """import sys
+from modal._serialization import deserialize
+from unittest.mock import patch
+f = deserialize(sys.stdin.buffer.read(), None)
+with patch('subprocess.Popen') as launch:
+    f()
+    launch.assert_called_once_with(['node', '/app/scripts/dashboard-start.mjs'], cwd='/app')
+print('portable')
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([sys.executable, '-I', '-c', child], input=payload,
+                                    capture_output=True, cwd=directory)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(result.stdout.strip(), b'portable')
 
     def test_unsafe_or_ambiguous_origins_are_refused(self):
         for value in ['http://dashboard.example.test', 'https://user:secret@dashboard.example.test',

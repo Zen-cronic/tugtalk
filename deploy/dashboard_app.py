@@ -41,7 +41,7 @@ image = (image.add_local_file(ROOT / 'src' / 'dashboard-gateway.mjs', '/app/src/
 
 
 @app.function(
-    image=image, secrets=[secret], include_source=False,
+    image=image, secrets=[secret], include_source=False, serialized=True,
     env={'DASHBOARD_ORIGIN': origin, 'DASHBOARD_UPSTREAM': upstream,
          'DASHBOARD_BIND': '0.0.0.0', 'DASHBOARD_PORT': '4321',
          'DASHBOARD_LOCAL_HTTP': '0', 'DASHBOARD_ALLOW_RECORDING_CHANGES': '0'},
