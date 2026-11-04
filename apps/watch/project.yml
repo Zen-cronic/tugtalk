@@ -53,6 +53,8 @@ targets:
         inputFiles:
           - $(SRCROOT)/Tools/check-release-key.sh
         basedOnDependencyAnalysis: false
+        # The key is a build setting; without this Xcode prints every setting, the key included, into the build log.
+        showEnvVars: false
     info:
       path: CommsCoachWatch/Info.plist
       properties:
