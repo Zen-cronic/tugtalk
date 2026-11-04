@@ -32,20 +32,33 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
     func start() throws -> URL {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .spokenAudio)
+        // .spokenAudio is a playback mode; paired with .record a real watch rejects it with OSStatus -50.
+        try session.setCategory(.record, mode: .default)
         try session.setActive(true)
         let url = FileManager.default.temporaryDirectory.appending(path: "capture-\(UUID().uuidString).wav")
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: 16_000,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false
-        ]
-        let recorder = try AVAudioRecorder(url: url, settings: settings)
-        recorder.delegate = self
-        guard recorder.record(forDuration: Self.maxSeconds) else { throw CoachError.server(0, "Recording could not start") }
+        // The backend accepts 16 kHz or 24 kHz mono 16-bit PCM. Try 16 kHz first, then 24 kHz if the hardware refuses it.
+        var recorder: AVAudioRecorder?
+        var lastError: Error?
+        for rate in [16_000, 24_000] {
+            let settings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVSampleRateKey: rate,
+                AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false
+            ]
+            do {
+                let candidate = try AVAudioRecorder(url: url, settings: settings)
+                candidate.delegate = self
+                if candidate.record(forDuration: Self.maxSeconds) { recorder = candidate; break }
+                candidate.deleteRecording()
+            } catch { lastError = error }
+        }
+        guard let recorder else {
+            try? session.setActive(false)
+            throw lastError ?? CoachError.server(0, "Recording could not start")
+        }
         self.recorder = recorder
         startedAt = Date()
         elapsed = 0
