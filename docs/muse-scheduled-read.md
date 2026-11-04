@@ -45,8 +45,8 @@ where id in ('cb3396f7-f53a-4fcd-a514-fbec6c35fc0b',
 Both ids, methods, paths and statuses match exactly what Muse reported. Each `created_at` falls 12 to 13 ms after the response's `as_of`, because the log row is written as the response is sent. Both rows carry a user id, so both requests were authenticated.
 
 The same table shows:
-- **Nothing was fetched early.** Between registration (21:28 UTC) and 21:40:13 UTC there were no requests at all.
-- **Only these two requests in the run.** From 21:28 UTC to 21:50:54 UTC the table holds exactly these two rows and no request other than a GET. Muse had posted its suggestion before 21:43 UTC.
+- **Nothing was fetched early.** Between registration (21:28 UTC, 16:28 EST) and 21:40:13 UTC (16:40:13 EST) there were no requests at all.
+- **Only these two requests in the run.** From 21:28 UTC to 21:50:54 UTC (16:28 to 16:50:54 EST) the table holds exactly these two rows and no request other than a GET. Muse had posted its suggestion before 21:43 UTC (16:43 EST).
 - **Nothing was written.** The `receipts` table, which records every write, has no row in that window. Its latest earlier row is from October 30.
 
 ## What this proves
