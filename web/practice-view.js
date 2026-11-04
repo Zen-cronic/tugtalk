@@ -33,15 +33,18 @@ export function renderPracticeRounds(overview, goalId, { fresh = true } = {}) {
   }).join('')}</section>`;
 }
 
-export function practiceRecords(context) {
+export function practiceRecords(context, overview, {fresh=true}={}) {
   return [...array(context?.sessions), ...array(context?.voice_rounds).map(round=>({
     ...round,
+    ...(round.practice&&(!fresh||round.practice.current===false||!array(overview?.practice_rounds).some(current=>current.id===round.practice.round_id&&current.request_version===round.practice.request_version&&current.freshness?.status==='current'&&!['stale','disputed'].includes(current.state)))?{reply:null}:{}),
     measurement_status:round.source==='voice_round'?'measured':round.measurement_status,
   }))].filter(record=>!record.deleted);
 }
-export function readyDrills(exercises, checkins, overview) {
+export function readyDrills(exercises, checkins, overview, {fresh=true}={}) {
+  if(!fresh)return [];
   return array(exercises).filter(exercise=>!array(checkins).some(check=>check.exercise_id===exercise.id)
-    && drillBasisStatus(overview,exercise.id)!=='stale');
+    && drillBasisStatus(overview,exercise.id)!=='stale'
+    &&(!exercise.basis||drillBasisStatus(overview,exercise.id)==='current'));
 }
 export async function readStablePractice(read) {
   // Context must sit between two matching committed revisions. Otherwise a fresh

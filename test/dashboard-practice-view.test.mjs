@@ -28,6 +28,8 @@ test('open round precedes history and stale drill basis is not treated as curren
  assert.equal(renderPracticeRounds({},'a'),'');
  assert.deepEqual(readyDrills([{id:'e'},{id:'fresh'}],[],{exercise_basis_status:[{exercise_id:'e',status:'stale'}]}).map(e=>e.id),['fresh']);
  const records=practiceRecords({voice_rounds:[{id:'watch',source:'voice_round',capture_device:'watch'},{id:'unknown',source:'voice_round'}]});assert.equal(records[0].capture_device,'watch');assert.equal(records[1].capture_device,undefined);
+ assert.deepEqual(readyDrills([{id:'unknown',basis:{}}],[],{}),[]);assert.deepEqual(readyDrills([{id:'manual'}],[],{},{fresh:false}),[]);
+ const voice={source:'voice_round',reply:{question:'OLDER_REPLY'},practice:{round_id:round.id,request_version:1}};assert.equal(practiceRecords({voice_rounds:[voice]},{practice_rounds:[{...round,state:'disputed'}]})[0].reply,null);assert.equal(practiceRecords({voice_rounds:[voice]},{practice_rounds:[round]},{fresh:false})[0].reply,null);assert.equal(practiceRecords({voice_rounds:[voice]},{practice_rounds:[round]})[0].reply.question,'OLDER_REPLY');
 });
 
 test('snapshot read retries a source correction and refuses continuously changing revisions',async()=>{
