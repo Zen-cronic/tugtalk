@@ -86,8 +86,9 @@ struct SparringView: View {
             .buttonStyle(CoachButtonStyle())
             .handGestureShortcut(.primaryAction) // double tap, on watches that have it: a second way to stop
         case .replying(let shown) where !shown.endsRound:
+            // Double tap records only once the question has played, so a double tap to scroll never cuts it off.
             recordButton(shown.spoken ? "Record" : "Answer now")
-                .handGestureShortcut(.primaryAction)
+                .handGestureShortcut(.primaryAction, isEnabled: shown.spoken)
         default:
             EmptyView()
         }
