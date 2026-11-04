@@ -161,12 +161,6 @@ struct CoachAPI {
         request.setValue(ISO8601DateFormatter().string(from: occurredAt), forHTTPHeaderField: "X-Occurred-At")
         if let goalID { request.setValue(goalID, forHTTPHeaderField: "X-Goal-Id") }
         if let exerciseID { request.setValue(exerciseID, forHTTPHeaderField: "X-Exercise-Id") } // the open drill: measured against its basis
-        if language == "fr" {
-            // The wearer records only their own speech.
-            request.setValue("self_only", forHTTPHeaderField: "X-Consent-Basis")
-            request.setValue("self_declared", forHTTPHeaderField: "X-Attribution")
-            request.setValue("everyday", forHTTPHeaderField: "X-Context")
-        }
         let (data, response) = try await URLSession.shared.upload(for: request, fromFile: file)
         if let refusal = Self.refusal(data, response) { throw CoachError.refused(refusal) }
         try check(data, response)

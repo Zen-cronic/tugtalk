@@ -129,9 +129,6 @@ struct CoachButtonStyle: ButtonStyle {
         self.height = height ?? (kind == .primary ? 44 : 40)
     }
 
-    /// Kept so older call sites read the same: `primary: false` is a blue secondary.
-    init(primary: Bool, height: CGFloat? = nil) { self.init(primary ? .primary : .secondary, height: height) }
-
     private var tint: Color {
         switch kind {
         case .primary: Palette.field
