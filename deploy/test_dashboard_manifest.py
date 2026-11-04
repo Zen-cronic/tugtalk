@@ -60,7 +60,7 @@ class DashboardManifestTests(unittest.TestCase):
         self.assertTrue(all('/.data/' not in source and '/.env' not in source for source, _ in files))
         self.assertEqual(loaded['app'].config['include_source'], False)
         self.assertNotIn('volumes', loaded['app'].config)
-        self.assertEqual(loaded['app'].name, 'comms-coach-landing')
+        self.assertEqual(loaded['app'].name, 'tugtalk-landing')
 
     def test_packaged_dashboard_assets_are_the_shared_list(self):
         loaded = self.load()

@@ -26,7 +26,7 @@ upstream = https_origin('DASHBOARD_UPSTREAM')
 # A separately provisioned secret contains only DASHBOARD_PASSWORD and
 # DASHBOARD_CONNECTOR_TOKEN. No model keys or database volume are needed.
 secret = modal.Secret.from_name('comms-coach-dashboard')
-app = modal.App('comms-coach-landing')
+app = modal.App('tugtalk-landing')
 image = modal.Image.from_registry('node:24-bookworm-slim', add_python='3.12')
 for asset in ASSETS:
     source, built = ROOT / 'web' / asset, ROOT / 'build' / 'dashboard' / asset
@@ -59,7 +59,7 @@ image = (image.add_local_file(ROOT / 'src' / 'dashboard-gateway.mjs', '/app/src/
     cpu=0.25, memory=512, timeout=60,
 )
 @modal.concurrent(max_inputs=8)
-@modal.web_server(4321, startup_timeout=15, label='comms-coach')
+@modal.web_server(4321, startup_timeout=15, label='tugtalk')
 def web():
     # The proxy terminates HTTPS; the application still requires its exact public Host,
     # Secure cookies and matching Origin. It never trusts an arbitrary forwarded host.
