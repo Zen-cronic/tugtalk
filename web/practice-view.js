@@ -88,3 +88,18 @@ export function renderPracticeExercises(overview, goalId, {fresh=true}={}) {
   }).join('');
   return `<section class="conversation-exercises under" aria-label="Conversation exercises">${heading}${items}${anyResult?'<p class="ai-note">AI assessments look at single answers. They are not measured learning.</p>':''}</section>`;
 }
+
+// What code measured about how a spoken answer ended its round (gate.reason; docs/voice.md). Unknown reasons show nothing.
+const gateOutcomes = { measured_close:'This answer closed the round', answer_cap:'Reached the answer limit', open:'Round continued' };
+export const gateOutcome = reason => Object.hasOwn(gateOutcomes, reason) ? gateOutcomes[reason] : null;
+// Splits voice answers into practice-round groups (exact: practice.round_id) and the rest, newest first.
+// Sparring answers carry no conversation id, so they are never grouped or counted as a conversation.
+export function groupVoiceAnswers(records, overview) {
+  const newest=(a,b)=>String(b.occurred_at??'').localeCompare(String(a.occurred_at??''));
+  const voice=array(records).filter(r=>r.source==='voice_round').sort(newest);
+  const known=array(overview?.practice_rounds).filter(r=>voice.some(v=>v.practice?.round_id===r.id));
+  const answersOf=r=>voice.filter(v=>v.practice?.round_id===r.id).sort((a,b)=>(a.practice.answer??0)-(b.practice.answer??0));
+  const latest=r=>voice.find(v=>v.practice?.round_id===r.id)?.occurred_at??'';
+  const rounds=known.map(round=>({round,answers:answersOf(round)})).sort((a,b)=>String(latest(b.round)).localeCompare(String(latest(a.round))));
+  return {voice, spoken:voice.filter(v=>!known.some(r=>r.id===v.practice?.round_id)), rounds};
+}
