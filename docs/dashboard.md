@@ -13,7 +13,7 @@ npm run dashboard:build
 npm run dashboard:preview
 ```
 
-Open `http://127.0.0.1:4321/` for the landing or `http://127.0.0.1:4321/app/` for the private preview. The generated access code is in `.data/dashboard-preview-code.txt`, mode 0600, and is never printed by the server. Read it locally and paste into the sign-in field. `.data/` is excluded from Git. The fixture API uses port 4320; change `DASHBOARD_PORT` and `DASHBOARD_FIXTURE_PORT` if needed. The preview explicitly labels fictional records and stores any setting changes only in memory. Restarting resets them. Its sample WAV is silence, not a person's recording.
+Open `http://127.0.0.1:4321/` for the landing or `http://127.0.0.1:4321/app/` for the private preview. Each tab has its own address: `/app/goals`, `/app/conversations` and `/app/recordings` (`/app/` opens Goals). These three exact paths serve the same app shell and headers as `/app/`; any other `/app/` path must be a listed asset or returns 404. The generated access code is in `.data/dashboard-preview-code.txt`, mode 0600, and is never printed by the server. Read it locally and paste into the sign-in field. `.data/` is excluded from Git. The fixture API uses port 4320; change `DASHBOARD_PORT` and `DASHBOARD_FIXTURE_PORT` if needed. The preview explicitly labels fictional records and stores any setting changes only in memory. Restarting resets them. Its sample WAV is silence, not a person's recording.
 
 ## Private server configuration
 
