@@ -2,7 +2,9 @@ import { PRACTICE_EXERCISES_PATH, createPracticeExercise, changePracticeExercise
 import { PRACTICE_PATH, createPractice, changePractice, getPractice } from './practice.mjs';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+// The TugTalk logo (256 px PNG of site/assets/icon.svg), served so clients that show a site icon, such as a Muse connector card, find one.
+export const ICON_PNG = readFileSync(new URL('./icon.png', import.meta.url));
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Store, ApiError, digest } from './store.mjs';
@@ -231,6 +233,11 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
     try {
       if(req.method==='GET'&&path==='/health') return send(200,{status:'ok',synthetic:true});
       if(req.method==='GET'&&path==='/openapi.json') return send(200,specification(baseUrl));
+      if(req.method==='GET'&&(path==='/favicon.ico'||path==='/icon.png')){
+        store.audit(requestId,user,req.method,path,200,ICON_PNG);
+        res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'public, max-age=86400','X-Content-Type-Options':'nosniff','X-Request-Id':requestId});
+        return res.end(ICON_PNG);
+      }
       if(req.method==='GET'&&(path==='/'||path==='/connector.md')) return send(200,connectorDocument(baseUrl), 'text/plain');
       // Public and read-only: recomputes the measurement eval over the bundled synthetic corpus. No user data.
       if(req.method==='GET'&&path==='/v1/eval') return send(200,runEval());

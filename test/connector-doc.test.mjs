@@ -33,3 +33,20 @@ test('connector document: exact bytes pinned, served unchanged at /connector.md 
     }
   } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('the TugTalk icon is served as a PNG at /favicon.ico and /icon.png, without authentication', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'icon-'));
+  const store = new Store(join(dir, 'icon.sqlite'));
+  try {
+    const server = createApp(store, { baseUrl: 'http://127.0.0.1:4318' }); await new Promise(r => server.listen(0, '127.0.0.1', r));
+    try {
+      for (const path of ['/favicon.ico', '/icon.png']) {
+        const r = await fetch(`http://127.0.0.1:${server.address().port}${path}`);
+        assert.equal(r.status, 200);
+        assert.equal(r.headers.get('content-type'), 'image/png');
+        const bytes = Buffer.from(await r.arrayBuffer());
+        assert.equal(bytes.subarray(1, 4).toString('ascii'), 'PNG');
+      }
+    } finally { await new Promise(r => server.close(r)); }
+  } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+});
