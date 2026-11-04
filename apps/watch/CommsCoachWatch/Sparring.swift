@@ -22,6 +22,8 @@ final class SparringModel: ObservableObject {
     /// The last round end sent to the server (`POST /v1/voice-rounds/end`). The next answer waits for it.
     private var endTask: Task<Void, Never>?
 
+    /// The screen has closed (`leave()`): nothing starts after that.
+    private var left = false
     /// `latestCard`: the account's newest screen card from the overview. With the goal's own card it decides which card,
     /// if any, the round is about (`ScreenCard.pick`), so the round's first reply picks the other person's need from it.
     init(goal: GoalSummary?, latestCard: ScreenCard? = nil, language: String) {
@@ -55,13 +57,25 @@ final class SparringModel: ObservableObject {
     // Actions
 
     func record() async {
-        guard client != nil else { return }
+        guard client != nil, !left else { return }
         if case .recording = machine.phase { return }
-        if fixture == nil, !(await recorder.requestPermission()) {
-            apply(machine.refuse(.micOff))
-            return
+        let before = Self.step(machine.phase)
+        let allowed = fixture != nil ? true : await recorder.requestPermission()
+        // The screen may have closed, or the step changed, while the permission prompt was up.
+        guard !left, Self.step(machine.phase) == before else { return }
+        apply(allowed ? machine.record(at: Date()) : machine.refuse(.micOff))
+    }
+
+    /// Which step the screen is on. The question finishing playing is the same step, so Answer now still records.
+    private static func step(_ phase: SparringMachine.Phase) -> String {
+        switch phase {
+        case .ready(let answer): "ready \(answer)"
+        case .recording(let answer, _): "recording \(answer)"
+        case .thinking(let answer, _): "thinking \(answer)"
+        case .replying(let shown): "question \(shown.roundID)"
+        case .failed(let answer, let failure, _): "failed \(answer) \(failure.kind.rawValue)"
+        case .done: "done"
         }
-        apply(machine.record(at: Date()))
     }
 
     func stop() { apply(machine.stop(at: Date())) }
@@ -82,6 +96,7 @@ final class SparringModel: ObservableObject {
             let after = machine // this screen's round only: nothing is kept for the next screen
             Task {
                 var machine = after
+        self.left = true
                 let receipt = await upload.value
                 for case .endRoundOnServer(let key) in machine.leftUploadFinished(key: left, receipt) {
                     _ = try? await client.endRound(idempotencyKey: key)
