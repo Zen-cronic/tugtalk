@@ -45,7 +45,7 @@
   // Hover a count to see the words it counted (opacity only, so it also runs with Reduce Motion).
   $$('.chip, .tile').forEach(el => {
     const kind = kindOf(el);
-    const scope = el.closest('.hero-card, .measured-grid, .attempt, .boundary');
+    const scope = el.closest('.hero-card, .measured-grid');
     if (!kind || !scope || !$('.transcript .hl', scope)) return;
     el.addEventListener('pointerenter', () => scope.classList.add(`show-${kind}`));
     el.addEventListener('pointerleave', () => scope.classList.remove(`show-${kind}`));
@@ -255,16 +255,13 @@
   };
   const chipCounter = chip => counter($('b', chip), chipLabel(chip));
 
-  // Earlier reveals that stay: the French highlight sweep.
-  $$('[data-sweep]').forEach(block => {
-    $$('.hl', block).forEach((mark, i) => { mark.style.transitionDelay = `${120 + i * 260}ms`; });
-  });
+  // Card groups slot in once they reach the viewport.
   const seen = new IntersectionObserver(entries => entries.forEach(entry => {
     if (!entry.isIntersecting) return;
     entry.target.classList.add('is-in');
     seen.unobserve(entry.target);
   }), { threshold: 0.4 });
-  $$('[data-sweep], [data-slot-group]').forEach(el => seen.observe(el));
+  $$('[data-slot-group]').forEach(el => seen.observe(el));
 
   // Watch thumbnails: ready, then recording with the red ring, then sent; they end back on ready.
   const recordWatch = (watch, sendAfter, readyAfter) => {
@@ -584,67 +581,5 @@
     addScene(stage, scene);
     // Unpinned (narrow or short screens): each device lights as it reaches the reading line.
     objs.forEach((obj, i) => once(obj, () => { if (!pinned) on(i); }, { rootMargin: '0px 0px -35% 0px' }));
-  }
-
-  // Before and after: one sentence, cut at the restart. The phrase pulls out at full colour, the
-  // restart count pops in and the part after the restart counts down to zero.
-  const attempts = $('.attempts.split');
-  if (attempts) {
-    const parts = $$('.attempt', attempts), first = parts[0], last = parts[parts.length - 1];
-    const boundary = $('.boundary', attempts);
-    const startAt = {};
-    $$('.chip', first).forEach(chip => { startAt[kindOf(chip)] = Number($('b', chip).textContent.trim()); });
-    const after = [];
-    $$('.chip', last).forEach(chip => {
-      const c = chipCounter(chip);
-      const from = startAt[kindOf(chip)];
-      if (c && from) { c.set(from, true); after.push(c); }
-    });
-    const measure = () => {
-      const row = getComputedStyle(attempts).gridTemplateColumns.split(' ').length > 1;
-      attempts.classList.add('is-measuring');
-      const lift = row ? $('.transcript', first).getBoundingClientRect().top - $('.transcript', boundary).getBoundingClientRect().top : 0;
-      attempts.classList.remove('is-measuring');
-      attempts.style.setProperty('--meet', `${row ? 16 : 12}px`);
-      attempts.style.setProperty('--lift', `${Math.round(lift)}px`);
-    };
-    measure();
-    allScenes.push({ measure });
-    const statement = attempts.closest('.statement') || attempts;
-    // Fallback start: the section's top at about 70% of the viewport.
-    once(statement, () => attempts.classList.add('is-cut'), { rootMargin: '0px 0px -30% 0px' });
-    // The part after the restart counts down once the cut has played (cards at mid-viewport).
-    once(attempts, async () => {
-      await sleep(250);
-      for (let n = Math.max(0, ...after.map(c => c.value)); n > 0; n--) {
-        after.forEach(c => { if (c.value >= n) c.set(c.value - 1); });
-        await sleep(280);
-      }
-    }, { rootMargin: '-45% 0px -45% 0px' });
-  }
-
-  // French: the highlights sweep, then a bead reaches each stage in turn. Reused stays an outline.
-  const french = $('.french');
-  if (french) {
-    const wrapL = $('.lifecycle-wrap', french), bead = $('.fr-bead', french);
-    const stages = $$('.lifecycle li', french).slice(0, -1);
-    once(wrapL, async () => {
-      await sleep(700);
-      const wr = wrapL.getBoundingClientRect();
-      const pts = stages.map(li => {
-        const r = li.getBoundingClientRect();
-        return `translate(${r.left + r.width / 2 - wr.left}px, ${r.top + r.height / 2 - wr.top}px)`;
-      });
-      stages[0].classList.add('is-reached');
-      bead.animate([
-        { transform: pts[0], opacity: 0 },
-        { transform: pts[0], opacity: 1, offset: 0.08 },
-        { transform: pts[1], opacity: 1, offset: 0.48 },
-        { transform: pts[2], opacity: 1, offset: 0.9 },
-        { transform: pts[2], opacity: 0 }
-      ], { duration: 1500, easing: 'ease-in-out' });
-      setTimeout(() => stages[1].classList.add('is-reached'), 720);
-      setTimeout(() => stages[2].classList.add('is-reached'), 1350);
-    }, { threshold: 0.6 });
   }
 })();
