@@ -129,7 +129,7 @@ struct ContentView: View {
                 Button("Try again") { Task { await model.upload() } }
                     .buttonStyle(CoachButtonStyle())
             }
-            Button(model.canRetryUpload ? "Back to start" : "Try again") { Task { await model.load() } }
+            Button(model.canRetryUpload ? "Back to start" : "Try again") { Task { await model.backToStart() } }
                 .buttonStyle(CoachButtonStyle(model.canRetryUpload ? .secondary : .primary))
         }
     }

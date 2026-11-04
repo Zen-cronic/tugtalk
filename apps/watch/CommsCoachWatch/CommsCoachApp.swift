@@ -177,6 +177,13 @@ final class CaptureModel: ObservableObject {
 
     var canRetryUpload: Bool { pending != nil }
 
+    /// "Back to start" after a failed upload: the unsent recording is deleted, so nothing sends it later.
+    func backToStart() async {
+        if let pending { try? FileManager.default.removeItem(at: pending.file) }
+        pending = nil
+        await load()
+    }
+
     private var isLoading: Bool { if case .loading = phase { return true } else { return false } }
 
     /// Reads the selected goal's open drill. A failed read hides the drill line; it never blocks recording.
