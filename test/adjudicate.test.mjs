@@ -272,3 +272,21 @@ test('held-out scoring: an all-habit stub equals the lexicon and count-all; gold
   assert.equal(applyRules(fake(1, 1, 0.742, 0.542)).rule2_hedges_leave_adjudication.fires, false, 'a drop of exactly 0.2 does not fire');
   assert.equal(applyRules(fake(1, 1, 0.742, 0.5)).rule2_hedges_leave_adjudication.fires, true);
 });
+
+test('with ADJUDICATE_HEDGES=0 hedges are not proposed and keep the word-list count; other hits are unchanged', async () => {
+  const { adjudicationCandidates, buildAdjudication, createAdjudicationModel, adjudicateCapture } = await import('../src/adjudicate.mjs');
+  const transcript = 'I think we could basically ship it, maybe Friday.';
+  const all = adjudicationCandidates(transcript, 'en');
+  const skipped = adjudicationCandidates(transcript, 'en', { skipHedges: true });
+  assert.ok(all.candidates.some(c => c.category === 'hedges'));
+  assert.ok(!skipped.candidates.some(c => c.category === 'hedges'));
+  assert.deepEqual(skipped.candidates.map(c => c.quote), all.candidates.filter(c => c.category !== 'hedges').map(c => c.quote));
+  assert.equal(createAdjudicationModel({ env: { ADJUDICATE_HEDGES: '0' } }).adjudicateHedges, false);
+  assert.equal(createAdjudicationModel({ env: {} }).adjudicateHedges, true);
+  let sent = null;
+  const models = { adjudicateModelOnly: false, adjudicateHedges: false, async adjudicateHabits({ candidates }) { sent = candidates; return { status: 'unavailable', reason: 'test' }; } };
+  const stored = await adjudicateCapture({ models, transcript, language: 'en' });
+  assert.ok(sent === null || !sent.some(c => c.category === 'hedges'));
+  const lexicon = buildAdjudication(transcript, 'en', null);
+  assert.equal(stored.adjudicated_count?.hedges ?? stored.lexicon_count?.hedges, lexicon.lexicon_count?.hedges);
+});

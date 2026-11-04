@@ -48,9 +48,11 @@ export function modelOnlyCandidates(transcript, language) {
 
 // Ambiguous hits in transcript order, numbered c1, c2, ... Hits beyond MAX_CANDIDATES are not sent and stay counted.
 // With modelOnly, the model-only candidates follow them (m1, m2, ...); without it the result is exactly as before.
-export function adjudicationCandidates(transcript, language, { modelOnly = false } = {}) {
+// With skipHedges (ADJUDICATE_HEDGES=0) hedges are not proposed and keep the word-list count: the pre-registered
+// held-out run (eval/README.md, rule 2) found adjudication lowered hedge recall by more than 0.2.
+export function adjudicationCandidates(transcript, language, { modelOnly = false, skipHedges = false } = {}) {
   const { text, tokens, hits } = habitHits(transcript, language);
-  const ambiguous = hits.filter(h => !ALWAYS_HABIT[language].includes(h.phrase));
+  const ambiguous = hits.filter(h => !(skipHedges && h.category === 'hedges') && !ALWAYS_HABIT[language].includes(h.phrase));
   const candidates = ambiguous.slice(0, MAX_CANDIDATES).map((h, n) => ({
     id: `c${n + 1}`, category: h.category, phrase: h.phrase, quote: h.quote, start: h.start, end: h.end,
     ...around(text, tokens, h.first, h.last, h.start, h.end)
@@ -73,6 +75,7 @@ export const acceptLabels = parsed => Array.isArray(parsed.labels) ? parsed.labe
 export function createAdjudicationModel({ env = process.env, fetchImpl = fetch } = {}) {
   return {
     adjudicateModelOnly: modelOnlyEnabled(env),
+    adjudicateHedges: env?.ADJUDICATE_HEDGES !== '0',
     async adjudicateHabits({ transcript, language, candidates, budget }) {
       if (!env.BASETEN_API_KEY) return { status: 'unavailable', reason: 'Adjudication is not configured on this deployment.', attempts: 0 };
       const result = await sparkJSON({ env, system: adjudicationSystemPrompt(language), user: adjudicationUserMessage(transcript, candidates),
@@ -129,8 +132,8 @@ function modelOnlyBlock(language, results, over_cap, labelled, modelResult) {
 
 // Pure: candidates plus the model's result (or null when no call was made) -> the stored adjudication.
 // With modelOnly the record also gets a model_only block; every other field is computed exactly as without it.
-export function buildAdjudication(transcript, language, modelResult, { modelOnly = false } = {}) {
-  const { hits, candidates: proposed, over_cap, model_only_over_cap = 0 } = adjudicationCandidates(transcript, language, { modelOnly });
+export function buildAdjudication(transcript, language, modelResult, { modelOnly = false, skipHedges = false } = {}) {
+  const { hits, candidates: proposed, over_cap, model_only_over_cap = 0 } = adjudicationCandidates(transcript, language, { modelOnly, skipHedges });
   const candidates = proposed.filter(c => !isModelOnly(c)), extra = proposed.filter(isModelOnly);
   const lexicon = byCategory(hits);
   const labelled = modelResult?.status === 'model_labels';
@@ -159,7 +162,7 @@ export function buildAdjudication(transcript, language, modelResult, { modelOnly
 // time budget still allows it (then the lexicon count stands). Never throws. The model-only words are proposed only
 // when the adjudication client was created with ADJUDICATE_MODEL_ONLY=1 (models.adjudicateModelOnly).
 export async function adjudicateCapture({ models, transcript, language, budget }) {
-  const opts = { modelOnly: models?.adjudicateModelOnly === true };
+  const opts = { modelOnly: models?.adjudicateModelOnly === true, skipHedges: models?.adjudicateHedges === false };
   const { candidates } = adjudicationCandidates(transcript, language, opts);
   if (!candidates.length) return buildAdjudication(transcript, language, null, opts);
   if (typeof models?.adjudicateHabits !== 'function') return buildAdjudication(transcript, language, { status: 'unavailable', reason: 'Adjudication is not configured on this deployment.' }, opts);
