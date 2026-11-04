@@ -1,16 +1,12 @@
 // Fictional follow-up scenarios keep semantic assessments separate from habit-count drills.
 import { randomUUID } from 'node:crypto';
-import { ApiError, digest } from './store.mjs';
+import { digest } from './store.mjs';
+import { ID, now, text, fail, find, fields as checkFields } from './practice-common.mjs';
 import { practiceFreshness, createPracticeRecord, mutatePracticeRecord } from './practice.mjs';
 export const PRACTICE_EXERCISES_PATH='/v1/practice-exercises';
-const KIND='practice-exercises', ID=/^[A-Za-z0-9_-]{1,64}$/;
-const now=()=>new Date().toISOString();
-const object=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
-const text=(x,max)=>typeof x==='string'&&x.trim().length>0&&x.length<=max;
-const fail=(code,message,status=409)=>{throw new ApiError(status,code,message);};
-const find=(store,user,kind,id)=>{try{return store.get(user,kind,id);}catch(e){if(e.status===404)return null;throw e;}};
+const KIND='practice-exercises';
 const normalized=s=>s.trim().replace(/\s+/g,' ').toLowerCase();
-function fields(body,allowed){if(!object(body)||Object.keys(body).some(k=>!allowed.includes(k)))fail('invalid_body','Use only documented fields.',400);}
+const fields=(body,allowed)=>checkFields(body,allowed,'Use only documented fields.');
 function appendEvent(store,user,e,action){store.put(user,'practice-exercise-events',{id:randomUUID(),version:1,exercise_id:e.id,exercise_version:e.version,action,occurred_at:now()});}
 function save(store,user,e,action){store.put(user,KIND,e);appendEvent(store,user,e,action);return e;}
 function sameLink(round,e){return Boolean(round&&e.activation&&round.id===e.activation.round_id&&round.request_version===e.activation.request_version&&round.goal_id===e.goal_id&&round.practice_exercise?.id===e.id&&round.practice_exercise.content_version===e.content_version&&round.practice_exercise.basis_digest===digest(JSON.stringify(e.basis)));}

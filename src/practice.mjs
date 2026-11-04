@@ -1,6 +1,7 @@
 // Confirmed requests and goal-scoped conversation state. Model judgments are not measured facts.
 import { randomUUID } from 'node:crypto';
-import { ApiError, digest } from './store.mjs';
+import { digest } from './store.mjs';
+import { ID, now, object, text, fail, find, fields as checkFields } from './practice-common.mjs';
 import { exerciseDependencyCurrent, practiceExerciseChanged } from './practice-exercises.mjs';
 
 export const PRACTICE_PATH = '/v1/practice-rounds';
@@ -13,24 +14,16 @@ export const UNAVAILABLE_REPLIES = {
 };
 export const unavailableReply = (language, capped) => (UNAVAILABLE_REPLIES[language] ?? UNAVAILABLE_REPLIES.en)[capped ? 'capped' : 'open'];
 const KIND = 'practice-rounds', ATTEMPTS = 'practice-attempts', EVENTS = 'practice-events';
-const ID = /^[A-Za-z0-9_-]{1,64}$/;
 // A reservation older than this belongs to a request that can no longer finish: the hosting adapter stops waiting for
 // any request after MODEL_DEADLINE + GRACE (175 s, deploy/bridge.py), and the model budget is 120 s (src/budget.mjs).
 // The next claim on the round fails it instead of answering turn_in_progress.
 export const PENDING_EXPIRY_MS = 180_000;
-const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
-const fail = (code, message, status = 409) => { throw new ApiError(status, code, message); };
-const now = () => new Date().toISOString();
-const find = (store, user, kind, id) => { try { return store.get(user, kind, id); } catch (e) { if (e.status === 404) return null; throw e; } };
 function transaction(store, fn) {
   store.db.exec('BEGIN IMMEDIATE');
   try { const result = fn(); store.db.exec('COMMIT'); return result; }
   catch (e) { if (store.db.isTransaction) store.db.exec('ROLLBACK'); throw e; }
 }
-function fields(body, names) {
-  if (!object(body) || Object.keys(body).some(k => !names.includes(k))) fail('invalid_body', 'Expected only the documented fields.', 400);
-}
-function text(value, max) { return typeof value === 'string' && value.trim().length > 0 && value.length <= max; }
+const fields = (body, names) => checkFields(body, names, 'Expected only the documented fields.');
 function brief(store, user, goalId, body) {
   const goal = store.get(user, 'goals', goalId);
   if (goal.deleted || goal.version !== body.expected_goal_version) fail('version_conflict', 'Re-read the goal and confirm its current version.');
