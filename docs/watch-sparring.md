@@ -10,7 +10,7 @@ It uses the same routes as the Mac (`docs/voice.md`):
 
 ## One round
 
-1. **Your turn.** Tap **Record**, answer, and tap **Stop**. The red record light is on and the clock runs while the microphone is open. Tap is the watch's own pattern; holding a finger on the screen while talking is awkward on the wrist.
+1. **Your turn.** Tap **Record**, answer, and tap **Stop**. The red record light is on and the clock runs while the microphone is open. Tap is the watch's own pattern; holding a finger on the screen while talking is awkward on the wrist. Record on a question and Stop sit below the scrolling content, in the same spot, so a Stop within 0.8 s of Record is ignored as the second tap of a double tap on Record.
 2. **Thinking.** The watch uploads the recording (mono 16-bit PCM WAV, 16 kHz) with:
    - its own `Idempotency-Key`;
    - the goal and language picked on the goal screen (`X-Goal-Id`, `X-Language`);

@@ -79,7 +79,14 @@ final class SparringModel: ObservableObject {
         }
     }
 
+    /// Stop sits where Record was: a Stop this soon after Record is the second tap of a double tap on Record.
+    static let stopGrace: TimeInterval = 0.8
+
     func stop() {
+        if case .recording(_, let upload) = machine.phase, Date().timeIntervalSince(upload.occurredAt) < Self.stopGrace {
+            print("practice Stop ignored: \(Self.stopGrace) s after Record")
+            return // keeps recording
+        }
         let effects = machine.stop(at: Date())
         if effects.isEmpty {
             // Nothing was recording: say so with a tap on the wrist rather than doing nothing.
