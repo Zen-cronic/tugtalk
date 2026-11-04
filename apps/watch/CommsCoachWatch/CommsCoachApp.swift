@@ -46,7 +46,7 @@ final class CaptureModel: ObservableObject {
 
     init() {
         // At the cap the recorder stops itself; the capture goes to upload exactly as a Stop tap would.
-        recorder.onAutoStop = { [weak self] file in
+        recorder.onAutoStop = { [weak self] file, _ in
             guard let self else { return }
             if self.capture(file) { Task { await self.upload() } }
         }

@@ -16,9 +16,10 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         return 170
     }()
 
-    /// Called when the recording stops by itself at `maxSeconds`, with the finished file.
+    /// Called when the recording stops by itself, with the finished file: at `maxSeconds` (`capped` true), or cut
+    /// short by an interruption such as a call or Siri (`capped` false, so it is treated as a Stop tap).
     /// A Stop tap never calls it: `stop()` hands its file back directly.
-    var onAutoStop: (@MainActor (URL) -> Void)?
+    var onAutoStop: (@MainActor (URL, _ capped: Bool) -> Void)?
 
     @Published private(set) var isRecording = false
     @Published private(set) var elapsed: TimeInterval = 0
@@ -131,8 +132,10 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             // After a Stop tap `self.recorder` is already nil, so only a stop the recorder made itself gets here.
             guard self.recorder === recorder else { return }
             let url = recorder.url
+            // The cap is reached only after `maxSeconds`; anything sooner was an interruption.
+            let capped = Date().timeIntervalSince(self.startedAt) >= Self.maxSeconds - 1
             self.finish()
-            self.onAutoStop?(url)
+            self.onAutoStop?(url, capped)
         }
     }
 }

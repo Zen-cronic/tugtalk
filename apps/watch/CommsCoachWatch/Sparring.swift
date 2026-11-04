@@ -40,10 +40,11 @@ final class SparringModel: ObservableObject {
         }
         phase = machine.phase
         if client == nil { phase = .failed(answer: 1, failure: .notSignedIn, upload: nil) }
-        // At the cap the recorder stops itself; the answer goes up exactly as a Stop tap would send it.
-        recorder.onAutoStop = { [weak self] _ in
+        // At the cap the recorder stops itself; the answer goes up exactly as a Stop tap would send it. A call or Siri
+        // that cuts the recording short counts as a Stop tap, so a near-empty answer is not sent.
+        recorder.onAutoStop = { [weak self] _, capped in
             guard let self else { return }
-            self.apply(self.machine.stop(at: Date(), capped: true))
+            self.apply(self.machine.stop(at: Date(), capped: capped))
         }
     }
 
