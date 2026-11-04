@@ -30,9 +30,11 @@ public struct RoundEnd: Sendable, Equatable {
     }
 
     /// The round ended on this Mac without a wrap-up. Returns the key to send, or nil when the server has nothing open.
+    /// An unconfirmed end keeps its key, but names this Mac's latest answer: an older one would let the server skip it.
     public mutating func ended(newKey: () -> String) -> String? {
         guard open || pendingKey != nil else { return nil }
-        if pendingKey == nil { pendingKey = newKey(); pendingAfterRound = lastRoundID }
+        if pendingKey == nil { pendingKey = newKey() }
+        if let lastRoundID { pendingAfterRound = lastRoundID }
         open = false; lastReplyAt = nil; lastRoundID = nil
         return pendingKey
     }

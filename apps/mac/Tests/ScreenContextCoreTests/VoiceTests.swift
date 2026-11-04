@@ -432,6 +432,20 @@ final class RoundEndTests: XCTestCase {
         XCTAssertNil(end.pendingAfterRound)
     }
 
+    func testAReusedUnconfirmedEndNamesTheLatestAnswer() {
+        var end = RoundEnd(); let key = keys()
+        end.replied(endsRound: false, at: t0, roundID: "mac-round-1")
+        let first = end.ended(newKey: key)
+        XCTAssertEqual(end.pendingAfterRound, "mac-round-1")
+        // Unconfirmed, it goes again before the next answer; that answer opens the round again on the server.
+        XCTAssertEqual(end.beforeAnswer(at: t0.addingTimeInterval(30), newKey: key), first)
+        end.replied(endsRound: false, at: t0.addingTimeInterval(40), roundID: "mac-round-2")
+        XCTAssertEqual(end.ended(newKey: key), first, "still unconfirmed: the same key")
+        XCTAssertEqual(end.pendingAfterRound, "mac-round-2", "named after the latest answer, so the server does not skip it")
+        end.sent(first!)
+        XCTAssertNil(end.pendingAfterRound)
+    }
+
     func testTheEndRequestCarriesXAfterRound() async throws {
         SequenceProtocol.requests = []; SequenceProtocol.bodies = []
         SequenceProtocol.answers = [.status(200, #"{"receipt_id":"rc-end-2","saved":true,"replayed":false,"record":{"id":"latest","version":0,"ended_at":null,"skipped":"answered_since"}}"#)]
