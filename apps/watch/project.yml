@@ -18,7 +18,7 @@ settings:
     SWIFT_VERSION: "6.0"
     # Raise CURRENT_PROJECT_VERSION for every build uploaded to App Store Connect.
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "7"
+    CURRENT_PROJECT_VERSION: "8"
 targets:
   # Store wrapper for the watch-only app, as in Xcode's Watch-only App template:
   # an iOS stub with no executable that carries the watch app under Watch/ and
