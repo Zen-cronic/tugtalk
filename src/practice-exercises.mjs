@@ -124,7 +124,8 @@ export function practiceExerciseChanged(store,user,before,after,action,voice=nul
  else if(e.state==='active'){
   const source=voice??(after.answer_sources.at(-1)?find(store,user,'voice-rounds',after.answer_sources.at(-1).id):null);
   const attempt=source?{voice_id:source.id,voice_version:source.version,round_id:after.id,round_version:after.version,request_version:after.request_version}:null;
-  const state=after.state==='addressed'?'assessed_addressed':['capped','ended'].includes(after.state)?'attempted':'active';
+  // Ended before any answer is a skip, not an attempt.
+  const state=after.state==='addressed'?'assessed_addressed':after.state==='ended'&&after.answer_count===0?'skipped':['capped','ended'].includes(after.state)?'attempted':'active';
   e={...e,state,latest_attempt:attempt??e.latest_attempt,result:state==='active'?null:attempt?{...attempt,evidence_type:'model_assessment',assessment:after.assessment}:null};
  }else return;
  save(store,user,{...e,version:e.version+1,updated_at:now()},`round_${action}`);

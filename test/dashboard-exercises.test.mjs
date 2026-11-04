@@ -28,3 +28,7 @@ test('missing or mismatched model result cannot support an addressed claim',()=>
  }
  assert.equal(renderPracticeExercises({},'goal-a'),'');
 });
+test('an exercise ended before any answer reads as skipped, never as a recorded attempt',()=>{
+ const html=renderPracticeExercises({practice_exercises:[{...exercise,state:'skipped',persisted_state:'skipped',activation:{round_id:'r'},result:null,latest_attempt:null}]},'goal-a');
+ assert.match(html,/Skipped/);assert.ok(!html.includes('An attempt was recorded'));
+});
