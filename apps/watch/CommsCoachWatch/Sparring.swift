@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import SparringCore
+import WatchKit
 
 /// One spoken practice round on the wrist. `SparringMachine` (SparringCore) decides each step; this performs it:
 /// the microphone, the upload to `POST /v1/voice-rounds`, and speaking the question, with the coach's
@@ -21,6 +22,8 @@ final class SparringModel: ObservableObject {
     private var speechTask: Task<Void, Never>?
     /// The last round end sent to the server (`POST /v1/voice-rounds/end`). The next answer waits for it.
     private var endTask: Task<Void, Never>?
+    /// The screen has closed (`leave()`): nothing starts after that.
+    private var left = false
 
     /// `latestCard`: the account's newest screen card from the overview. With the goal's own card it decides which card,
     /// if any, the round is about (`ScreenCard.pick`), so the round's first reply picks the other person's need from it.
@@ -40,10 +43,11 @@ final class SparringModel: ObservableObject {
         }
         phase = machine.phase
         if client == nil { phase = .failed(answer: 1, failure: .notSignedIn, upload: nil) }
-        // At the cap the recorder stops itself; the answer goes up exactly as a Stop tap would send it.
-        recorder.onAutoStop = { [weak self] _ in
+        // At the cap the recorder stops itself; the answer goes up exactly as a Stop tap would send it. A call or Siri
+        // that cuts the recording short counts as a Stop tap, so a near-empty answer is not sent.
+        recorder.onAutoStop = { [weak self] _, capped in
             guard let self else { return }
-            self.apply(self.machine.stop(at: Date(), capped: true))
+            self.apply(self.machine.stop(at: Date(), capped: capped))
         }
     }
 
@@ -54,16 +58,43 @@ final class SparringModel: ObservableObject {
     // Actions
 
     func record() async {
-        guard client != nil else { return }
+        guard client != nil, !left else { return }
         if case .recording = machine.phase { return }
-        if fixture == nil, !(await recorder.requestPermission()) {
-            apply(machine.refuse(.micOff))
-            return
-        }
-        apply(machine.record(at: Date()))
+        let before = Self.step(machine.phase)
+        let allowed = fixture != nil ? true : await recorder.requestPermission()
+        // The screen may have closed, or the step changed, while the permission prompt was up.
+        guard !left, Self.step(machine.phase) == before else { return }
+        apply(allowed ? machine.record(at: Date()) : machine.refuse(.micOff))
     }
 
-    func stop() { apply(machine.stop(at: Date())) }
+    /// Which step the screen is on. The question finishing playing is the same step, so Answer now still records.
+    private static func step(_ phase: SparringMachine.Phase) -> String {
+        switch phase {
+        case .ready(let answer): "ready \(answer)"
+        case .recording(let answer, _): "recording \(answer)"
+        case .thinking(let answer, _): "thinking \(answer)"
+        case .replying(let shown): "question \(shown.roundID)"
+        case .failed(let answer, let failure, _): "failed \(answer) \(failure.kind.rawValue)"
+        case .done: "done"
+        }
+    }
+
+    /// Stop sits where Record was: a Stop this soon after Record is the second tap of a double tap on Record.
+    static let stopGrace: TimeInterval = 0.8
+
+    func stop() {
+        if case .recording(_, let upload) = machine.phase, Date().timeIntervalSince(upload.occurredAt) < Self.stopGrace {
+            print("practice Stop ignored: \(Self.stopGrace) s after Record")
+            return // keeps recording
+        }
+        let effects = machine.stop(at: Date())
+        if effects.isEmpty {
+            // Nothing was recording: say so with a tap on the wrist rather than doing nothing.
+            print("practice Stop ignored in step \(machine.phase.name)")
+            WKInterfaceDevice.current().play(.failure)
+        }
+        apply(effects)
+    }
     func retry() { apply(machine.retry()) }
     func seeResult() { apply(machine.skipToResult()) }
     func endRound() { apply(machine.endRound()) }
@@ -72,6 +103,7 @@ final class SparringModel: ObservableObject {
     /// still holds open is ended there, so the next round, on any device, starts at answer 1. An answer still
     /// uploading is not cancelled (the server may save it); once it is saved, one round end follows it.
     func leave() {
+        self.left = true
         let left: String? = if case .thinking(_, let upload) = machine.phase { upload.idempotencyKey } else { nil }
         apply(machine.leave())
         _ = recorder.stop()
@@ -156,11 +188,25 @@ final class SparringModel: ObservableObject {
             } catch is CancellationError {
                 return nil
             } catch {
+                if Task.isCancelled { return nil } // given up after `replyWait`; the failure is already on screen
                 self?.apply(self?.machine.uploadFailed(key: upload.idempotencyKey, RoundFailure.from(error)) ?? [])
                 return nil
             }
         }
+        // A reply that never comes leaves the failed step with Try again, which resends the same answer and key.
+        let task = uploadTask
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.replyWait)
+            guard let self, self.uploadTask == task, case .thinking(_, let now) = self.machine.phase,
+                  now.idempotencyKey == upload.idempotencyKey else { return }
+            print("practice reply took over 45 s; showing Try again")
+            task?.cancel()
+            self.apply(self.machine.uploadFailed(key: upload.idempotencyKey, .offline))
+        }
     }
+
+    /// Thinking waits this long for the reply before it offers Try again.
+    static let replyWait: Duration = .seconds(45)
 
     /// Ends the round on the server, after any end already on its way. Unconfirmed, the machine sends it again with the
     /// same key before the next round's first answer.

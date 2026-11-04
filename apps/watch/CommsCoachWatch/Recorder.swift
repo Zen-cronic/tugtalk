@@ -16,9 +16,10 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         return 170
     }()
 
-    /// Called when the recording stops by itself at `maxSeconds`, with the finished file.
+    /// Called when the recording stops by itself, with the finished file: at `maxSeconds` (`capped` true), or cut
+    /// short by an interruption such as a call or Siri (`capped` false, so it is treated as a Stop tap).
     /// A Stop tap never calls it: `stop()` hands its file back directly.
-    var onAutoStop: (@MainActor (URL) -> Void)?
+    var onAutoStop: (@MainActor (URL, _ capped: Bool) -> Void)?
 
     @Published private(set) var isRecording = false
     @Published private(set) var elapsed: TimeInterval = 0
@@ -31,6 +32,8 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     func start() throws -> URL {
+        // Already recording: the running recording is stopped and deleted first, so no file or timer is orphaned.
+        if isRecording { discardRunning() }
         let session = AVAudioSession.sharedInstance()
         // .spokenAudio is a playback mode; paired with .record a real watch rejects it with OSStatus -50.
         try session.setCategory(.record, mode: .default)
@@ -95,6 +98,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private var fixtureCopy: URL?
 
     func startFixture(_ source: URL) throws -> URL {
+        if isRecording { discardRunning() }
         let url = FileManager.default.temporaryDirectory.appending(path: "capture-\(UUID().uuidString).wav")
         try FileManager.default.copyItem(at: source, to: url)
         fixtureCopy = url
@@ -108,6 +112,14 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
     #endif
 
+    private func discardRunning() {
+        #if DEBUG
+        if let url = fixtureCopy { fixtureCopy = nil; try? FileManager.default.removeItem(at: url) }
+        #endif
+        if let running = recorder { recorder = nil; running.stop(); running.deleteRecording() }
+        finish()
+    }
+
     private func finish() {
         timer?.invalidate(); timer = nil
         recorder = nil
@@ -120,8 +132,10 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             // After a Stop tap `self.recorder` is already nil, so only a stop the recorder made itself gets here.
             guard self.recorder === recorder else { return }
             let url = recorder.url
+            // The cap is reached only after `maxSeconds`; anything sooner was an interruption.
+            let capped = Date().timeIntervalSince(self.startedAt) >= Self.maxSeconds - 1
             self.finish()
-            self.onAutoStop?(url)
+            self.onAutoStop?(url, capped)
         }
     }
 }

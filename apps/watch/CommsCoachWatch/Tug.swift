@@ -134,9 +134,11 @@ struct TugSpeaking: View {
 
     var body: some View {
         if talking && !reduceMotion {
-            TimelineView(.animation(minimumInterval: 1 / 15)) { context in
-                let t = context.date.timeIntervalSinceReferenceDate
-                TugGlyph(size: size, reach: reach, face: .speaking(0.25 + 0.7 * abs(sin(t * 9))))
+            // A 15 Hz TimelineView here rebuilt the screen on every frame, and the real watch dropped taps on the
+            // buttons beside it. The mouth now steps about twice a second, the rate of the recording clock.
+            TimelineView(.periodic(from: .now, by: 0.45)) { context in
+                let step = Int(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 0.9) / 0.45) % 2 // the remainder first: the full count overflows Int on 32-bit watches
+                TugGlyph(size: size, reach: reach, face: .speaking(step == 0 ? 0.9 : 0.35))
             }
         } else {
             TugGlyph(size: size, reach: reach, face: .speaking(talking ? 0.5 : 0))
@@ -144,22 +146,14 @@ struct TugSpeaking: View {
     }
 }
 
-/// Tug listening while you answer: brows up and the string pulled taut, with a small live tremor in the lean.
-/// With Reduce Motion it holds still.
+/// Tug listening while you answer: brows up and the string pulled taut. It holds still: a tremor redrew the
+/// string's path on every frame while you recorded, the kind of constant redraw that dropped taps on Stop (build 9).
 struct TugListening: View {
     var size: CGFloat
     var reach: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        if reduceMotion {
-            TugGlyph(size: size, reach: reach, pull: 1, face: .listening)
-        } else {
-            TimelineView(.animation(minimumInterval: 1 / 20)) { context in
-                let t = context.date.timeIntervalSinceReferenceDate
-                TugGlyph(size: size, reach: reach, pull: 0.86 + 0.14 * sin(t * 7), face: .listening)
-            }
-        }
+        TugGlyph(size: size, reach: reach, pull: 1, face: .listening)
     }
 }
 

@@ -46,7 +46,7 @@ struct KeptMedia: Decodable {
     let kept: Bool
     let reason: String?
     /// The line the result shows, or nil.
-    var note: String? { kept ? "Recording kept" : (reason == "full" ? "Recording not kept: storage full" : nil) }
+    var note: String? { !kept && reason == "full" ? "Recording not kept: storage full" : nil }
 }
 
 struct CaptureReceipt: Decodable {

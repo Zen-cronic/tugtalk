@@ -5,7 +5,7 @@ struct ContentView: View {
     @State private var scrolled = false
     /// `-openSetup YES` (Debug builds): opens the setup list on launch, for a screenshot of its rows.
     @State private var showSetup = ContentView.openSetupOnLaunch
-    /// "Practise this answer": a spoken round with the same goal and language.
+    /// `-openSparring YES` (Debug builds): opens the practice round without a tap. The button is a NavigationLink.
     @State private var practise = false
     /// The result whose AI note and exercise are shown in full, after More, so every new result opens short.
     /// `-expandNote YES` (Debug builds) opens the sample result's, for a screenshot.
@@ -32,8 +32,10 @@ struct ContentView: View {
                 .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 4 } action: { _, now in
                     scrolled = now
                 }
-                .mask(alignment: .top) { HeaderFade(active: scrolled) }
+                .overlay(alignment: .top) { HeaderFade(active: scrolled) }
                 .task {
+                    // Once per launch: this runs again on Back from Practise, and loading again threw away the result.
+                    guard case .loading = model.phase else { return }
                     await model.load()
                     #if DEBUG
                     // `-scrollToDrill YES`: shows the drill line below Record, or the drill result, for a screenshot.
@@ -127,12 +129,12 @@ struct ContentView: View {
                 Button("Try again") { Task { await model.upload() } }
                     .buttonStyle(CoachButtonStyle())
             }
-            Button(model.canRetryUpload ? "Back to start" : "Try again") { Task { await model.load() } }
+            Button(model.canRetryUpload ? "Back to start" : "Try again") { Task { await model.backToStart() } }
                 .buttonStyle(CoachButtonStyle(model.canRetryUpload ? .secondary : .primary))
         }
     }
 
-    /// Opens a spoken round: answer out loud and Tug asks the follow-up, up to three answers.
+    /// Opens a spoken round: answer out loud and Tug asks the follow-up, up to four answers.
     private var practiseButton: some View {
         NavigationLink { practiseRound } label: {
             Text("Practise this answer").lineLimit(1).minimumScaleFactor(0.7).padding(.horizontal, 12) // clear of the capsule's curve
@@ -359,7 +361,7 @@ struct RecordLamp: View {
 struct ProgressDots: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.45)) { context in
-            let step = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 3
+            let step = Int(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.35) / 0.45) % 3 // the remainder first: the full count overflows Int on 32-bit watches
             HStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { i in
                     Circle().fill(Palette.inkDark).frame(width: 6, height: 6).opacity(i == step ? 1 : 0.42) // the dim dots stay above 3:1 on the face
@@ -372,17 +374,20 @@ struct ProgressDots: View {
 
 /// Scrolled content fades out before it reaches the clock and title band, so text never shows behind the title.
 /// Static, so it is the same with Reduce Motion.
+/// It is an overlay in the face's own black that never takes a touch, not a mask on the scroll view: with the
+/// mask on (once the content had scrolled), the real watch scrolled but dropped every tap on the buttons (build 10).
 struct HeaderFade: View {
     /// Off at rest, so nothing below the large title is touched; on once the content scrolls under the title.
     let active: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(height: active ? 44 : 0)
-            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: active ? 10 : 0)
-            Color.black
+            Palette.face.frame(height: active ? 44 : 0)
+            LinearGradient(colors: [Palette.face, Palette.face.opacity(0)], startPoint: .top, endPoint: .bottom).frame(height: active ? 10 : 0)
+            Color.clear
         }
         .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 }
 

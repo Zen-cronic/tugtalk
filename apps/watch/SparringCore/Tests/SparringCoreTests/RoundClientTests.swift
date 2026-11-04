@@ -97,7 +97,7 @@ private let upload = AnswerUpload(idempotencyKey: "watch-voice-abc12345", goalID
         let client = RoundClient(requests: RoundRequests(baseURL: base, token: "t"), session: session(), backoff: { _ in .zero })
         let receipt = try await client.send(upload, wav: Data([0]))
         #expect(receipt.reply.verifiedQuote == "maybe lead the launch")
-        #expect(receipt.media?.note == "Recording kept")
+        #expect(receipt.media?.kept == true && receipt.media?.note == nil)
         #expect(receipt.counterpart == Counterpart(need: nil, need_met: nil, allowed: ["follow_up", "challenge"], reason: "open", answer: 1))
         let keys = ScriptedProtocol.lock.withLock { ScriptedProtocol.seen.map { $0.value(forHTTPHeaderField: "Idempotency-Key") } }
         #expect(keys == Array(repeating: "watch-voice-abc12345", count: 3))
@@ -132,7 +132,7 @@ private let upload = AnswerUpload(idempotencyKey: "watch-voice-abc12345", goalID
         let client = RoundClient(requests: RoundRequests(baseURL: base, token: "t"), session: session())
         let clip = try await client.speech(roundID: "r1")
         #expect(clip.contentType == "audio/mpeg" && clip.provider == "wit" && clip.data.count == 3)
-        #expect(SpeechVoice.coach(provider: clip.provider).label == "Wit.ai voice, through the coach")
+        #expect(SpeechVoice.coach(provider: clip.provider).label == nil)
     }
 }
 

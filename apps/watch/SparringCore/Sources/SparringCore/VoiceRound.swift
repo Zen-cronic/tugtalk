@@ -134,8 +134,8 @@ public struct RoundMedia: Decodable, Sendable, Equatable {
 
     public init(kept: Bool, reason: String?) { self.kept = kept; self.reason = reason }
 
-    /// The line the screen shows, or nil.
-    public var note: String? { kept ? "Recording kept" : (reason == "full" ? "Recording not kept: storage full" : nil) }
+    /// The line the screen shows, or nil. A kept recording needs no line; only a full store is worth saying.
+    public var note: String? { !kept && reason == "full" ? "Recording not kept: storage full" : nil }
 }
 
 public struct VoiceRoundReceipt: Decodable, Sendable, Equatable {

@@ -46,7 +46,7 @@ final class CaptureModel: ObservableObject {
 
     init() {
         // At the cap the recorder stops itself; the capture goes to upload exactly as a Stop tap would.
-        recorder.onAutoStop = { [weak self] file in
+        recorder.onAutoStop = { [weak self] file, _ in
             guard let self else { return }
             if self.capture(file) { Task { await self.upload() } }
         }
@@ -116,7 +116,10 @@ final class CaptureModel: ObservableObject {
     }
 
     func startRecording() async {
+        // A second tap on Record while the first is still starting is ignored, so no recording is left running unseen.
+        guard !recorder.isRecording else { return }
         guard await recorder.requestPermission() else { phase = .failed("Mic is off. Turn it on in Settings."); return }
+        guard !recorder.isRecording else { return }
         do {
             _ = try recorder.start()
             phase = .recording
@@ -173,6 +176,13 @@ final class CaptureModel: ObservableObject {
     }
 
     var canRetryUpload: Bool { pending != nil }
+
+    /// "Back to start" after a failed upload: the unsent recording is deleted, so nothing sends it later.
+    func backToStart() async {
+        if let pending { try? FileManager.default.removeItem(at: pending.file) }
+        pending = nil
+        await load()
+    }
 
     private var isLoading: Bool { if case .loading = phase { return true } else { return false } }
 

@@ -1,7 +1,7 @@
 import SparringCore
 import SwiftUI
 
-/// "Practise this answer": up to three spoken answers, each followed by the other person's question.
+/// "Practise this answer": up to four spoken answers, each followed by the other person's question.
 /// Tap Record, answer out loud, tap Stop. Tug thinks, then asks; you answer again.
 struct SparringView: View {
     @StateObject private var model: SparringModel
@@ -12,6 +12,7 @@ struct SparringView: View {
     }
 
     var body: some View {
+        VStack(spacing: 4) {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 8) { content }
@@ -21,11 +22,11 @@ struct SparringView: View {
             .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 4 } action: { _, now in
                 scrolled = now
             }
-            .mask(alignment: .top) { HeaderFade(active: scrolled) }
-            .onChange(of: model.phase.name) { _, name in
+            .overlay(alignment: .top) { HeaderFade(active: scrolled) }
+            .onChange(of: model.phase.name) { _, _ in
                 #if DEBUG
                 // `-sparringScrollToEnd YES`: shows the end of each step, for simulator captures.
-                // `-sparringScrollTo source`: centres that part of each step instead (here, Round done's source line).
+                // `-sparringScrollTo source`: centres that part of each step instead (here, Round done's line on why the round ended).
                 if let anchor = UserDefaults.standard.string(forKey: "sparringScrollTo") {
                     Task { try? await Task.sleep(for: .milliseconds(300)); proxy.scrollTo(anchor, anchor: .center) }
                     return
@@ -35,12 +36,15 @@ struct SparringView: View {
                     return
                 }
                 #endif
-                // Each new step starts at the top, so the question or the number shows first. On "Your turn" the
-                // question moves to the top, which brings Record into view below it.
-                withAnimation(.easeOut(duration: 0.25)) {
-                    if name == "your turn" { proxy.scrollTo("question", anchor: .top) } else { proxy.scrollTo("top", anchor: .top) }
-                }
+                // Each new step starts at the top, so its status and the question or the number show first (Record and
+                // Stop are pinned below). The jump is not animated, so no scroll is still moving when a button is tapped.
+                proxy.scrollTo("top", anchor: .top)
             }
+        }
+            // Stop, and Record on a question, sit below the scroll view, never inside it: on the real watch (build 9)
+            // both did nothing when tapped inside it, right after the step changed and the content scrolled.
+            pinnedAction
+                .padding(.horizontal, 6)
         }
         .navigationTitle("Practise")
         .task {
@@ -71,6 +75,24 @@ struct SparringView: View {
     }
 
     private func counter(_ answer: Int) -> String { "Answer \(answer)" }
+
+    /// The step's main button, outside the scroll view: Stop while recording, Record on a question.
+    @ViewBuilder private var pinnedAction: some View {
+        switch model.phase {
+        case .recording:
+            Button { model.stop() } label: {
+                Label { Text("Stop") } icon: { RoundedRectangle(cornerRadius: 2).frame(width: 12, height: 12) }
+            }
+            .buttonStyle(CoachButtonStyle())
+            .handGestureShortcut(.primaryAction) // double tap, on watches that have it: a second way to stop
+        case .replying(let shown) where !shown.endsRound:
+            // Double tap records only once the question has played, so a double tap to scroll never cuts it off.
+            recordButton(shown.spoken ? "Record" : "Answer now")
+                .handGestureShortcut(.primaryAction, isEnabled: shown.spoken)
+        default:
+            EmptyView()
+        }
+    }
 
     // Your turn, before the first answer
 
@@ -119,10 +141,6 @@ struct SparringView: View {
             .background(Palette.rack, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Recording. \(counter(answer)).")
-            Button { model.stop() } label: {
-                Label { Text("Stop") } icon: { RoundedRectangle(cornerRadius: 2).frame(width: 12, height: 12) }
-            }
-            .buttonStyle(CoachButtonStyle())
             Text(counter(answer))
                 .face(.text, 13, weight: 600, relativeTo: .caption)
                 .foregroundStyle(Palette.mutedDark)
@@ -170,13 +188,12 @@ struct SparringView: View {
             if shown.endsRound {
                 Button("See result") { model.seeResult() }
                     .buttonStyle(CoachButtonStyle())
-            } else {
-                recordButton(shown.spoken ? "Record" : "Answer now")
             }
             if let quote = shown.quote { QuoteCard(quote: quote).slotIn() }
+            if shown.voice?.label != nil || shown.mediaNote != nil {
             VStack(alignment: .leading, spacing: 2) {
-                if let voice = shown.voice {
-                    Text(voice.label)
+                if let label = shown.voice?.label {
+                    Text(label)
                         .face(.text, 12, weight: 600, relativeTo: .caption2)
                         .foregroundStyle(Palette.mutedDark)
                 }
@@ -188,6 +205,7 @@ struct SparringView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
+            }
             if !shown.endsRound {
                 Button("End round") { model.endRound() }
                     .buttonStyle(CoachButtonStyle(.secondary))
@@ -233,12 +251,14 @@ struct SparringView: View {
                         .foregroundStyle(Palette.inkDark)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 4)
-                    Text([summary.source, ending(closedBy)].compactMap { $0 }.joined(separator: ". "))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .id("source")
-                        .face(.text, 12, weight: 600, relativeTo: .caption2)
-                        .foregroundStyle(Palette.mutedDark)
-                        .padding(.horizontal, 4)
+                    if let ending = ending(closedBy) {
+                        Text(ending)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .id("source")
+                            .face(.text, 12, weight: 600, relativeTo: .caption2)
+                            .foregroundStyle(Palette.mutedDark)
+                            .padding(.horizontal, 4)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)

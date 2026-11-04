@@ -42,11 +42,6 @@ public struct RoundSummary: Sendable, Equatable {
         return "In your last answer, the same as your first"
     }
 
-    /// Where the numbers come from.
-    public var source: String {
-        answers == 1 ? "Counted by the server in 1 answer" : "Counted by the server in answers 1 and \(answers)"
-    }
-
     public static func make(_ answers: [VoiceMetrics]) -> RoundSummary? {
         let measured = answers.filter { $0.filler_count != nil || $0.hedge_count != nil || $0.restart_count != nil }
         guard let first = measured.first, let last = measured.last else { return nil }
