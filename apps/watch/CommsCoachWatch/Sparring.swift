@@ -22,9 +22,9 @@ final class SparringModel: ObservableObject {
     private var speechTask: Task<Void, Never>?
     /// The last round end sent to the server (`POST /v1/voice-rounds/end`). The next answer waits for it.
     private var endTask: Task<Void, Never>?
-
     /// The screen has closed (`leave()`): nothing starts after that.
     private var left = false
+
     /// `latestCard`: the account's newest screen card from the overview. With the goal's own card it decides which card,
     /// if any, the round is about (`ScreenCard.pick`), so the round's first reply picks the other person's need from it.
     init(goal: GoalSummary?, latestCard: ScreenCard? = nil, language: String) {
@@ -96,6 +96,7 @@ final class SparringModel: ObservableObject {
     /// still holds open is ended there, so the next round, on any device, starts at answer 1. An answer still
     /// uploading is not cancelled (the server may save it); once it is saved, one round end follows it.
     func leave() {
+        self.left = true
         let left: String? = if case .thinking(_, let upload) = machine.phase { upload.idempotencyKey } else { nil }
         apply(machine.leave())
         _ = recorder.stop()
@@ -105,7 +106,6 @@ final class SparringModel: ObservableObject {
             let after = machine // this screen's round only: nothing is kept for the next screen
             Task {
                 var machine = after
-        self.left = true
                 let receipt = await upload.value
                 for case .endRoundOnServer(let key) in machine.leftUploadFinished(key: left, receipt) {
                     _ = try? await client.endRound(idempotencyKey: key)
@@ -181,11 +181,25 @@ final class SparringModel: ObservableObject {
             } catch is CancellationError {
                 return nil
             } catch {
+                if Task.isCancelled { return nil } // given up after `replyWait`; the failure is already on screen
                 self?.apply(self?.machine.uploadFailed(key: upload.idempotencyKey, RoundFailure.from(error)) ?? [])
                 return nil
             }
         }
+        // A reply that never comes leaves the failed step with Try again, which resends the same answer and key.
+        let task = uploadTask
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.replyWait)
+            guard let self, self.uploadTask == task, case .thinking(_, let now) = self.machine.phase,
+                  now.idempotencyKey == upload.idempotencyKey else { return }
+            print("practice reply took over 45 s; showing Try again")
+            task?.cancel()
+            self.apply(self.machine.uploadFailed(key: upload.idempotencyKey, .offline))
+        }
     }
+
+    /// Thinking waits this long for the reply before it offers Try again.
+    static let replyWait: Duration = .seconds(45)
 
     /// Ends the round on the server, after any end already on its way. Unconfirmed, the machine sends it again with the
     /// same key before the next round's first answer.
