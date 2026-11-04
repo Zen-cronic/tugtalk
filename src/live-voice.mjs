@@ -79,7 +79,9 @@ export function createRealtimeModel({ env = process.env, WebSocketImpl = globalT
       let receivedBytes = 0, finalReceived = false;
       let settleFinal, settleDrained, partial = '';
       const finalSeen = new Promise(r => { settleFinal = r; });
-      const final = () => { finalReceived = true; settleFinal(); };
+      // Only a final turn after endStream is the last one: Meta can mark a mid-hold sentence final, and counting that
+      // would let finish() return as soon as the queue drains, before the hold's last words arrive.
+      const final = () => { if (!endSent) return; finalReceived = true; settleFinal(); };
       // Settles once endStream is sent (every queued byte went first), or on failure.
       const drained = new Promise(r => { settleDrained = r; });
       let readyResolve, readyReject;

@@ -431,3 +431,26 @@ test('live: more audio than one answer may hold is a 413, never a release: nothi
     assert.equal(s.store.recentRequests('alice', 'POST', VOICE_ROUNDS_PATH, [499], 60_000), 1);
   } finally { s.cleanup(); }
 });
+
+test('realtime: a turn Meta marks final mid-hold does not end the wait; the last words after endStream are kept', async () => {
+  const meta = fakeMeta();
+  const model = createRealtimeModel({ env: { MODEL_API_KEY: 'k' }, WebSocketImpl: meta.FakeSocket, ...FAST });
+  const session = model.openRealtime({ sessionId: 's-early-final' });
+  await tick();
+  const socket = meta.sockets[0];
+  socket.ack();
+  session.send(pcm(100, 1));
+  // A mid-hold sentence marked final, before the hold is released.
+  socket.say({ type: 'speechStart', turnId: 0, audioProcessedMs: 0 });
+  socket.say({ type: 'transcript', transcript: 'So, um, I think', final: true });
+  socket.say({ type: 'transcript', transcript: '', final: true });
+  session.send(pcm(100, 2));
+  // The last turn arrives a little after endStream.
+  socket.onEnd = () => setTimeout(() => {
+    socket.say({ type: 'speechEnd', turnId: 0, audioProcessedMs: 200 });
+    socket.say({ type: 'speechComplete', turnId: 0, transcript: ANSWER });
+    socket.say({ type: 'transcript', transcript: '', final: true });
+  }, 60);
+  const result = await session.finish();
+  assert.equal(result.transcript, ANSWER, 'the whole answer, not the sentence finalized mid-hold');
+});
