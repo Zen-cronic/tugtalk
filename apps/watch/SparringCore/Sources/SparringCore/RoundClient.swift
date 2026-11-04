@@ -26,10 +26,10 @@ public struct RoundFailure: Error, Sendable, Equatable {
 
     public static let offline = RoundFailure(kind: .offline, message: "Lost connection.")
     public static let notSignedIn = RoundFailure(kind: .notSignedIn, message: "Add the connector key in Secrets.xcconfig and rebuild.")
-    public static let micOff = RoundFailure(kind: .micOff, message: "Microphone access is off. Enable it in Settings.")
-    public static let tooShort = RoundFailure(kind: .tooShort, message: "That was too short to send. Tap Record and answer out loud.")
-    public static let noQuestion = RoundFailure(kind: .noQuestion, message: "The reply had no question to ask.")
-    public static let unreadable = RoundFailure(kind: .unreadable, message: "The reply could not be read.")
+    public static let micOff = RoundFailure(kind: .micOff, message: "Mic is off. Turn it on in Settings.")
+    public static let tooShort = RoundFailure(kind: .tooShort, message: "Too short. Answer out loud.")
+    public static let noQuestion = RoundFailure(kind: .noQuestion, message: "No follow-up question came back.")
+    public static let unreadable = RoundFailure(kind: .unreadable, message: "Couldn't read the reply.")
 
     /// From an HTTP status and the error body's `error` and `message`.
     public static func from(status: Int, code: String?, message: String?) -> RoundFailure {
@@ -39,12 +39,12 @@ public struct RoundFailure: Error, Sendable, Equatable {
 
     private static func classify(status: Int, code: String?, message: String?) -> RoundFailure {
         switch (status, code) {
-        case (401, _), (403, _): return RoundFailure(kind: .notSignedIn, message: "The coach refused the connector key.", status: status)
+        case (401, _), (403, _): return RoundFailure(kind: .notSignedIn, message: "Connector key refused.", status: status)
         case (429, _): return RoundFailure(kind: .rateLimited, message: "\(message ?? "Too many voice rounds this hour.") Try again later.", status: status)
-        case (413, _): return RoundFailure(kind: .unusableAudio, message: "That was too long. Keep an answer under 3 minutes.", status: status)
-        case (400, _), (415, _): return RoundFailure(kind: .unusableAudio, message: "The coach couldn't use that recording: \(message ?? "bad audio").", status: status)
-        case (503, "reply_unconfigured"): return RoundFailure(kind: .notSetUp, message: "Voice replies are not set up on this coach yet.", status: status)
-        case (let s, _) where s >= 500: return RoundFailure(kind: .serverError, message: "The coach couldn't reply just now.", status: status)
+        case (413, _): return RoundFailure(kind: .unusableAudio, message: "Too long. Keep it under 3 minutes.", status: status)
+        case (400, _), (415, _): return RoundFailure(kind: .unusableAudio, message: "Couldn't use that recording.", status: status)
+        case (503, "reply_unconfigured"): return RoundFailure(kind: .notSetUp, message: "Voice replies aren't set up yet.", status: status)
+        case (let s, _) where s >= 500: return RoundFailure(kind: .serverError, message: "The coach didn't reply.", status: status)
         default: return RoundFailure(kind: .serverError, message: message ?? "Request failed (\(status)).", status: status)
         }
     }

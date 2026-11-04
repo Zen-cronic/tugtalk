@@ -109,7 +109,7 @@ final class SparringModel: ObservableObject {
                 #endif
                 files[key] = try recorder.start()
             } catch {
-                apply(machine.recordingFailed(RoundFailure(kind: .micOff, message: "The microphone could not start.")))
+                apply(machine.recordingFailed(RoundFailure(kind: .micOff, message: "Mic didn't start.")))
             }
         case .stopRecording(let key):
             if let url = recorder.stop() { files[key] = url }
@@ -136,12 +136,12 @@ final class SparringModel: ObservableObject {
 
     private func send(_ upload: AnswerUpload) {
         guard let client, let file = files[upload.idempotencyKey] else {
-            apply(machine.uploadFailed(key: upload.idempotencyKey, RoundFailure(kind: .tooShort, message: "The recording was not saved. Record again.")))
+            apply(machine.uploadFailed(key: upload.idempotencyKey, RoundFailure(kind: .tooShort, message: "Recording not saved.")))
             return
         }
         // Read now: leaving the screen deletes the recordings while this upload may still be waiting.
         guard let wav = try? Data(contentsOf: file) else {
-            apply(machine.uploadFailed(key: upload.idempotencyKey, RoundFailure(kind: .tooShort, message: "The recording was not saved. Record again.")))
+            apply(machine.uploadFailed(key: upload.idempotencyKey, RoundFailure(kind: .tooShort, message: "Recording not saved.")))
             return
         }
         let ending = endTask

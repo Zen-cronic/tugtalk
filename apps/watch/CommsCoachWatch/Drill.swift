@@ -47,7 +47,7 @@ struct DrillOutcome: Decodable {
         let one = ["hedge": "unsure word"], many = ["filler": "fillers", "hedge": "unsure words", "restart": "restarts"]
         let habit = m.capture_count == 1 ? (one[m.habit] ?? m.habit) : (many[m.habit] ?? m.habit)
         let sources = m.basis_source_word ?? (m.basis_sources == 1 ? "session" : "sessions")
-        return "Drill: \(m.capture_count) \(habit) this capture · basis \(m.basis_count) in \(m.basis_sources) \(sources) · measured by code"
+        return "Drill: \(m.capture_count) \(habit) now, \(m.basis_count) in \(m.basis_sources) earlier \(sources). Counted by code."
     }
 }
 

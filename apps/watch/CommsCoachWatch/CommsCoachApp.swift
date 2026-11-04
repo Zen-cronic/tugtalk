@@ -70,7 +70,7 @@ final class CaptureModel: ObservableObject {
             return
         }
         // `-previewPhase recording|uploading|failed`: that screen with sample data, without the microphone or a request.
-        // `-previewFailure "<text>"` sets the failed screen's message (default: the offline line, with Retry).
+        // `-previewFailure "<text>"`: the failed screen for a server error with that message, as the wrist words it.
         if let step = UserDefaults.standard.string(forKey: "previewPhase") {
             isPreview = true
             goals = [GoalSummary(id: "preview", title: "State the main point first", target: "")]
@@ -81,7 +81,7 @@ final class CaptureModel: ObservableObject {
             default:
                 pending = PendingCapture(file: FileManager.default.temporaryDirectory.appending(path: "preview.wav"), key: "preview",
                                          goalID: nil, language: language, occurredAt: Date())
-                phase = .failed(UserDefaults.standard.string(forKey: "previewFailure") ?? "Lost connection.")
+                phase = .failed(UserDefaults.standard.string(forKey: "previewFailure").map { Self.plain(CoachError.server(502, $0)) } ?? "Lost connection.")
             }
             return
         }
@@ -94,7 +94,7 @@ final class CaptureModel: ObservableObject {
             goals = overview.goals
             latestCard = overview.latest_screen_context
             settings = await setting
-            settingsNote = settings == nil ? "Not available on this coach yet." : nil
+            settingsNote = settings == nil ? "Not available yet." : nil
             if selectedGoal == nil { selectedGoal = goals.first }
             await refreshDrill()
             phase = .ready
@@ -116,7 +116,7 @@ final class CaptureModel: ObservableObject {
     }
 
     func startRecording() async {
-        guard await recorder.requestPermission() else { phase = .failed("Microphone access is off. Enable it in Settings."); return }
+        guard await recorder.requestPermission() else { phase = .failed("Mic is off. Turn it on in Settings."); return }
         do {
             _ = try recorder.start()
             phase = .recording
@@ -130,7 +130,7 @@ final class CaptureModel: ObservableObject {
             if capture(file) { await upload() }
         } else if case .recording = phase {
             // The recorder is gone but the screen still says Recording: never leave Stop doing nothing.
-            if pending != nil { await upload() } else { phase = .failed("The recording stopped before it was saved. Record again.") }
+            if pending != nil { await upload() } else { phase = .failed("Recording not saved.") }
         }
     }
 
@@ -191,12 +191,15 @@ final class CaptureModel: ObservableObject {
         }
     }
 
-    /// Network failures in plain words; any other error keeps its own message.
+    /// Errors in a few plain words for the wrist: no status codes. A server's own short message is kept.
     static func plain(_ error: Error) -> String {
         let offline: [URLError.Code] = [.notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost,
                                         .cannotFindHost, .dnsLookupFailed, .timedOut, .dataNotAllowed, .internationalRoamingOff]
         if let error = error as? URLError, offline.contains(error.code) { return "Lost connection." }
-        if case CoachError.server(401, _)? = error as? CoachError { return "The coach refused the connector key. Add a valid key in Secrets.xcconfig and rebuild." }
+        if case CoachError.server(401, _)? = error as? CoachError { return "Connector key refused. Add a valid key and rebuild." }
+        if case CoachError.server(let status, let message)? = error as? CoachError {
+            return status >= 500 || message.count > 60 ? "The coach didn't respond." : message
+        }
         return error.localizedDescription
     }
 }
