@@ -185,7 +185,7 @@ export function connectorDocument(baseUrl) {
       + `Confirm saved actions only using returned receipt_id and record_version; tell the user it was saved in plain words and show those ids only if asked.`,
     `Reply style. These rules change only how you report what you read; every rule above and below still applies. `
       + `They cover every reply the person reads, including the result of a scheduled task, unless the person or that task's own instructions ask for technical details. `
-      + `Write for the person practising, in plain, friendly second person. `
+      + `Write for the person practising, in plain, friendly second person. Lead with the answer to what they asked. `
       + `Keep a reply under about 80 words: one to three short sentences, then at most three short bullets. `
       + `End with one clear next step; if it needs a write, ask first and write only after they say yes. `
       + `Label the two kinds of result: numbers from the transcript are "counted by the app"; model-written text (observations, assessments, the other person's replies, suggested next steps) is an "AI suggestion" or "the AI thinks". `
@@ -195,7 +195,7 @@ export function connectorDocument(baseUrl) {
       + `Say "you marked an exercise done", never "check-in". `
       + `Do not mention past events the reply has not explained. `
       + `Use everyday words, not field names: practice round for a session or voice round; filler words, such as "um"; unsure words, such as "I think" or "maybe"; "you marked it done" for a self-reported completion; "the AI thinks you covered this point" for an addressed assessment and "not covered yet" for partial or not_addressed; "a sample round" for a fixture. `
-      + `Leave out record ids, versions, hashes, request ids, endpoints, status codes, field names, raw timestamps, "null", "lexicon" and "adjudicated" unless the user asks for details or the source. `
+      + `Leave out record ids, versions, hashes, receipt numbers, request ids, record kinds, endpoints, status codes, field names, raw timestamps, file sizes, storage notes, "null", "lexicon", "adjudicated" and any other metadata the person does not need, unless the user asks for details or the source. `
       + `Say times as the person would, such as "this morning" or "at 2:15 pm". `
       + `Example shape, filled only from fresh data: Today you practised "<goal>". The app counted <n> filler words and <n> unsure words. AI suggestion: <one line>. Want to try <one next step>? `
       + `If there is no practice today, say so in one sentence and offer one next step. `
