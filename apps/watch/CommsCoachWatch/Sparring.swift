@@ -20,6 +20,8 @@ final class SparringModel: ObservableObject {
     private var speechTask: Task<Void, Never>?
     /// The last round end sent to the server (`POST /v1/voice-rounds/end`). The next answer waits for it.
     private var endTask: Task<Void, Never>?
+    /// A round end not yet confirmed outlives this screen, so the next screen sends it (`PendingRoundEndStore`).
+    private let pendingEnds = PendingRoundEndStore()
 
     /// `latestCard`: the account's newest screen card from the overview. With the goal's own card it decides which card,
     /// if any, the round is about (`ScreenCard.pick`), so the round's first reply picks the other person's need from it.
@@ -31,7 +33,8 @@ final class SparringModel: ObservableObject {
         if let forced = UserDefaults.standard.string(forKey: "sparringLanguage") { language = forced }
         #endif
         let card = ScreenCard.pick(goalCard: goal?.latest_screen_context, latest: latestCard, goalID: goal?.id, now: Date())
-        machine = SparringMachine(goalID: goal?.id, language: VoiceLanguage(rawValue: language) ?? .en, screenContextID: card)
+        machine = SparringMachine(goalID: goal?.id, language: VoiceLanguage(rawValue: language) ?? .en, screenContextID: card,
+                                  pendingEndKey: pendingEnds.load(now: Date()))
         if let api = try? CoachAPI.fromBundle() {
             client = RoundClient(requests: RoundRequests(baseURL: api.baseURL, token: api.token))
         } else {
@@ -155,11 +158,13 @@ final class SparringModel: ObservableObject {
     /// the next round's first answer.
     private func endRound(_ key: String) {
         guard let client else { return }
-        let previous = endTask, upload = uploadTask
+        let previous = endTask, upload = uploadTask, pendingEnds = pendingEnds
+        pendingEnds.save(key, at: Date())
         endTask = Task { [weak self] in
             await previous?.value
             await upload?.value
             guard (try? await client.endRound(idempotencyKey: key)) != nil else { return }
+            pendingEnds.confirmed(key) // even after the screen has closed
             self?.machine.roundEndSent(key: key)
         }
     }

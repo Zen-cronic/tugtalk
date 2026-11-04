@@ -88,9 +88,13 @@ public struct SparringMachine: Sendable {
     private let newKey: @Sendable () -> String
     private let newEndKey: @Sendable () -> String
 
-    public init(goalID: String?, language: VoiceLanguage, screenContextID: String? = nil, newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() },
+    /// `pendingEndKey`: a round end an earlier screen sent but the server never confirmed (`PendingRoundEndStore`). It is
+    /// sent again, with the same key, before this screen's first answer.
+    public init(goalID: String?, language: VoiceLanguage, screenContextID: String? = nil, pendingEndKey: String? = nil,
+                newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() },
                 newEndKey: @escaping @Sendable () -> String = { RoundRequests.newRoundEndKey() }) {
-        self.goalID = goalID; self.language = language; self.screenContextID = screenContextID; self.newKey = newKey; self.newEndKey = newEndKey
+        self.goalID = goalID; self.language = language; self.screenContextID = screenContextID; self.pendingEndKey = pendingEndKey
+        self.newKey = newKey; self.newEndKey = newEndKey
     }
 
     /// Answers the server has replied to.

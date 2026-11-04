@@ -324,6 +324,29 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         #expect(idle.leave() == [])
     }
 
+    @Test func anEndTheLastScreenCouldNotSendGoesBeforeTheNextScreensFirstAnswer() {
+        let defaults = UserDefaults(suiteName: "pending-round-end-test-\(UUID().uuidString)")!
+        let store = PendingRoundEndStore(defaults: defaults)
+        // The first screen ends its round offline and closes: the end is never confirmed.
+        var first = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        threeAnswers(&first)
+        #expect(first.leave() == [.endRoundOnServer(key: "end-1")])
+        store.save("end-1", at: t0)
+        store.save("end-1", at: t0.addingTimeInterval(600)) // a resend keeps the first time
+        // The next screen inherits it and sends it, same key, before its first answer.
+        var next = SparringMachine(goalID: nil, language: .en, pendingEndKey: store.load(now: t0.addingTimeInterval(60)), newKey: Keys().next, newEndKey: { "end-2" })
+        let effects = next.record(at: t0.addingTimeInterval(60))
+        guard case .recording(1, let upload) = next.phase else { Issue.record("not recording"); return }
+        #expect(effects == [.endRoundOnServer(key: "end-1"), .startRecording(key: upload.idempotencyKey)])
+        // Confirmed: nothing is owed any more.
+        store.confirmed("end-2"); #expect(store.load(now: t0.addingTimeInterval(61)) == "end-1", "another key leaves it")
+        store.confirmed("end-1"); #expect(store.load(now: t0.addingTimeInterval(61)) == nil)
+        // Past the server's round window it is dropped, never sent late.
+        store.save("end-3", at: t0)
+        #expect(store.load(now: t0.addingTimeInterval(PendingRoundEndStore.maxAge + 1)) == nil)
+        #expect(store.load(now: t0) == nil, "dropped for good")
+    }
+
     @Test func aConfirmedEndIsNotSentAgain() {
         var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
         threeAnswers(&m)
