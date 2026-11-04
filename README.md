@@ -56,8 +56,8 @@ Every Spark Open call goes to Baseten's OpenAI-compatible endpoint, by one of tw
 | State | What |
 |---|---|
 | **Live on the hosted API** | Meta speech-to-text (file and realtime), the Spark Open jobs above, the Wit.ai voice, goals, practice rounds, receipts and the audit log. One synthetic account with one key; there is no sign-up |
-| **Mostly tested in the simulator** | The Apple Watch app. Most of our watch runs used the watchOS simulator with fixture audio or the Mac microphone, and a local stub server. On a real Apple Watch, one capture has succeeded: on Nov 4 at 13:08 EST, session `ab367ab1…`, measured and saved. The watch speaker and the watch voice round have not been checked on a real watch |
-| **Tested with synthetic clips** | The Mac voice loop. Our recorded runs used macOS `say` clips, not a person's voice |
+| **Checked on a real Apple Watch (SE 3, watchOS 26.6)** | The watch app. On Nov 4, captures were measured and saved from the wrist (for example 16:52 EST, session `bf5b2035…`, which a fresh Muse chat then quoted back), and a full spoken practice round ran on the watch with its follow-up question played on the watch speaker. Earlier builds had device-only dead buttons; they are fixed in TestFlight build 11. Most automated runs still use the watchOS simulator with fixture audio |
+| **Checked on a real Mac, in a person's voice** | The Mac voice loop. On Nov 4 a hold-to-talk round ran with the developer's own voice: the follow-up asked for specific results, and the round closed after the second answer. Earlier recorded runs used macOS `say` clips |
 | **Off** | The SAM 3.1 hands check ([docs/replay.md](docs/replay.md)). The hosted route exists only when deployed with `REPLAY_ENABLED=1`, and it is off by default for each round |
 | **Measured, then deployed (Nov 4)** | The pre-registered held-out run for word-list labelling (above). Both rule outcomes are live: model-only filler labels are on, and unsure words keep the word-list count |
 | **Measured on text we wrote** | How often the assessment of your answer matches our label: 40 answers, 88 objectives, text only (above) |
