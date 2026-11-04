@@ -22,6 +22,7 @@ import { CAMERA_FIELDS, CAMERA_METHOD } from '../src/camera-metrics.mjs';
 import { NEEDS, NEED_METHOD, ANSWER_CAP, allowedMoves, gateReason } from '../src/counterpart.mjs';
 import { runCounterpartEval } from '../src/counterpart-eval.mjs';
 import { loadHeldout, rescore, applyRules } from '../src/heldout.mjs';
+import { summarize as summarizeSemantic, loadSet as loadSemanticSet } from '../scripts/eval-semantic.mjs';
 import { MODEL_BUDGET_MS, ADAPTER_DEADLINE_MS, MIN_START_MS } from '../src/budget.mjs';
 import { MEDIA_CAP_BYTES, MEDIA_DOWNLOAD_LIMIT } from '../src/media.mjs';
 import { BASIS_MAX_SOURCES, BASIS_WINDOW_DAYS, DUE_MAX_DAYS, DRILL_HABITS, checkDueAt } from '../src/drills.mjs';
@@ -426,7 +427,8 @@ function measurementChecks(evalResult) {
     'eval-scripted-checks': () => `${adj.labels.rejected} of ${adj.candidates} rejected, ${adj.accepted_labels_against_gold.wrong} wrong accepted`,
     'eval-live-calls': () => `${adj.live_plan.calls}, at most ${adj.live_plan.max_calls_with_retries} with retries`,
     ...liveChecks(evalResult),
-    ...heldoutChecks()
+    ...heldoutChecks(),
+    ...semanticChecks()
   };
 }
 
@@ -472,6 +474,20 @@ function heldoutChecks() {
     'eval-heldout-model-only': () => { const m = score.classes.model_only; return `${fixed(m.model_only.precision)} / ${fixed(m.model_only.recall)} / ${fixed(m.model_only.f1)} against ${fixed(m.count_all.f1)}`; },
     'eval-heldout-hedges': () => `${fixed(rules.rule2_hedges_leave_adjudication.lexicon_recall)} against ${fixed(rules.rule2_hedges_leave_adjudication.adjudication_recall)}; rule 1 ${rules.rule1_model_only_ships.pass ? 'passes' : 'fails'}, rule 2 ${rules.rule2_hedges_leave_adjudication.fires ? 'fires' : 'does not fire'}`,
     'eval-heldout-calls': () => `${live.items.length} calls, ${live.items.reduce((n, i) => n + i.attempts - 1, 0)} retries`
+  };
+}
+
+// The semantic assessment eval (eval/SEMANTIC.md): its summary recomputed from the saved records.
+function semanticChecks() {
+  const saved = JSON.parse(read('eval/semantic-results.json')), set = loadSemanticSet();
+  const s = summarizeSemantic(saved.records, set);
+  assert.deepEqual(s, saved.summary, 'the saved summary matches its records'); assert.match(saved.started_at, /^2026-11-04T/);
+  const pct = x => `${Math.round(x * 100)}%`, [r1, r2] = [s.run1.final, s.run2.final];
+  return {
+    'eval-semantic-set': () => `${s.items} answers, ${s.objectives} objectives: ${s.gold.addressed} addressed, ${s.gold.partial} partial, ${s.gold.not_addressed} not addressed`,
+    'eval-semantic-accuracy': () => `${r1.right} / ${r1.objectives} (${pct(r1.accuracy)}); repeat ${r2.right} / ${r2.objectives} (${pct(r2.accuracy)})`,
+    'eval-semantic-false-addressed': () => `${r1.false_addressed.count} / ${r1.false_addressed.of} (${pct(r1.false_addressed.rate)}); repeat ${r2.false_addressed.count} / ${r2.false_addressed.of} (${pct(r2.false_addressed.rate)}); ${r1.false_addressed.gold_not_addressed + r2.false_addressed.gold_not_addressed} not addressed`,
+    'eval-semantic-partial': () => `${r1.per_gold_class.partial.right} of ${r1.per_gold_class.partial.n}; repeat ${r2.per_gold_class.partial.right} of ${r2.per_gold_class.partial.n}`
   };
 }
 

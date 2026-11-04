@@ -39,7 +39,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 271 | A `node --test` run of the other test files (all must pass), plus this one |
+| `node-tests` | Node test cases, as `npm test` reports them | 273 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 30 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |
@@ -70,6 +70,10 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-heldout-model-only` | Held-out live run, Nov 4, on a synthetic set written and labelled by a separate agent: model-only words precision / recall / F1, against count-all F1 | 1.000 / 0.886 / 0.940 against 0.677 | `eval/heldout-live-results.json`, rescored from its stored labels (its set SHA-256 matches `eval/heldout-v1.json`) |
 | `eval-heldout-hedges` | Same run: hedge recall, lexicon against adjudication, and the pre-registered rules | 0.742 against 0.484; rule 1 passes, rule 2 fires | `applyRules` on the rescored `eval/heldout-live-results.json` |
 | `eval-heldout-calls` | Same run: calls made, and first replies that needed a retry | 60 calls, 0 retries | `attempts` per item in `eval/heldout-live-results.json` |
+| `eval-semantic-set` | Semantic assessment eval, Nov 4: a set we wrote and labelled ourselves, text only | 40 answers, 88 objectives: 37 addressed, 25 partial, 26 not addressed | `summarize` (scripts/eval-semantic.mjs) on the records in `eval/semantic-results.json`, which must match its saved summary |
+| `eval-semantic-accuracy` | Same eval: the stored label (after code's check) matches ours, first run and the repeat | 58 / 88 (66%); repeat 60 / 88 (68%) | `summarize` on `eval/semantic-results.json` |
+| `eval-semantic-false-addressed` | Same eval: objectives we labelled partial or not addressed that end up addressed, both runs; of them, ones we labelled not addressed | 5 / 51 (10%); repeat 2 / 51 (4%); 0 not addressed | `summarize` on `eval/semantic-results.json` |
+| `eval-semantic-partial` | Same eval: partly covered objectives labelled partial, both runs | 7 of 25; repeat 9 of 25 | `summarize` on `eval/semantic-results.json` |
 
 ## Voice rounds
 

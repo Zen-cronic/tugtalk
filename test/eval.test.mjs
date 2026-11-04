@@ -53,7 +53,7 @@ test('README eval line states the committed headline numbers', () => {
   assert.ok(first, 'README has the eval line');
   const m = committed.systems.measure, b = committed.systems.flat_list_baseline;
   for (const value of [m.overall.precision, m.overall.recall, b.overall.precision, b.overall.recall, committed.counts.items, m.negative_control.items])
-    assert.ok(first.includes(String(value)), `README first line should include ${value}: ${first}`);
+    assert.ok(first.includes(String(value)), `README eval line should include ${value}: ${first}`);
   assert.match(first, /synthetic/i);
 });
 
