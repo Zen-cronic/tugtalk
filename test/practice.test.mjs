@@ -143,3 +143,9 @@ test('fresh context computes practice freshness once per practice round, with by
  store.freshnessMemo=()=>({get(){},set(){}});
  assert.equal(memoized,views(),'the memo changes no byte of any view');
 }));
+test('a deleted practice voice round is refused as deleted, not as practice_stale',()=>fixture(async({store,create,send})=>{
+ create();const out=await send('deleted-basis');const voice=store.get('alice','voice-rounds',out.round_id);
+ store.put('alice','voice-rounds',{...voice,version:2,deleted:true});
+ assert.throws(()=>checkBasis(store,'alice','goal-a',{habit:'hedge',source_ids:[out.round_id],claimed_count:0}),e=>e.code==='basis_source_invalid'&&e.details.refused[0].reason==='deleted');
+ assert.throws(()=>checkBasis(store,'alice','goal-a',{habit:'hedge',source_ids:['missing-round'],claimed_count:0}),e=>e.details.refused[0].reason==='not_found');
+}));

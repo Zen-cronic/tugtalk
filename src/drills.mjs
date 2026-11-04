@@ -78,7 +78,8 @@ export function checkBasis(store, user, goalId, basis, now = Date.now()) {
   if (open) throw withDetails(new ApiError(409, 'drill_open', `Goal already has an open drill (exercise ${open.id}). Record a check-in for it, completed or skipped, before setting another.`), { open_exercise_id: open.id });
 
   const sources = source_ids.map(id => ({ id, source: findSource(store, user, id) }));
-  const refused = sources.map(({ id, source }) => ({ id, reason: source?.kind === 'voice-rounds' && !semanticSourceCurrent(store,user,source.record) ? 'practice_stale' : refusal(source, now) })).filter(r => r.reason);
+  // A deleted, missing or unmeasured source reports that first; only a usable voice round can be practice_stale.
+  const refused = sources.map(({ id, source }) => ({ id, reason: refusal(source, now) ?? (source.kind === 'voice-rounds' && !semanticSourceCurrent(store,user,source.record) ? 'practice_stale' : null) })).filter(r => r.reason);
   if (refused.length) throw withDetails(new ApiError(422, 'basis_source_invalid', 'Cite only measured captures or voice rounds of this account from the last 14 days, not fixtures or hidden sessions.'), { refused });
 
   const per_source = sources.map(({ id, source }) => ({ id, kind: source.kind === 'sessions' ? 'session' : 'voice_round', version: source.record.version, count: habitCount(source.record, habit) }));
