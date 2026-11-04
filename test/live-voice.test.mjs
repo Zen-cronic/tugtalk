@@ -454,3 +454,28 @@ test('realtime: a turn Meta marks final mid-hold does not end the wait; the last
   const result = await session.finish();
   assert.equal(result.transcript, ANSWER, 'the whole answer, not the sentence finalized mid-hold');
 });
+
+test('live: a client that closed the socket after release for its fallback upload gets no speech made; the upload saved first wins', async () => {
+  const s = setup();
+  try {
+    const prefetched = [], prefetch = s.models.prefetchSpeech;
+    s.models.prefetchSpeech = (id, ...rest) => { prefetched.push(id); return prefetch(id, ...rest); };
+    const frames = [pcm(1000, 5), pcm(800, 6)];
+    const round = s.open({ ...START, idempotency_key: 'live-race-02' });
+    await tick();
+    metaAnswers(s.meta.sockets[0]);
+    frames.forEach(f => round.audio(f));
+    await tick();
+    round.end();
+    round.cancel(); // the Mac gave up on the socket and uploads the same hold
+    const params = voiceParams({ 'x-language': 'en', 'x-occurred-at': START.occurred_at, 'x-prompt-ended-at': START.prompt_ended_at });
+    const upload = await handleVoiceRound(s.store, s.models, 'alice', { params, audio: wavFromPcm(Buffer.concat(frames)) }, 'live-race-02', 'req-upload-2');
+    const result = await round.done;
+    await result.speechDone;
+    assert.equal(result.body.round_id, upload.round_id, 'the round saved first is the one returned');
+    const liveId = s.events.find(e => e.type === 'reply')?.round_id;
+    assert.ok(liveId && liveId !== upload.round_id);
+    assert.ok(!prefetched.includes(liveId), 'no speech was made for a client that went away');
+    assert.equal(s.store.list('alice', 'voice-rounds').length, 1);
+  } finally { s.cleanup(); }
+});

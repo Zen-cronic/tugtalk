@@ -293,10 +293,11 @@ export function createLiveRound({ store, models, token, start, requestId = rando
         model: answer.result.model ?? null, provider_request_id: answer.result.provider_request_id ?? null,
         latency_ms: { asr: asrMs, model: answer.modelMs, release_to_reply: replyMs }, transcription: mode,
         gate: answer.gate, reply_mode: params.replyMode ?? 'model', counterpart: answer.counterpart, ...(receipt?.record.practice ? {practice:receipt.record.practice} : {}) });
-      // The spoken reply starts now, alongside the write and the commit.
-      const entry = speak ? models.prefetchSpeech?.(roundId, user, answer.checked.reply.question, params.language) ?? null : null;
+      // The spoken reply starts now, alongside the write and the commit. A client that went away after release (the Mac
+      // closes the socket before its fallback upload of this hold) hears nothing, so no speech is paid for.
+      const entry = speak && !audioStopped ? models.prefetchSpeech?.(roundId, user, answer.checked.reply.question, params.language) ?? null : null;
       const speechDone = (async () => {
-        if (!entry) { emit({ type: 'speech_unavailable', error: speak ? 'speech_unconfigured' : 'not_requested' }); return; }
+        if (!entry) { emit({ type: 'speech_unavailable', error: !speak ? 'not_requested' : audioStopped ? 'client_gone' : 'speech_unconfigured' }); return; }
         const head = await entry.head;
         if (head.error) { emit({ type: 'speech_unavailable', error: head.error.code ?? 'speech_failed' }); return; }
         emit({ type: 'speech_start', content_type: head.type, provider: models.speechProvider?.() ?? 'custom', voice: models.speechVoice?.(params.language) ?? 'unknown',
