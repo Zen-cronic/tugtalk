@@ -162,6 +162,11 @@ final class CaptureModel: ObservableObject {
             try? FileManager.default.removeItem(at: pending.file) // audio is not kept on the watch
             self.pending = nil
             phase = .failed("\(message) Try again later.")
+        } catch CoachError.refused(let message) {
+            // The same recording would be refused again, so no Retry.
+            try? FileManager.default.removeItem(at: pending.file) // audio is not kept on the watch
+            self.pending = nil
+            phase = .failed(message)
         } catch {
             phase = .failed(Self.plain(error)) // file and key kept; Retry resends the same request
         }
@@ -192,13 +197,17 @@ final class CaptureModel: ObservableObject {
     }
 
     /// Errors in a few plain words for the wrist: no status codes. A server's own short message is kept.
+    /// "The coach didn't respond." is only for a 5xx or a timeout; a refusal never reads as an outage.
     static func plain(_ error: Error) -> String {
         let offline: [URLError.Code] = [.notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost,
-                                        .cannotFindHost, .dnsLookupFailed, .timedOut, .dataNotAllowed, .internationalRoamingOff]
+                                        .cannotFindHost, .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff]
+        if let error = error as? URLError, error.code == .timedOut { return "The coach didn't respond." }
         if let error = error as? URLError, offline.contains(error.code) { return "Lost connection." }
+        if case CoachError.refused(let message)? = error as? CoachError { return message }
         if case CoachError.server(401, _)? = error as? CoachError { return "Connector key refused. Add a valid key and rebuild." }
         if case CoachError.server(let status, let message)? = error as? CoachError {
-            return status >= 500 || message.count > 60 ? "The coach didn't respond." : message
+            if status >= 500 { return "The coach didn't respond." }
+            return message.count > 60 ? "The coach refused this request." : message
         }
         return error.localizedDescription
     }

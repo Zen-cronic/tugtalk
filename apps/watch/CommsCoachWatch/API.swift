@@ -65,10 +65,13 @@ private struct APIErrorBody: Decodable { let error: String; let message: String?
 enum CoachError: LocalizedError {
     case notConfigured
     case server(Int, String)
+    /// The server refused this recording and would refuse the same request again, so no Retry. Plain words for the wrist.
+    case refused(String)
     var errorDescription: String? {
         switch self {
         case .notConfigured: return "Add the connector key in Secrets.xcconfig and rebuild."
         case .server(let status, let message): return "\(status): \(message)"
+        case .refused(let message): return message
         }
     }
 }
@@ -165,8 +168,23 @@ struct CoachAPI {
             request.setValue("everyday", forHTTPHeaderField: "X-Context")
         }
         let (data, response) = try await URLSession.shared.upload(for: request, fromFile: file)
+        if let refusal = Self.refusal(data, response) { throw CoachError.refused(refusal) }
         try check(data, response)
         return try JSONDecoder().decode(CaptureReceipt.self, from: data)
+    }
+
+    /// A recording the server will always refuse (src/capture.mjs, src/server.mjs, src/store.mjs), in a few words.
+    /// Nil for any other answer, which `check` handles as before.
+    static func refusal(_ data: Data, _ response: URLResponse) -> String? {
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (400..<500).contains(status) else { return nil }
+        switch (status, (try? JSONDecoder().decode(APIErrorBody.self, from: data))?.error) {
+        case (413, _): return "Recording too large."
+        case (_, "unsupported_audio"): return "Recording format not supported."
+        case (_, "audio_too_long"): return "Recording too long."
+        case (409, "idempotency_conflict"): return "Already sent. Record again."
+        default: return nil
+        }
     }
 }
 
