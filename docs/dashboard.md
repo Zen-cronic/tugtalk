@@ -37,7 +37,7 @@ The HTTPS ingress must preserve the configured Host and support its same-origin 
 
 ## Data and controls
 
-- Goal association comes only from stored `goal_id`. Unlinked captures and voice rounds appear separately. Watch captures, Mac voice rounds and saved drills use the existing API records.
+- Goal association comes only from stored `goal_id`. Unlinked captures and voice rounds appear separately. Captures, voice rounds and saved drills use the existing API records. Device labels come only from recorded metadata; a voice round is not assumed to come from a Mac.
 - The default displayed speech counts are the record's stored `metrics` counts. They are not an improvement score. AI observations and practice-partner replies are labelled separately.
 - Refresh occurs on sign-in, browser focus, explicit refresh and successful recording changes. A failed refresh labels previously loaded results as older data. No local storage or service worker caches practice data.
 - Audio playback/download is authenticated through the same gateway. No public media URL or browser bearer is created.
