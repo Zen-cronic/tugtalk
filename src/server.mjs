@@ -1,3 +1,4 @@
+import { PRACTICE_EXERCISES_PATH, createPracticeExercise, changePracticeExercise, getPracticeExercise } from './practice-exercises.mjs';
 import { PRACTICE_PATH, createPractice, changePractice, getPractice } from './practice.mjs';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
@@ -147,14 +148,14 @@ export function connectorDocument(baseUrl) {
       + `Never put it in chat, URLs or files.`,
     `API host: ${new URL(baseUrl).host}`,
     `Allowed paths: `
-      + `GET /v1/overview, GET /v1/goals/{id}/context, GET /v1/context, GET /v1/receipts, GET /v1/files/evidence.txt, GET /v1/settings, GET /v1/media, GET /v1/practice-rounds/{id}; `
-      + `POST /v1/goals, /v1/exercises, /v1/check-ins, /v1/practice-rounds; `
-      + `PATCH /v1/goals/{id}, /v1/sessions/{id}, /v1/practice-rounds/{id}. `
+      + `GET /v1/overview, GET /v1/goals/{id}/context, GET /v1/context, GET /v1/receipts, GET /v1/files/evidence.txt, GET /v1/settings, GET /v1/media, GET /v1/practice-rounds/{id}, GET /v1/practice-exercises/{id}; `
+      + `POST /v1/goals, /v1/exercises, /v1/check-ins, /v1/practice-rounds, /v1/practice-exercises; `
+      + `PATCH /v1/goals/{id}, /v1/sessions/{id}, /v1/practice-rounds/{id}, /v1/practice-exercises/{id}. `
       + `No other hosts or endpoints.`,
     `All writes need a fresh Idempotency-Key header (8–128 characters); reuse only to retry the exact request. `
       + `Patches need expected_version from a fresh read. `
       + `A 409 means re-read and explain the conflict; do not blindly overwrite.`,
-    `Contract version 0.8.0: `
+    `Contract version 0.9.0: `
       + `At the start of EVERY goal-related turn fetch GET /v1/overview, even in an existing chat. `
       + `For a goal-specific chat bind to the explicitly selected goal ID and then GET /v1/goals/{id}/context. `
       + `Never infer a goal ID from the most recently used chat. `
@@ -179,6 +180,9 @@ export function connectorDocument(baseUrl) {
       + `A check-in with evidence_type measured compares one capture with the drill's basis; describe it as one measured result, not improvement. `
       + `Confirm saved actions only using returned receipt_id and record_version.`,
     `Practice rounds persist a confirmed request and 1–3 objectives for one goal. Create or revise only after the user confirms the request; never from a scheduled task. Use expected_goal_version and exact source versions. Read practice_rounds in fresh context and GET /v1/practice-rounds/{id}. Their assessment is a fallible model_assessment, not code-measured success, truth or improvement. Source corrections hide stale evidence and require a newly confirmed revision. Closed rounds must be revised before more sparring. End and dispute never mean success. Exact write receipts are historical; re-read current state. No automatic model re-evaluation on reads. Ordinary recordings remain count-only.`,
+    `Practice exercises are separate fictional scenarios, not habit-count drills. On an explicit user request, fetch fresh context and GET /v1/practice-rounds/{id}; use its exact id/version/request_version and the last answer_sources entry id/version, plus one objective id. Never guess identifiers or versions. POST /v1/practice-exercises with goal_id, expected_goal_version, title, request_text, scenario_type fictional_practice, purpose address_gap or transfer, and basis {round_id,round_version,request_version,voice_id,voice_version,objective_id}. The server copies the confirmed source objective and validates its latest assessment. address_gap needs partial/not_addressed; transfer needs addressed. Unclear/unavailable cannot establish a gap. The source must be current, terminal and an ordinary round, not another practice exercise.`,
+    `A proposed practice exercise is not started. Show its fictional scenario and copied objective; only after the user confirms that exact scenario, PATCH /v1/practice-exercises/{id} with action activate, expected_version, confirmed true, content_version and expected_goal_version from a fresh read. This atomically creates the linked practice round. Do not activate or create practice exercises from scheduled tasks. The existing watch must end any old local round and start fresh before answering. The scenario is read in Muse or current context; do not claim the old watch displays it.`,
+    `Practice exercise state assessed_addressed is a fallible model interpretation; attempted, capped, skipped and proposed are not success. No measured check-in or improvement is implied. Fetch practice_exercises in fresh overview/focused context or GET /v1/practice-exercises/{id}. Hide stale/disputed/superseded content and do not reuse its result. Source or target corrections revoke current results. To skip/dispute a linked round, include its expected_target_round_version; a detached revised round is never changed by the old exercise. Activation is single-use. created_via connector identifies the route, not verified Muse authorship.`,
     `To set a drill, POST /v1/exercises with basis {habit, source_ids, claimed_count}: the sum of that habit's code-measured count over the cited sessions or voice rounds. `
       + `The server recomputes it; a 422 basis_mismatch returns the true count: correct the basis and retry with a new Idempotency-Key. `
       + `One open drill per goal.`,
@@ -231,6 +235,10 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
       if(req.method==='GET'&&path==='/v1/eval') return send(200,runEval());
       if(!path.startsWith('/v1/')) throw new ApiError(404,'not_found','Route not found.');
       user=store.authenticate((req.headers.authorization??'').replace(/^Bearer /,''),req.method==='GET'?'read':'write');
+      const exercisePath=path.match(/^\/v1\/practice-exercises\/([A-Za-z0-9_-]{1,64})$/);
+      if(req.method==='GET'&&exercisePath) return send(200,getPracticeExercise(store,user,exercisePath[1]));
+      if(req.method==='POST'&&path===PRACTICE_EXERCISES_PATH) return send(200,createPracticeExercise(store,user,await bodyOf(req),requireIdempotencyKey(req.headers)));
+      if(req.method==='PATCH'&&exercisePath) return send(200,changePracticeExercise(store,user,exercisePath[1],await bodyOf(req),requireIdempotencyKey(req.headers)));
       const practicePath=path.match(/^\/v1\/practice-rounds\/([A-Za-z0-9_-]{1,64})$/);
       if(req.method==='GET'&&practicePath) return send(200,getPractice(store,user,practicePath[1]));
       if(req.method==='POST'&&path===PRACTICE_PATH) return send(200,createPractice(store,user,await bodyOf(req),requireIdempotencyKey(req.headers)));

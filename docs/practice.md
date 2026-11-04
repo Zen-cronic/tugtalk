@@ -1,4 +1,4 @@
-# Confirmed practice requests (contract 0.8.0)
+# Confirmed practice requests (contract 0.9.0)
 
 A practice round keeps a request, its objectives and the current conversation on the server, scoped to one goal. Spark interprets each spoken answer against that confirmed request. Its assessment is a **model judgment**, not a code-measured success, proof of truth or evidence of improvement. Code validates ownership, versions, evidence spans and transitions; code cannot establish semantic correctness from a matching quote.
 
@@ -69,3 +69,5 @@ The topic/negation baseline is a limited heuristic, especially on useful refusal
 ## Native compatibility verification
 
 Run `node scripts/verify-native-practice.mjs` on macOS. It generates actual backend JSON with mocked inference, copies the unchanged Mac/watch Swift packages to temporary storage, injects fixtures there and runs their real decoders/state helpers. It records source hashes and confirms the source packages are unchanged. It neither launches nor installs an app. The fixtures explicitly preserve the existing watch mixed-round limitation and prove the fresh-local-round precondition; passing them is not blanket mid-round compatibility or physical-device proof.
+
+Confirmed practice can also start from a [fictional follow-up exercise](practice-exercises.md). Its linked source dependencies are rechecked before each answer; a user revision detaches that exercise so old exercise actions cannot change the revised round.

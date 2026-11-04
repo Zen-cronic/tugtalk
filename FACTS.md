@@ -14,8 +14,8 @@ Every number or name we state about this project, and where it comes from. `test
 | `analysis-model` | Observation model | meta-models/muse-spark-open-1026 | `ANALYSIS_MODEL` and the request body sent to Baseten (fake fetch) |
 | `analysis-budgets` | Observation token budgets | 4000, then 8000 on retry | `max_tokens` sent to Baseten (fake fetch) when the first reply runs out of tokens |
 | `analysis-effort` | Reasoning effort the hosted service asks for | medium on the watch observation and the screen card; low on voice replies | `ANALYSIS_EFFORT` in deploy/modal_app.py, sent in both request bodies (fake fetch), and `VOICE_EFFORT` (src/voice.mjs); unset, the observation body is unchanged |
-| `contract-version` | API contract version | 0.8.0 | `/openapi.json` `info.version`, `/connector.md` and the titles of docs/capture.md and docs/voice.md |
-| `assistant-routes` | Routes the assistant may call | 15: 8 GET, 4 POST, 3 PATCH; the same in /openapi.json and /connector.md, each served by the router; device routes not listed | The connector's allowed paths against the OpenAPI paths, and a request to each one (any answer but route not found), plus `POST /v1/recordings` served but not listed |
+| `contract-version` | API contract version | 0.9.0 | `/openapi.json` `info.version`, `/connector.md` and the titles of docs/capture.md and docs/voice.md |
+| `assistant-routes` | Routes the assistant may call | 18: 9 GET, 5 POST, 4 PATCH; the same in /openapi.json and /connector.md, each served by the router; device routes not listed | The connector's allowed paths against the OpenAPI paths, and a request to each one (any answer but route not found), plus `POST /v1/recordings` served but not listed |
 | `languages` | Capture languages | en, fr | The `X-Language` check in `captureParams`: each listed value passes, others fail |
 | `devices` | Capture device labels the API accepts | watch, mac, phone, api | The `X-Capture-Device` check in `captureParams`: each listed value passes, others fail |
 | `lexicons` | Habit-count methods | lexicon-en-v2, lexicon-fr-v1 | `measure().method` |
@@ -39,7 +39,7 @@ Every number or name we state about this project, and where it comes from. `test
 | `eval-baseline` | Flat word-list baseline precision / recall | 0.754 / 0.852 | `eval/results.json`, regenerated |
 | `eval-corpus` | Eval corpus size | 70 items, 12 clean controls | `eval/results.json`, regenerated |
 | `eval-controls` | False counts on clean controls | 0 | `eval/results.json`, regenerated |
-| `node-tests` | Node test cases, as `npm test` reports them | 229 | A `node --test` run of the other test files (all must pass), plus this one |
+| `node-tests` | Node test cases, as `npm test` reports them | 244 | A `node --test` run of the other test files (all must pass), plus this one |
 | `python-tests` | Python hosting-adapter tests | 29 | `def test_` lines in deploy/test_bridge.py (counted, not run, by this check) |
 | `hosting-concurrency` | Requests the hosted container takes at once | 4 at once; one model-calling request at a time | `@modal.concurrent(max_inputs=…)` in deploy/modal_app.py, the bridge's model lock, and its concurrency test in deploy/test_bridge.py |
 | `hosting` | Hosted service shape | 1 container, 512 MB, 180 s timeout | deploy/modal_app.py |

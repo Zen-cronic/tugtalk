@@ -141,6 +141,7 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('x-practice-round-id', FORWARDED)
         self.assertIn('x-practice-round-version', FORWARDED)
         self.assertEqual(route_label('GET','/v1/practice-rounds/private-id'),'GET /v1/practice-rounds/{id}')
+        self.assertEqual(route_label('GET','/v1/practice-exercises/private-id'),'GET /v1/practice-exercises/{id}')
 
     async def test_full_loop_runs_on_one_long_lived_worker(self):
         status, context = await self.call('GET','/v1/context')

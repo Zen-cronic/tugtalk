@@ -1,6 +1,7 @@
 // Confirmed requests and goal-scoped conversation state. Model judgments are not measured facts.
 import { randomUUID } from 'node:crypto';
 import { ApiError, digest } from './store.mjs';
+import { exerciseDependencyCurrent, practiceExerciseChanged } from './practice-exercises.mjs';
 
 export const PRACTICE_PATH = '/v1/practice-rounds';
 export const UNAVAILABLE_QUESTION = "I couldn't assess that answer. Please try again or revise the practice request.";
@@ -44,6 +45,7 @@ function event(store, user, round, action, extra = {}) {
 export function practiceFreshness(store, user, round) {
   const refs = [{ kind: 'goals', id: round.goal_id, version: round.goal_version }, ...round.sources, ...(round.answer_sources ?? [])];
   const stale = refs.filter(ref => { const s = find(store, user, ref.kind, ref.id); return !s || s.deleted || s.version !== ref.version || (ref.kind !== 'goals' && s.goal_id !== round.goal_id); });
+  if(round.practice_exercise&&!exerciseDependencyCurrent(store,user,round))stale.push({kind:'practice-exercises',id:round.practice_exercise.id});
   return { status: stale.length ? 'stale' : 'current', stale_sources: stale.map(({ kind, id }) => ({ kind, id })) };
 }
 export function projectPractice(store, user, round) {
@@ -62,19 +64,26 @@ export function practiceViews(store, user, goalId) {
 export function createPractice(store, user, body, key) {
   fields(body, ['goal_id', 'expected_goal_version', 'request_text', 'objectives', 'confirmed', 'sources']);
   if (!text(body.goal_id, 64) || !ID.test(body.goal_id)) fail('invalid_body', 'Provide goal_id.', 400);
-  return store.mutate(user, 'POST', PRACTICE_PATH, body, key, () => {
+  return store.mutate(user, 'POST', PRACTICE_PATH, body, key, () => createPracticeRecord(store,user,body));
+}
+// Internal transaction helper shared with confirmed exercise activation.
+export function createPracticeRecord(store,user,body,extension={}) {
+    if(!store.db.isTransaction)throw new Error('Practice creation requires a transaction.');
     const confirmed = brief(store, user, body.goal_id, body); uniqueOpen(store, user, body.goal_id);
-    const round = { ...confirmed, id: randomUUID(), version: 1, request_version: 1, state: 'open', answer_count: 0,
+    const round = { ...confirmed, ...extension, id: randomUUID(), version: 1, request_version: 1, state: 'open', answer_count: 0,
       pending: null, mutation_order: order(store,user), reservation_epoch: 0, answer_sources: [], assessment: null, current_question: confirmed.request_text, created_at: now(), updated_at: now() };
     store.put(user, KIND, round); event(store, user, round, 'create'); return round;
-  });
 }
 export function changePractice(store, user, id, body, key) {
   fields(body, ['expected_version', 'action', 'expected_goal_version', 'request_text', 'objectives', 'confirmed', 'sources']);
   if (!Number.isInteger(body.expected_version) || !['revise', 'end', 'dispute', 'recover'].includes(body.action)) fail('invalid_body', 'Provide expected_version and a documented action.', 400);
   if (body.action !== 'revise' && Object.keys(body).some(k => !['expected_version', 'action'].includes(k))) fail('invalid_body', 'Only revise accepts a new brief.', 400);
-  return store.mutate(user, 'PATCH', `${PRACTICE_PATH}/${id}`, body, key, () => {
+  return store.mutate(user, 'PATCH', `${PRACTICE_PATH}/${id}`, body, key, () => projectPractice(store,user,mutatePracticeRecord(store,user,id,body)));
+}
+export function mutatePracticeRecord(store,user,id,body,{notifyExercise=true}={}) {
+    if(!store.db.isTransaction)throw new Error('Practice mutation requires a transaction.');
     let round = store.get(user, KIND, id);
+    const before=round;
     if (round.version !== body.expected_version) fail('version_conflict', 'Re-read the practice round before changing it.');
     if (round.pending && body.action !== 'recover') fail('turn_in_progress', 'An answer is in progress; wait or recover it after five minutes.');
     if (body.action === 'recover') {
@@ -87,9 +96,11 @@ export function changePractice(store, user, id, body, key) {
       round = { ...round, ...brief(store, user, round.goal_id, body), request_version: round.request_version + 1, state: 'open', answer_count: 0,
         answer_sources: [], assessment: null, current_question: body.request_text.trim(), reservation_epoch: round.reservation_epoch + 1 };
     } else round = { ...round, state: body.action === 'end' ? 'ended' : 'disputed' };
+    if(body.action==='revise')delete round.practice_exercise;
     round = { ...round, version: round.version + 1, mutation_order: order(store,user), updated_at: now() };
-    store.put(user, KIND, round); event(store, user, round, body.action); return projectPractice(store, user, round);
-  });
+    store.put(user, KIND, round); event(store, user, round, body.action);
+    if(notifyExercise)practiceExerciseChanged(store,user,before,round,body.action);
+    return round;
 }
 export function selectedPractice(store, user, params) {
   if (params.practiceRoundId) {
@@ -144,6 +155,7 @@ export function finishPractice(store, user, reservation, voice, assessment, fing
     current_question: voice.reply.question, answer_sources: [...round.answer_sources, { kind: 'voice-rounds', id: voice.id, version: voice.version }], updated_at: now() };
   store.put(user, KIND, next); store.put(user, ATTEMPTS, { ...saved, version: saved.version + 1, status: 'saved', fingerprint, voice_id: voice.id });
   event(store, user, next, 'answer', { voice_id: voice.id, assessment });
+  practiceExerciseChanged(store,user,round,next,'answer',voice);
   return { round_id: next.id, round_version: next.version, request_version: next.request_version, goal_id: next.goal_id, answer: count, state,
     assessment, evidence_type: 'model_assessment', historical: true };
 }

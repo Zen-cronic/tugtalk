@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { savedSettings, defaultSettings } from './settings.mjs';
 import { mediaUsage } from './media.mjs';
 import { practiceViews, semanticSourceCurrent } from './practice.mjs';
+import { practiceExerciseViews } from './practice-exercises.mjs';
 import { basisFreshness } from './drills.mjs';
 
 export const digest = value => createHash('sha256').update(value).digest('hex');
@@ -107,6 +108,7 @@ export class Store {
         // The hands check (src/replay.mjs), only on a round the person turned it on for: seconds counted by code.
         ...(r.replay?{replay:{method:r.replay.method,fps:r.replay.fps,frames:r.replay.frames,seconds:r.replay.seconds}}:{})};
       const practice=practiceViews(this,user,goalId);
+      const practiceExercises=practiceExerciseViews(this,user,goalId);
       const basisStatus=context.exercises.filter(e=>!goalId||e.goal_id===goalId).filter(e=>e.basis).map(e=>({exercise_id:e.id,...basisFreshness(this,user,e.basis)}));
       const extension=this.extendFresh?this.extendFresh({user,goalId,context}):undefined;
       const revised={goals:context.goals,exercises:context.exercises,check_ins:context.check_ins,sessions:context.sessions};
@@ -122,6 +124,7 @@ export class Store {
       const saved=savedSettings(this,user), setting=saved??defaultSettings(), kept=mediaUsage(this,user);
       if(saved) revised.settings={version:saved.version};
       if(practice.length) revised.practice_rounds=practice;
+      if(practiceExercises.length) revised.practice_exercises=practiceExercises;
       if(basisStatus.length) revised.basis_status=basisStatus;
       if(extension?.revision!==undefined) revised.extension=extension.revision;
       const common={synthetic:true,as_of:context.as_of,
@@ -150,6 +153,7 @@ export class Store {
           shared_evidence_versions:context.sessions.map(s=>({id:s.id,version:s.version,goal_id:s.goal_id??null,measurement_status:s.measurement_status})),
           screen_context_versions:screens.map(s=>({id:s.id,version:s.version,goal_id:s.goal_id??null}))};
       if(practice.length) result.practice_rounds=practice;
+      if(practiceExercises.length) result.practice_exercises=practiceExercises;
       if(basisStatus.length) result.exercise_basis_status=basisStatus;
       if(extension?.fields) Object.assign(result,extension.fields);
       this.db.exec('COMMIT');return result;
