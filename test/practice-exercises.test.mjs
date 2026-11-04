@@ -112,3 +112,14 @@ test('ending an addressed or capped target keeps the completed result current',(
  changePractice(store,'u',target.id,{expected_version:target.version,action:'end'},key());
  view=getPracticeExercise(store,'u',capped.id);assert.equal(view.state,'attempted');assert.equal(view.freshness.status,'current');assert.notEqual(view.result,null);
 }));
+test('ending or revising the source round keeps active and completed exercises and their targets current',()=>fixture(async({store,source,propose,activate,answer,current,key})=>{
+ const s=await source();const active=activate(propose(s));
+ let src=store.get('u','practice-rounds',s.round.id);changePractice(store,'u',src.id,{expected_version:src.version,action:'end'},key());
+ assert.equal(getPracticeExercise(store,'u',active.id).freshness.status,'current');assert.equal(getPractice(store,'u',active.activation.round_id).state,'open');
+ await answer();assert.equal(current(active).state,'assessed_addressed');
+ src=store.get('u','practice-rounds',s.round.id);changePractice(store,'u',src.id,{action:'revise',expected_version:src.version,expected_goal_version:1,request_text:'A new ordinary request',objectives:[{id:'delivery',text:'Explain it.'}],confirmed:true},key());
+ const view=getPracticeExercise(store,'u',active.id);assert.equal(view.freshness.status,'current');assert.notEqual(view.result,null);
+ assert.equal(getPractice(store,'u',active.activation.round_id).state,'addressed');
+ // A correction of the assessed answer itself still makes the exercise stale.
+ store.put('u','voice-rounds',{...s.voice,version:s.voice.version+1,deleted:true});assert.equal(getPracticeExercise(store,'u',active.id).state,'stale');
+}));

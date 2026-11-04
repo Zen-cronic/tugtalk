@@ -20,11 +20,14 @@ export function exerciseBasisReasons(store,user,e){
  const b=e.basis,source=find(store,user,'practice-rounds',b.round_id),voice=find(store,user,'voice-rounds',b.voice_id),goal=find(store,user,'goals',e.goal_id);
  const reasons=[];
  if(!goal||goal.deleted||goal.version!==e.goal_version)reasons.push('goal_changed');
+ // The basis is the assessed objective and answer. A later end or revision of the source round does not change them;
+ // while the source keeps the assessed request, its sources, latest answer and assessment must still match.
+ const sameRequest=Boolean(source&&source.request_version===b.request_version);
  // Refuse chains before calling practiceFreshness: a corrupt cycle cannot recurse.
- if(!source||source.practice_exercise||source.goal_id!==e.goal_id||source.version!==b.round_version||source.request_version!==b.request_version||source.pending||!['addressed','capped','ended'].includes(source.state))reasons.push('source_round_changed');
- else if(practiceFreshness(store,user,source).status!=='current')reasons.push('source_round_stale');
- if(!voice||voice.deleted||voice.version!==b.voice_version||voice.goal_id!==e.goal_id||voice.practice?.round_id!==b.round_id||voice.practice?.request_version!==b.request_version||source?.answer_sources.at(-1)?.id!==b.voice_id)reasons.push('source_answer_changed');
- if(!source||!voice?.practice?.assessment||digest(JSON.stringify(source.assessment))!==b.assessment_digest||voice?.practice?.assessment&&digest(JSON.stringify(voice.practice.assessment))!==b.assessment_digest)reasons.push('source_assessment_changed');
+ if(!source||source.practice_exercise||source.goal_id!==e.goal_id||(sameRequest&&source.state==='disputed'))reasons.push('source_round_changed');
+ else if(sameRequest&&practiceFreshness(store,user,source).status!=='current')reasons.push('source_round_stale');
+ if(!voice||voice.deleted||voice.version!==b.voice_version||voice.goal_id!==e.goal_id||voice.practice?.round_id!==b.round_id||voice.practice?.request_version!==b.request_version||(sameRequest&&source.answer_sources.at(-1)?.id!==b.voice_id))reasons.push('source_answer_changed');
+ if(!source||!voice?.practice?.assessment||digest(JSON.stringify(voice.practice.assessment))!==b.assessment_digest||(sameRequest&&digest(JSON.stringify(source.assessment))!==b.assessment_digest))reasons.push('source_assessment_changed');
  return reasons;
 }
 // Called by A's target freshness: state/content + original basis, never the target result.
@@ -74,7 +77,9 @@ export function createPracticeExercise(store,user,body,key){
    objective,activation:null,result:null,latest_attempt:null,created_via:'connector',created_at:now(),updated_at:now(),
    basis:{...body.basis,assessment_digest:digest(JSON.stringify(source.assessment)),source_outcome:outcome?.status??null}};
   delete e.expected_goal_version;
-  if(exerciseBasisReasons(store,user,e).length)fail('exercise_basis_stale','The cited source must be a current terminal round and its latest answer on this goal.');
+  // At proposal time the cited source must be exactly as read: terminal, idle and at the cited versions.
+  const asCited=source.version===body.basis.round_version&&source.request_version===body.basis.request_version&&!source.pending&&['addressed','capped','ended'].includes(source.state);
+  if(!asCited||exerciseBasisReasons(store,user,e).length)fail('exercise_basis_stale','The cited source must be a current terminal round and its latest answer on this goal.');
   if(!objective||source.assessment?.status!=='assessed'||!outcome||!(body.purpose==='transfer'?outcome.status==='addressed':['partial','not_addressed'].includes(outcome.status)))fail('exercise_basis_unclear','This outcome cannot support that purpose. Clarify the request or choose the matching purpose.');
   if(normalized(body.request_text)===normalized(source.request_text))fail('scenario_unchanged','Propose a different fictional scenario; an exact copy is not a follow-up.',400);
   if(store.list(user,KIND).some(x=>x.goal_id===e.goal_id&&['proposed','active'].includes(x.state)))fail('practice_exercise_open','This goal already has a proposed or active practice exercise.');
