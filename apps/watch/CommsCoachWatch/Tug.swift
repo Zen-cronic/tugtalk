@@ -146,24 +146,14 @@ struct TugSpeaking: View {
     }
 }
 
-/// Tug listening while you answer: brows up and the string pulled taut, with a small live tremor in the lean.
-/// With Reduce Motion it holds still.
+/// Tug listening while you answer: brows up and the string pulled taut. It holds still: a tremor redrew the
+/// string's path on every frame while you recorded, the kind of constant redraw that dropped taps on Stop (build 9).
 struct TugListening: View {
     var size: CGFloat
     var reach: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var taut = false
 
     var body: some View {
-        if reduceMotion {
-            TugGlyph(size: size, reach: reach, pull: 1, face: .listening)
-        } else {
-            // The tremor is a repeating animation, as on the recording light, not a TimelineView: a 20 Hz
-            // TimelineView rebuilt the screen on every frame, and the real watch dropped taps on Stop (build 9).
-            TugGlyph(size: size, reach: reach, pull: taut ? 1 : 0.72, face: .listening)
-                .animation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true), value: taut)
-                .onAppear { taut = true }
-        }
+        TugGlyph(size: size, reach: reach, pull: 1, face: .listening)
     }
 }
 
