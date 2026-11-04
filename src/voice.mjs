@@ -310,7 +310,8 @@ export async function replyToAnswer(models, context, transcription, durationMs, 
     const checked=checkReply({move,question,quote:result?.reply?.quote??''},transcript,language);
     return {metrics,result:result??{status:'unavailable',attempts:0},modelMs:Math.round(performance.now()-t1),checked,assessment,
       gate:{allowed,reason,hedges:metrics.hedge_count,coerced:result?.reply?.move!==move},
-      counterpart:{need:null,need_met:null,allowed,reason,answer,reply_mode:'model'}};
+      // Older Macs reset their lexical need/tally only at answer1. The authoritative ordinal is practice.answer.
+      counterpart:{need:null,need_met:null,allowed,reason,answer:1,reply_mode:'model'}};
   }
   const need = params.need ?? null, answer = context.roundNumber;
   const met = need ? needMet(transcript, need, language) : false;

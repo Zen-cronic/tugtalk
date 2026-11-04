@@ -61,7 +61,7 @@ test('partial, unrelated and negated fixture judgments never close by keyword; u
  const stub={...models,async voiceReply(){n++;return n===4?{status:'unavailable',attempts:1}:{status:'model_reply',reply:{move:'wrap_up',question:'Done?',assessment:sampleAssessment(n===1?'partial':n===2?'not_addressed':'unclear')},attempts:1};}};
  for(let i=1;i<=4;i++){
   const out=await send(`answer-${i}`,params('goal-a',{'x-counterpart-need':'date'}),stub);assert.notEqual(out.gate.reason,'measured_close');
-  assert.equal(out.practice.state,i===4?'capped':'open');assert.equal(out.counterpart.need_met,null);
+  assert.equal(out.practice.state,i===4?'capped':'open');assert.equal(out.counterpart.need_met,null);assert.equal(out.counterpart.answer,1);assert.equal(out.practice.answer,i);
   if(i===4){assert.match(out.reply.question,/couldn't assess/);assert.match(out.reply.question,/round is over/);assert.equal(out.practice.assessment.status,'unavailable');}
  }
  assert.equal(getPractice(store,'alice',r.id).state,'capped');
