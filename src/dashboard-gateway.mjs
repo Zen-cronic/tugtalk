@@ -38,6 +38,52 @@ function clientKey(req, trustProxy) {
   }
   return req.socket.remoteAddress ?? 'unknown';
 }
+// Public read mode (publicRead) lets visitors without a session make the dashboard's GET reads. Those reads are
+// limited per client (readLimit per PUBLIC_READ_WINDOW_MS) and across all visitors (readTotal), so one client cannot
+// exhaust the account's upstream budget. Audio files have their own smaller limits (mediaLimit, mediaTotal per
+// PUBLIC_MEDIA_WINDOW_MS), kept under the account's upstream download limit so the owner always has room. A signed-in
+// session is not counted. The hosted values are set at deploy time (publicLimitsFromEnv); the defaults here are
+// deliberately conservative.
+export const PUBLIC_READ_WINDOW_MS = 60 * 1000, PUBLIC_MEDIA_WINDOW_MS = 60 * 60 * 1000;
+export const DEFAULT_PUBLIC_LIMITS = Object.freeze({ readLimit: 60, readTotal: 600, mediaLimit: 5, mediaTotal: 30 });
+export const PUBLIC_LIMIT_ENV = Object.freeze({ readLimit: 'DASHBOARD_PUBLIC_READ_LIMIT', readTotal: 'DASHBOARD_PUBLIC_READ_TOTAL',
+  mediaLimit: 'DASHBOARD_PUBLIC_MEDIA_LIMIT', mediaTotal: 'DASHBOARD_PUBLIC_MEDIA_TOTAL' });
+// Each limit is a positive whole number; a per-client limit above its total is refused. Any value left out is the default.
+export function publicLimits(given = {}) {
+  const limits = { ...DEFAULT_PUBLIC_LIMITS };
+  for (const name of Object.keys(DEFAULT_PUBLIC_LIMITS)) {
+    if (given[name] === undefined) continue;
+    if (!Number.isSafeInteger(given[name]) || given[name] < 1) throw new Error(`The public ${name} must be a positive whole number.`);
+    limits[name] = given[name];
+  }
+  if (limits.readLimit > limits.readTotal || limits.mediaLimit > limits.mediaTotal) throw new Error('A per-client public limit cannot exceed its total.');
+  return limits;
+}
+// Reads DASHBOARD_PUBLIC_READ_LIMIT, _READ_TOTAL, _MEDIA_LIMIT and _MEDIA_TOTAL. An unset or empty variable keeps
+// the default; anything but digits is refused at startup rather than silently ignored.
+export function publicLimitsFromEnv(env = process.env) {
+  const given = {};
+  for (const [name, variable] of Object.entries(PUBLIC_LIMIT_ENV)) {
+    const raw = env[variable];
+    if (raw === undefined || raw === '') continue;
+    if (!/^[1-9][0-9]{0,8}$/.test(raw)) throw new Error(`${variable} must be a positive whole number.`);
+    given[name] = Number(raw);
+  }
+  return publicLimits(given);
+}
+// Fixed-window counters keyed by client, bounded like the sign-in table: a client beyond the size shares one bucket.
+function windowCounter(windowMs, perClient, total) {
+  const clients = new Map(); let all = { start: 0, count: 0 };
+  return (key, t) => {
+    if (t - all.start >= windowMs) all = { start: t, count: 0 };
+    if (!clients.has(key) && clients.size >= LOGIN_CLIENTS) { for (const [k, v] of clients) if (t - v.start >= windowMs) clients.delete(k); }
+    if (!clients.has(key) && clients.size >= LOGIN_CLIENTS) key = 'overflow';
+    let entry = clients.get(key);
+    if (!entry || t - entry.start >= windowMs) { entry = { start: t, count: 0 }; clients.set(key, entry); }
+    if (entry.count >= perClient || all.count >= total) return false;
+    entry.count++; all.count++; return true;
+  };
+}
 const pause = ms => ms > 0 ? new Promise(resolve => setTimeout(resolve, ms)) : Promise.resolve();
 class Failure extends Error { constructor(status, message) { super(message); this.status = status; } }
 async function bytes(stream, max) {
@@ -53,7 +99,7 @@ function cookieValue(req, name) {
   return (req.headers.cookie ?? '').split(';').map(v => v.trim()).find(v => v.startsWith(`${name}=`))?.slice(name.length + 1) ?? '';
 }
 const shellRoutes = new Set(['/app/goals', '/app/conversations', '/app/recordings']);
-export function createDashboard({ origin, upstream, token, password, secure = true, webRoot = fileURLToPath(new URL('../web/', import.meta.url)), landingRoot = null, fetchImpl = fetch, now = Date.now, demo = false, allowRecordingChanges = false, sessionMs = 8 * 60 * 60 * 1000, timeoutMs = 10000, trustProxy = false, failureDelayMs = LOGIN_FAILURE_DELAY_MS }) {
+export function createDashboard({ origin, upstream, token, password, secure = true, webRoot = fileURLToPath(new URL('../web/', import.meta.url)), landingRoot = null, fetchImpl = fetch, now = Date.now, demo = false, allowRecordingChanges = false, publicRead = false, publicLimits: limitsGiven = {}, sessionMs = 8 * 60 * 60 * 1000, timeoutMs = 10000, trustProxy = false, failureDelayMs = LOGIN_FAILURE_DELAY_MS }) {
   const publicURL = new URL(origin), apiURL = new URL(upstream);
   if (!['http:', 'https:'].includes(publicURL.protocol) || (!secure && !['127.0.0.1', 'localhost', '[::1]'].includes(publicURL.hostname))) throw new Error('Insecure cookies are allowed only on loopback.');
   if (secure && publicURL.protocol !== 'https:') throw new Error('HTTPS is required.');
@@ -62,6 +108,8 @@ export function createDashboard({ origin, upstream, token, password, secure = tr
   // failures: client -> times of its failed codes in the window; recentFailures: every client's, for the backoff.
   const passwordHash = hash(password), sessions = new Map(), failures = new Map();
   let recentFailures = [];
+  const limits = publicLimits(limitsGiven);
+  const publicReads = windowCounter(PUBLIC_READ_WINDOW_MS, limits.readLimit, limits.readTotal), publicMedia = windowCounter(PUBLIC_MEDIA_WINDOW_MS, limits.mediaLimit, limits.mediaTotal);
   const cookieName = secure ? '__Host-comms-session' : 'comms-session';
   const cookie = (value, age) => `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${age}${secure ? '; Secure' : ''}`;
   const server = createServer(async (req, res) => {
@@ -95,13 +143,19 @@ export function createDashboard({ origin, upstream, token, password, secure = tr
         sessions.delete(cookieValue(req, cookieName));
         const sessionID = randomBytes(32).toString('hex'), csrf = randomBytes(24).toString('hex');
         sessions.set(sessionID, { csrf, expires: t + sessionMs });
-        return send(200, { csrf, demo, can_change_recordings: allowRecordingChanges }, { 'Set-Cookie': cookie(sessionID, Math.floor(sessionMs / 1000)) });
+        return send(200, { csrf, demo, can_change_recordings: allowRecordingChanges, public_read: publicRead }, { 'Set-Cookie': cookie(sessionID, Math.floor(sessionMs / 1000)) });
       }
       if (route.startsWith('/app-api/')) {
         const sessionID = cookieValue(req, cookieName), session = sessions.get(sessionID);
-        if (!session) throw new Failure(401, 'Sign in to see your practice.');
+        // Without a session, public read mode admits GET only; every write still needs a session and its CSRF token.
+        if (!session && !(publicRead && req.method === 'GET')) throw new Failure(401, publicRead ? 'Sign in to make a change.' : 'Sign in to see your practice.');
+        if (!session) {
+          const key = clientKey(req, trustProxy);
+          if (!publicReads(key, t) || (route.startsWith('/app-api/media/') && !publicMedia(key, t))) throw new Failure(429, 'Too many requests. Try again in a minute.');
+          if (route === '/app-api/session') return send(200, { csrf: '', demo, can_change_recordings: false, public_read: true });
+        }
         if (writing && !same(String(req.headers['x-csrf-token'] ?? ''), session.csrf)) throw new Failure(403, 'Reload this page before making a change.');
-        if (route === '/app-api/session' && req.method === 'GET') return send(200, { csrf: session.csrf, demo, can_change_recordings: allowRecordingChanges });
+        if (route === '/app-api/session' && req.method === 'GET') return send(200, { csrf: session.csrf, demo, can_change_recordings: allowRecordingChanges, public_read: publicRead });
         if (route === '/app-api/logout' && req.method === 'POST') { sessions.delete(sessionID); return send(200, { signed_out: true }, { 'Set-Cookie': cookie('', 0) }); }
         if (route === '/app-api/conversations' && req.method === 'GET') return send(200, { conversations: [], coverage: 'not_connected', as_of: new Date(t).toISOString() });
         if (writing && !allowRecordingChanges) throw new Failure(403, 'Recording changes are disabled for this connection.');
