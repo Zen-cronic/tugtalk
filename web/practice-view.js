@@ -90,7 +90,8 @@ export function renderPracticeExercises(overview, goalId, {fresh=true}={}) {
 }
 
 // What code measured about how a spoken answer ended its round (gate.reason; docs/voice.md). Unknown reasons show nothing.
-const gateOutcomes = { measured_close:'This answer closed the round', answer_cap:'Reached the answer limit', open:'Round continued' };
+// Only the answer that ended a round gets a label; answers that kept the round going get none.
+const gateOutcomes = { measured_close:'Last answer', answer_cap:'Last answer', open:'' };
 export const gateOutcome = reason => Object.hasOwn(gateOutcomes, reason) ? gateOutcomes[reason] : null;
 // Splits voice answers into practice-round groups (exact: practice.round_id) and the rest, newest first.
 // Sparring answers carry no conversation id, so they are never grouped or counted as a conversation.

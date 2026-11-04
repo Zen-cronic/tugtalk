@@ -15,7 +15,7 @@ test('confirmed-practice answers group under their own round in answer order; un
  assert.deepEqual(spoken.map(r=>r.id),['z1']);
 });
 test('only the three gate reasons get an outcome label',()=>{
- assert.equal(gateOutcome('measured_close'),'This answer closed the round');assert.equal(gateOutcome('answer_cap'),'Reached the answer limit');assert.equal(gateOutcome('open'),'Round continued');
+ assert.equal(gateOutcome('measured_close'),'Last answer');assert.equal(gateOutcome('answer_cap'),'Last answer');assert.equal(gateOutcome('open'),'');
  for(const reason of [undefined,null,'','coerced','toString'])assert.equal(gateOutcome(reason),null);
 });
 test('a stale practice answer keeps no AI reply when grouped',()=>{
