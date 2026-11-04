@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { digest } from './store.mjs';
 import { ID, now, object, text, fail, find, fields as checkFields } from './practice-common.mjs';
-import { exerciseDependencyCurrent, practiceExerciseChanged } from './practice-exercises.mjs';
+import { exerciseHooks } from './practice-hooks.mjs';
 
 export const PRACTICE_PATH = '/v1/practice-rounds';
 export const UNAVAILABLE_QUESTION = "I couldn't assess that answer. Please try again or revise the practice request.";
@@ -58,7 +58,7 @@ export function practiceFreshness(store, user, round, memo = null) {
 function computeFreshness(store, user, round) {
   const refs = [{ kind: 'goals', id: round.goal_id, version: round.goal_version }, ...round.sources, ...(round.answer_sources ?? [])];
   const stale = refs.filter(ref => { const s = find(store, user, ref.kind, ref.id); return !s || s.deleted || s.version !== ref.version || (ref.kind !== 'goals' && s.goal_id !== round.goal_id); });
-  if(round.practice_exercise&&!exerciseDependencyCurrent(store,user,round))stale.push({kind:'practice-exercises',id:round.practice_exercise.id});
+  if(round.practice_exercise&&!exerciseHooks.dependencyCurrent(store,user,round))stale.push({kind:'practice-exercises',id:round.practice_exercise.id});
   return { status: stale.length ? 'stale' : 'current', stale_sources: stale.map(({ kind, id }) => ({ kind, id })) };
 }
 export function projectPractice(store, user, round, memo = null) {
@@ -112,7 +112,7 @@ export function mutatePracticeRecord(store,user,id,body,{notifyExercise=true}={}
     if(body.action==='revise')delete round.practice_exercise;
     round = { ...round, version: round.version + 1, mutation_order: order(store,user), updated_at: now() };
     store.put(user, KIND, round); event(store, user, round, body.action);
-    if(notifyExercise)practiceExerciseChanged(store,user,before,round,body.action);
+    if(notifyExercise)exerciseHooks.changed(store,user,before,round,body.action);
     return round;
 }
 export function selectedPractice(store, user, params) {
@@ -192,7 +192,7 @@ export function finishPractice(store, user, reservation, voice, assessment, fing
     current_question: voice.reply.question, answer_sources: [...round.answer_sources, { kind: 'voice-rounds', id: voice.id, version: voice.version }], updated_at: now() };
   store.put(user, KIND, next); store.put(user, ATTEMPTS, { ...saved, version: saved.version + 1, status: 'saved', fingerprint, voice_id: voice.id });
   event(store, user, next, 'answer', { voice_id: voice.id, assessment });
-  practiceExerciseChanged(store,user,round,next,'answer',voice);
+  exerciseHooks.changed(store,user,round,next,'answer',voice);
   return { round_id: next.id, round_version: next.version, request_version: next.request_version, goal_id: next.goal_id, answer: count, state,
     assessment, evidence_type: 'model_assessment', historical: true };
 }

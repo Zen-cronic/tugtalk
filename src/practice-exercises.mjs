@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { digest } from './store.mjs';
 import { ID, now, text, fail, find, fields as checkFields } from './practice-common.mjs';
+import { registerExerciseHooks } from './practice-hooks.mjs';
 import { practiceFreshness, createPracticeRecord, mutatePracticeRecord } from './practice.mjs';
 export const PRACTICE_EXERCISES_PATH='/v1/practice-exercises';
 const KIND='practice-exercises';
@@ -128,3 +129,5 @@ export function practiceExerciseChanged(store,user,before,after,action,voice=nul
  }else return;
  save(store,user,{...e,version:e.version+1,updated_at:now()},`round_${action}`);
 }
+// Practice rounds call these through src/practice-hooks.mjs, so src/practice.mjs need not import this module.
+registerExerciseHooks({ dependencyCurrent: exerciseDependencyCurrent, changed: practiceExerciseChanged });

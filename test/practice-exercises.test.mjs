@@ -138,3 +138,11 @@ test('the title and scenario are stored trimmed',()=>fixture(async({source,propo
  const s=await source(),body=payload(s),e=propose(s,{title:`  ${body.title}\n`,request_text:`\t${body.request_text}  `});
  assert.equal(e.title,body.title);assert.equal(e.request_text,body.request_text);
 }));
+test('practice rounds reach exercises through registered hooks, whichever module loads first',async()=>{
+ const {readFileSync}=await import('node:fs');const {execFileSync}=await import('node:child_process');
+ assert.ok(!readFileSync(new URL('../src/practice.mjs',import.meta.url),'utf8').includes('practice-exercises.mjs'),'no import cycle');
+ for(const first of ['practice.mjs','practice-exercises.mjs','store.mjs']){
+  const out=execFileSync(process.execPath,['--input-type=module','-e',`await import(${JSON.stringify(new URL(`../src/${first}`,import.meta.url).href)});const {exerciseHooks}=await import(${JSON.stringify(new URL('../src/practice-hooks.mjs',import.meta.url).href)});console.log(exerciseHooks.dependencyCurrent.name,exerciseHooks.changed.name);`],{encoding:'utf8'});
+  assert.equal(out.trim(),'exerciseDependencyCurrent practiceExerciseChanged',first);
+ }
+});
