@@ -2,7 +2,7 @@
 
 ## Fonts
 
-Bundled in `CommsCoachMac/Fonts/`, each under the SIL Open Font License 1.1 (full text next to each file):
+Bundled in `TugTalk/Fonts/`, each under the SIL Open Font License 1.1 (full text next to each file):
 
 - Anybody, copyright 2020 The Anybody Project Authors (`OFL-anybody.txt`)
 - Hanken Grotesk, copyright 2021 The Hanken Grotesk Project Authors (`OFL-hankengrotesk.txt`)
@@ -16,8 +16,8 @@ Source: https://github.com/farzaa/clicky (commit a80fa80, MIT License).
 
 Adapted, not copied verbatim:
 
-- `CommsCoachMac/MascotPanel.swift`: the borderless, non-activating floating `NSPanel` settings (from `CompanionResponseOverlay.swift`). Changed: `.floating` level instead of a full-screen overlay, sized to the character, and the character handles its own drag.
-- `CommsCoachMac/PermissionGate.swift`: the Screen Recording flow (from `WindowPositionManager.swift`): preflight without prompting, remember a confirmed grant because the preflight can report a false negative, show the system prompt once per launch, then open System Settings. Changed: the prompt only follows an in-app explainer.
+- `TugTalk/MascotPanel.swift`: the borderless, non-activating floating `NSPanel` settings (from `CompanionResponseOverlay.swift`). Changed: `.floating` level instead of a full-screen overlay, sized to the character, and the character handles its own drag.
+- `TugTalk/PermissionGate.swift`: the Screen Recording flow (from `WindowPositionManager.swift`): preflight without prompting, remember a confirmed grant because the preflight can report a false negative, show the system prompt once per launch, then open System Settings. Changed: the prompt only follows an in-app explainer.
 - `Sources/ScreenContextCore/WindowCapture.swift`: the ScreenCaptureKit capture shape (from `CompanionScreenCaptureUtility.swift`). Changed: one window via `SCContentFilter(desktopIndependentWindow:)` instead of whole displays, and the image stays in memory as a `CGImage`.
 
 Not used: its push-to-talk event tap, full-screen overlay, model and speech clients, and analytics.
@@ -46,4 +46,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-The character is drawn in code in `CommsCoachMac/MascotView.swift` and is original to this project. Icons are Apple SF Symbols, used inside the app's interface only.
+The character is drawn in code in `TugTalk/MascotView.swift` and is original to this project. Icons are Apple SF Symbols, used inside the app's interface only.

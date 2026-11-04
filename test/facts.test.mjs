@@ -256,7 +256,7 @@ test('every FACTS.md claim matches the code, the HTTP handler or the eval', asyn
         const fields = [...payload.matchAll(/^    public let (\w+): /gm)].map(m => m[1]);
         const accepted = JSON.parse(read('src/screen-context.mjs').match(/^const FIELDS = (\[.+\]);$/m)[1].replace(/'/g, '"'));
         assert.deepEqual(fields, accepted, 'the Mac sends exactly the fields the route accepts');
-        const flow = read('apps/mac/CommsCoachMac/CaptureFlow.swift');
+        const flow = read('apps/mac/TugTalk/CaptureFlow.swift');
         assert.match(flow, /ScreenContextPayload\.make\(redacted: result\.redacted, appName: front\.name,/);
         const named = /FrontApp\(name: app\?\.localizedName /.test(flow) && !/Redactor[^\n]*front\.name|front\.name[^\n]*redact/i.test(flow);
         return `${fields.join(', ')}; app_name is the front app's name as macOS reports it, ${named ? 'not redacted' : 'redacted'}; ${fields.some(f => /title/.test(f)) ? 'a window title' : 'no window title'}`;

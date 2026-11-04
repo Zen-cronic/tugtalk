@@ -11,7 +11,7 @@ A small floating companion for macOS. Hold ⌃⌥T and talk, and it answers with
 | `Sources/camera-eval/` | Offline checks of the "faced the camera" meter: synthetic head angles, and a hand-labelled clip |
 | `Tests/ScreenContextCoreTests/` | `swift test` |
 | `Fixtures/` | A synthetic meeting-prep note with planted personal data, and the script that renders it |
-| `project.yml`, `CommsCoachMac/` | The menu-bar app and the companion character (XcodeGen) |
+| `project.yml`, `TugTalk/` | The menu-bar app and the companion character (XcodeGen) |
 
 ## Build and test
 
@@ -22,8 +22,8 @@ cd apps/mac
 swift test
 swift run sc-capture --image Fixtures/meeting-prep.png --dry-run
 xcodegen generate
-xcodebuild -project CommsCoachMac.xcodeproj -scheme CommsCoachMac -configuration Debug -derivedDataPath build/DerivedData build
-open build/DerivedData/Build/Products/Debug/CommsCoachMac.app
+xcodebuild -project TugTalk.xcodeproj -scheme TugTalk -configuration Debug -derivedDataPath build/DerivedData build
+open build/DerivedData/Build/Products/Debug/TugTalk.app
 ```
 
 The app signs with an Apple Development identity (team in `project.yml`); change `DEVELOPMENT_TEAM` to your own. A stable signature keeps the Screen Recording grant across rebuilds. There is no notarized build.
@@ -36,7 +36,7 @@ The app signs with an Apple Development identity (team in `project.yml`); change
 - At rest Tug breathes: a slow bob, a blink every few seconds at uneven gaps, and a sway in its string. Core Animation plays that loop, so the app itself does no work while Tug waits. The breath and the acting both stop while Tug's window is hidden or covered, or while presenting.
 - VoiceOver reads the character as one element and announces state changes. With Reduce Motion every animation becomes a still per state and changes crossfade. Cards are always opaque.
 - **The companion can appear in screen shares.** Hide it with ⌃⌥H. It also hides itself while Zoom, Teams, FaceTime or Webex is the front app, which is a guess, not detection.
-- The character's name is one constant, `MascotName`, in `CommsCoachMac/Settings.swift`. Colours, fonts and motion are in `CommsCoachMac/Theme.swift`; the fonts (Anybody, Hanken Grotesk, Azeret Mono) are bundled under the SIL Open Font License.
+- The character's name is one constant, `MascotName`, in `TugTalk/Settings.swift`. Colours, fonts and motion are in `TugTalk/Theme.swift`; the fonts (Anybody, Hanken Grotesk, Azeret Mono) are bundled under the SIL Open Font License.
 - **Where Tug lives** (the panel's settings, or the menu's **Where Tug Lives**; `-tugHome topBar|floating|dock`): the top bar (standard), floating beside the work, or the Dock. In the top bar the floating window stays hidden; pointing still draws its ring on the captured window.
 - **The top bar.** A sunflower label exactly the menu bar's height at the top centre of the display with the menu bar (a less bright sunflower in a dark menu bar, `Tok.fieldDark`, with a hairline edge). On a Mac with a notch it wraps the camera housing, using the display's safe area and the areas beside the housing; without one it hangs just under the menu bar. The left wing is Tug and one word (Ready, Reading, Listening, Thinking, Speaking, Your turn, Done, Offline and a few more), sized to the word and always 8 pt clear of the housing. Each wing keeps one width as the word changes (the left one sized to the widest common word), so the bar's outer edge holds still. The right wing holds one small mark (the red record light with the time and, while the camera is on for a hold, the camera dot: filled when you face the camera, an open ring when you don't; ink dots; a wave; an icon) and hides when the menu bar has no room; the record light and camera dot then move beside the word. Tug's face carries the state too: brows up while listening, eyes closed while thinking, mouth moving while speaking, and the string held up for "Your turn", which is set heavier. Resting the pointer on it, or clicking it, grows it from Tug's corner into a panel; Settings and Hide then sit in the bar itself as glyphs. Tug's string drops into the panel's margin and the card hangs from it: two blocks: the evidence (a small label with "Round 1", the main line, your words behind "You said" and the count) and then one row of actions (Talk with its keys, Read this window, Ask Muse when there is a card; Retry or Continue when the card needs it). Round done shows its one big number in ink. The gear opens the settings view (voice, language, where Tug lives, hiding in meetings). A reply, a saved card or a problem opens it by itself: a reply or card shows one or two lines and the rest on hover; a spoken reply folds about a second after it is said, so the bar shows "Your turn". It closes when the pointer leaves, on Esc while it has the keyboard (a local key monitor; no key is taken from another app), or on a second click. A click or **Open Top Bar Panel** in the menu gives it the keyboard, without activating the app. It hides while presenting or while a meeting app is in front. With Reduce Motion it opens and closes at once and Tug's face holds still. At rest Tug blinks and bobs on Core Animation; every loop stops while the bar is hidden or covered. When another copy of the app already holds a shortcut, the bar shows a warning in place of the keys and the panel says which. Debug builds: `-notchBarOpen YES` opens it at launch, `-notchBarSettings YES` with its settings view, `-notchBarSample round|card` fills the latest card with sample content (a "Sample" tag in the title row; `-noSampleTag YES` hides it for filming), `-notchBarNoNotch YES` places it as on a Mac without a notch, `-notchBarCrowded YES|NO` forces the right wing off or on, `-notchBarFold YES` folds a card that opened it, and `-previewHotkeyConflict YES` shows the shortcut notice.
 - **Docked mode** (Where Tug lives: Dock, or `-dockMode YES`). Docked mode adds a Dock icon, Tug on a sunflower tile, with an ink count of new changes to the shared record and the red record light while the microphone is open. Clicking the icon opens a panel next to the Dock, and Tug hops from its floating spot into it: its status, the latest spoken round (your quoted words and one number), and Talk (hold it like ⌃⌥T), Read This Window, Ask Muse (when there is a card to open) and Hide Tug. Esc or a click elsewhere closes it and Tug hops back. With Reduce Motion there is no hop. The menu-bar mode stays the default. Debug builds: `-dockPanel YES` opens it at launch; `-reduceMotion YES` shows the still poses.
@@ -78,7 +78,7 @@ Menu bar › **Use the Camera During Practice** (off by default). While ⌃⌥T 
 ```sh
 npm run stub    # prints the token file path; stub models, throwaway database, port 4319
 # create a goal with curl (see docs/screen-context.md), then:
-open apps/mac/build/DerivedData/Build/Products/Debug/CommsCoachMac.app --args \
+open apps/mac/build/DerivedData/Build/Products/Debug/TugTalk.app --args \
   -devBaseURL http://127.0.0.1:4319 -devTokenFile <token file> \
   -fixtureImage "$PWD/apps/mac/Fixtures/meeting-prep.png" -goalID <goal id> -demoMode YES
 ```

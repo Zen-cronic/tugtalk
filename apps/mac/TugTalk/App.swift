@@ -137,7 +137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         #endif
         let others = NSWorkspace.shared.runningApplications.filter {
-            $0.processIdentifier != ProcessInfo.processInfo.processIdentifier && $0.executableURL?.lastPathComponent == "CommsCoachMac"
+            $0.processIdentifier != ProcessInfo.processInfo.processIdentifier && $0.bundleIdentifier == Bundle.main.bundleIdentifier
         }
         if !others.isEmpty {
             hotkeyLog.error("\(others.count, privacy: .public) other copy of the companion is running; ⌃⌥T presses may go to it instead")

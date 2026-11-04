@@ -1,4 +1,4 @@
-name: CommsCoachMac
+name: TugTalk
 options:
   bundleIdPrefix: com.kaungzinhein.commscoach
   deploymentTarget:
@@ -21,21 +21,21 @@ settings:
     MARKETING_VERSION: "0.9.1"
     CURRENT_PROJECT_VERSION: "2"
 targets:
-  CommsCoachMac:
+  TugTalk:
     type: application
     platform: macOS
     sources:
-      - path: CommsCoachMac
+      - path: TugTalk
     dependencies:
       - package: ScreenContextCore
         product: ScreenContextCore
     entitlements:
-      path: CommsCoachMac/CommsCoachMac.entitlements
+      path: TugTalk/TugTalk.entitlements
       properties:
         com.apple.security.device.audio-input: true
         com.apple.security.device.camera: true
     info:
-      path: CommsCoachMac/Info.plist
+      path: TugTalk/Info.plist
       properties:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
@@ -50,8 +50,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kaungzinhein.commscoach.mac
-        # REPLAY builds the per-round hands check (CommsCoachMac/ReplayCheck.swift); without it the toggle never shows.
+        # REPLAY builds the per-round hands check (TugTalk/ReplayCheck.swift); without it the toggle never shows.
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) REPLAY"
-        PRODUCT_NAME: CommsCoachMac
+        PRODUCT_NAME: TugTalk
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
