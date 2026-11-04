@@ -42,14 +42,23 @@ const order = (store,user) => Math.max(0,...store.list(user,KIND).map(r=>r.mutat
 function event(store, user, round, action, extra = {}) {
   store.put(user, EVENTS, { id: randomUUID(), version: 1, round_id: round.id, goal_id: round.goal_id, request_version: round.request_version, round_version: round.version, action, occurred_at: now(), ...extra });
 }
-export function practiceFreshness(store, user, round) {
+// memo (optional): a Map from round id to its freshness, for one read of one committed snapshot, so a view that
+// checks many voice rounds of the same practice round computes its freshness once.
+export function practiceFreshness(store, user, round, memo = null) {
+  const known = memo?.get(round.id);
+  if (known) return known;
+  const freshness = computeFreshness(store, user, round);
+  memo?.set(round.id, freshness);
+  return freshness;
+}
+function computeFreshness(store, user, round) {
   const refs = [{ kind: 'goals', id: round.goal_id, version: round.goal_version }, ...round.sources, ...(round.answer_sources ?? [])];
   const stale = refs.filter(ref => { const s = find(store, user, ref.kind, ref.id); return !s || s.deleted || s.version !== ref.version || (ref.kind !== 'goals' && s.goal_id !== round.goal_id); });
   if(round.practice_exercise&&!exerciseDependencyCurrent(store,user,round))stale.push({kind:'practice-exercises',id:round.practice_exercise.id});
   return { status: stale.length ? 'stale' : 'current', stale_sources: stale.map(({ kind, id }) => ({ kind, id })) };
 }
-export function projectPractice(store, user, round) {
-  const freshness = practiceFreshness(store, user, round);
+export function projectPractice(store, user, round, memo = null) {
+  const freshness = practiceFreshness(store, user, round, memo);
   const unusable = freshness.status === 'stale' || round.state === 'disputed';
   // Do not revive source-derived wording or answer evidence after a source is hidden/corrected.
   return { ...round, ...(unusable ? { request_text: null, objectives: [], assessment: null, current_question: null } : {}),
@@ -58,8 +67,8 @@ export function projectPractice(store, user, round) {
     assessment_scope: 'A fallible interpretation of this answer against the confirmed request, not measured improvement or truth.' };
 }
 export const getPractice = (store, user, id) => projectPractice(store, user, store.get(user, KIND, id));
-export function practiceViews(store, user, goalId) {
-  return store.list(user, KIND).filter(r => !goalId || r.goal_id === goalId).map(r => projectPractice(store, user, r));
+export function practiceViews(store, user, goalId, memo = null) {
+  return store.list(user, KIND).filter(r => !goalId || r.goal_id === goalId).map(r => projectPractice(store, user, r, memo));
 }
 export function createPractice(store, user, body, key) {
   fields(body, ['goal_id', 'expected_goal_version', 'request_text', 'objectives', 'confirmed', 'sources']);
@@ -159,10 +168,10 @@ export function finishPractice(store, user, reservation, voice, assessment, fing
   return { round_id: next.id, round_version: next.version, request_version: next.request_version, goal_id: next.goal_id, answer: count, state,
     assessment, evidence_type: 'model_assessment', historical: true };
 }
-export function semanticSourceCurrent(store, user, voice) {
+export function semanticSourceCurrent(store, user, voice, memo = null) {
   if (!voice.practice) return true;
   const round = find(store, user, KIND, voice.practice.round_id);
-  return Boolean(round && round.request_version === voice.practice.request_version && round.state !== 'disputed' && practiceFreshness(store, user, round).status === 'current');
+  return Boolean(round && round.request_version === voice.practice.request_version && round.state !== 'disputed' && practiceFreshness(store, user, round, memo).status === 'current');
 }
 export function validateAssessment(raw, objectives, transcript) {
   const unavailable = { evidence_type: 'model_assessment', status: 'unavailable', objectives: objectives.map(o => ({ id: o.id, status: 'unclear', evidence: [], missing: 'Assessment unavailable.' })) };

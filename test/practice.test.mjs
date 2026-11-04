@@ -127,3 +127,19 @@ test('authenticated HTTP practice routes expose current state in fresh context w
  try{const r=await request('POST','/v1/practice-rounds',body());assert.equal(r.status,200);assert.equal((await request('GET',`/v1/practice-rounds/${r.body.record.id}`)).body.state,'open');const overview=await request('GET','/v1/overview');assert.equal(overview.body.practice_rounds.length,1);}
  finally{await new Promise(r=>server.close(r));}
 }));
+test('fresh context computes practice freshness once per practice round, with byte-identical output',()=>fixture(async({store,create,send,params,models})=>{
+ const partial={...models,async voiceReply(){return {status:'model_reply',reply:{move:'follow_up',quote:'',question:'And then?',assessment:sampleAssessment('partial')},attempts:1};}};
+ const a=create();for(const key of ['memo-a1','memo-a2'])await send(key,params('goal-a'),partial);
+ const b=create('goal-b');const answer=await send('memo-b1',params('goal-b'));
+ store.put('alice','exercises',{id:'drill-memo',version:1,goal_id:'goal-b',basis:checkBasis(store,'alice','goal-b',{habit:'hedge',source_ids:[answer.round_id],claimed_count:answer.metrics.hedge_count})});
+ // One round goes stale (its goal changes), so both current and hidden projections are covered.
+ store.put('alice','goals',{...store.get('alice','goals','goal-b'),version:2});
+ assert.equal(getPractice(store,'alice',b.id).state,'stale');assert.equal(getPractice(store,'alice',a.id).answer_count,2);
+ const views=()=>{const strip=({as_of,...rest})=>rest;return JSON.stringify([strip(store.freshContext('alice')),strip(store.freshContext('alice','goal-a')),strip(store.freshContext('alice','goal-b')),strip(store.context('alice'))]);};
+ let sets=0,gets=0;const counting=store.freshnessMemo.bind(store);
+ store.freshnessMemo=()=>{const m=counting();return {get:k=>{gets++;return m.get(k);},set:(k,v)=>{sets++;m.set(k,v);}};};
+ const memoized=views();
+ assert.ok(sets<=2*4,'at most one computation per practice round per read');assert.ok(gets>sets,'later checks are lookups');
+ store.freshnessMemo=()=>({get(){},set(){}});
+ assert.equal(memoized,views(),'the memo changes no byte of any view');
+}));

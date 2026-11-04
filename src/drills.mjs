@@ -87,12 +87,13 @@ export function checkBasis(store, user, goalId, basis, now = Date.now()) {
 }
 
 // Current provenance for old and new count drills; legacy rows without versions still check visibility/counts.
-export function basisFreshness(store, user, basis) {
+// memo: as for practiceFreshness (src/practice.mjs), when called from one read of the fresh context.
+export function basisFreshness(store, user, basis, memo = null) {
   const stale = (basis.per_source ?? []).filter(ref => {
     const source = findSource(store,user,ref.id);
     return !source || source.record.deleted || (ref.version !== undefined && source.record.version !== ref.version)
       || source.record.metrics?.[`${basis.habit}_count`] !== ref.count
-      || (source.kind === 'voice-rounds' && !semanticSourceCurrent(store,user,source.record));
+      || (source.kind === 'voice-rounds' && !semanticSourceCurrent(store,user,source.record,memo));
   });
   return { status: stale.length ? 'stale' : 'current', stale_source_ids: stale.map(x=>x.id) };
 }
