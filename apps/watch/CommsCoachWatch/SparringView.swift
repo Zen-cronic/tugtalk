@@ -190,6 +190,7 @@ struct SparringView: View {
                     .buttonStyle(CoachButtonStyle())
             }
             if let quote = shown.quote { QuoteCard(quote: quote).slotIn() }
+            if shown.voice?.label != nil || shown.mediaNote != nil {
             VStack(alignment: .leading, spacing: 2) {
                 if let label = shown.voice?.label {
                     Text(label)
@@ -204,6 +205,7 @@ struct SparringView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
+            }
             if !shown.endsRound {
                 Button("End round") { model.endRound() }
                     .buttonStyle(CoachButtonStyle(.secondary))
