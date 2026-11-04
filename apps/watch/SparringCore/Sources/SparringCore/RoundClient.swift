@@ -52,9 +52,10 @@ public enum SpeechVoice: Sendable, Equatable {
     /// The watch's own voice, and why.
     case watch(reason: String)
 
-    public var label: String {
+    /// Nil for the coach voice, the usual case, so the screen shows no line for it.
+    public var label: String? {
         switch self {
-        case .coach(let provider): provider?.lowercased() == "wit" ? "Wit.ai voice, through the coach" : "The coach's voice"
+        case .coach: nil
         case .watch(let reason): "Watch voice: \(reason)"
         }
     }

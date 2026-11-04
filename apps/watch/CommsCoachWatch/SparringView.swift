@@ -175,8 +175,8 @@ struct SparringView: View {
             }
             if let quote = shown.quote { QuoteCard(quote: quote).slotIn() }
             VStack(alignment: .leading, spacing: 2) {
-                if let voice = shown.voice {
-                    Text(voice.label)
+                if let label = shown.voice?.label {
+                    Text(label)
                         .face(.text, 12, weight: 600, relativeTo: .caption2)
                         .foregroundStyle(Palette.mutedDark)
                 }
@@ -233,12 +233,14 @@ struct SparringView: View {
                         .foregroundStyle(Palette.inkDark)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 4)
-                    Text([summary.source, ending(closedBy)].compactMap { $0 }.joined(separator: ". "))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .id("source")
-                        .face(.text, 12, weight: 600, relativeTo: .caption2)
-                        .foregroundStyle(Palette.mutedDark)
-                        .padding(.horizontal, 4)
+                    if let ending = ending(closedBy) {
+                        Text(ending)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .id("source")
+                            .face(.text, 12, weight: 600, relativeTo: .caption2)
+                            .foregroundStyle(Palette.mutedDark)
+                            .padding(.horizontal, 4)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)

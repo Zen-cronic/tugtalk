@@ -53,7 +53,6 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         #expect(m.answered == 4 && closedBy == "answer_cap")
         #expect(summary.habit == .filler && summary.first == 4 && summary.last == 1 && summary.answers == 4)
         #expect(summary.comparison == "In your last answer, down from 4 in your first" && summary.unit == "filler")
-        #expect(summary.source == "Counted by the server in answers 1 and 4")
         #expect(last == "Why should it be you?")
     }
 
@@ -152,12 +151,13 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         #expect(m.phase.name == "thinking")
     }
 
-    @Test func keptRecordingIsShown() {
+    @Test func keptRecordingShowsNoLine() {
         var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next)
         let up = answer(&m, at: t0)
         _ = m.replied(key: up.idempotencyKey, receipt("r1", kept: true))
         guard case .replying(let shown) = m.phase else { Issue.record("not replying"); return }
-        #expect(shown.mediaNote == "Recording kept")
+        #expect(shown.mediaNote == nil)
+        #expect(RoundMedia(kept: false, reason: "full").note == "Recording not kept: storage full")
     }
 
     @Test func anUnverifiedQuoteIsNotShown() {
@@ -258,7 +258,7 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
 
     @Test func oneAnswerMakesNoComparisonAndTiesPickFillers() {
         let s = RoundSummary.make([VoiceMetrics(filler_count: 1, hedge_count: 1, restart_count: 1)])!
-        #expect(s.habit == .filler && s.first == nil && s.comparison == "In your answer" && s.source == "Counted by the server in 1 answer")
+        #expect(s.habit == .filler && s.first == nil && s.comparison == "In your answer")
         #expect(RoundSummary.make([]) == nil)
     }
 }
