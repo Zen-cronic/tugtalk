@@ -23,10 +23,10 @@ struct SparringView: View {
                 scrolled = now
             }
             .overlay(alignment: .top) { HeaderFade(active: scrolled) }
-            .onChange(of: model.phase.name) { _, name in
+            .onChange(of: model.phase.name) { _, _ in
                 #if DEBUG
                 // `-sparringScrollToEnd YES`: shows the end of each step, for simulator captures.
-                // `-sparringScrollTo source`: centres that part of each step instead (here, Round done's source line).
+                // `-sparringScrollTo source`: centres that part of each step instead (here, Round done's line on why the round ended).
                 if let anchor = UserDefaults.standard.string(forKey: "sparringScrollTo") {
                     Task { try? await Task.sleep(for: .milliseconds(300)); proxy.scrollTo(anchor, anchor: .center) }
                     return
@@ -36,9 +36,9 @@ struct SparringView: View {
                     return
                 }
                 #endif
-                // Each new step starts at the top, so the question or the number shows first. On "Your turn" the
-                // question moves to the top. The jump is not animated, so no scroll is still moving when a button is tapped.
-                if name == "your turn" { proxy.scrollTo("question", anchor: .top) } else { proxy.scrollTo("top", anchor: .top) }
+                // Each new step starts at the top, so its status and the question or the number show first (Record and
+                // Stop are pinned below). The jump is not animated, so no scroll is still moving when a button is tapped.
+                proxy.scrollTo("top", anchor: .top)
             }
         }
             // Stop, and Record on a question, sit below the scroll view, never inside it: on the real watch (build 9)
