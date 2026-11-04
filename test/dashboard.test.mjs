@@ -138,3 +138,16 @@ test('sign-in counts failures only, per forwarded client: another client signs i
   let started=performance.now();assert.equal((await slow.request('/app-api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"password":"bad"}'})).status,401);assert.ok(performance.now()-started>=110);
   started=performance.now();await slow.login();assert.ok(performance.now()-started<110);
 });
+test('each tab path serves the app shell with the app policy; other app paths and assets keep their rules',async t=>{
+ const h=await harness(t),shell=await h.request('/app/');
+ for(const tab of ['goals','conversations','recordings']){
+  const r=await h.request(`/app/${tab}`);assert.equal(r.status,200,tab);assert.equal(r.text,shell.text,tab);
+  assert.equal(r.headers.get('content-security-policy'),shell.headers.get('content-security-policy'),tab);assert.match(r.headers.get('content-type'),/text\/html/);
+  assert.equal((await h.request(`/app/${tab}`,{method:'HEAD'})).status,200);
+ }
+ for(const bad of ['/app/nope','/app/goals/','/app/goals/x','/app/Goals','/app/recordings.html'])assert.equal((await h.request(bad)).status,404,bad);
+ assert.equal((await h.request('/app/..%2Fsrc')).status,400);
+ assert.equal((await h.request('/app/app.js')).status,200);assert.match((await h.request('/app/styles.css')).headers.get('content-type'),/css/);
+ assert.equal((await h.request('/app/dashboard-assets.json')).status,404);
+ assert.equal((await h.request('/app-api/context')).status,401);assert.equal(h.calls.length,0);
+});
