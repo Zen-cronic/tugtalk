@@ -78,9 +78,9 @@ struct DrillLine: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            // "Today's drill · set by Muse" on one line where it fits; on a small watch, two lines, never cut off.
+            // "Today's drill, set by Muse" on one line where it fits; on a small watch, two lines, never cut off.
             ViewThatFits(in: .horizontal) {
-                Text("\(drill.heading) · set by Muse").lineLimit(1)
+                Text("\(drill.heading), set by Muse").lineLimit(1)
                 VStack(alignment: .leading, spacing: 0) { Text(drill.heading); Text("Set by Muse") }
             }
             .face(.text, 13, weight: 600, relativeTo: .caption)

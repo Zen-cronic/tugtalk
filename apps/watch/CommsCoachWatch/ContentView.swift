@@ -148,7 +148,7 @@ struct ContentView: View {
                     Text(model.selectedGoal?.title ?? "No goal").face(.text, 16, weight: 700, relativeTo: .headline)
                         .foregroundStyle(Palette.inkDark)
                     Text([model.language == "fr" ? "Français" : "English", model.settings?.keep_recordings == true ? "recordings kept" : nil]
-                        .compactMap { $0 }.joined(separator: " · "))
+                        .compactMap { $0 }.joined(separator: ", "))
                         .face(.text, 14, weight: 600, relativeTo: .footnote)
                         .foregroundStyle(Palette.field)
                 }
@@ -202,7 +202,7 @@ struct ContentView: View {
             }
             .slotIn()
 
-            Text("\(m.word_count) words" + (m.words_per_minute.map { " · \($0) wpm" } ?? ""))
+            Text("\(m.word_count) words" + (m.words_per_minute.map { ", \($0) wpm" } ?? ""))
                 .face(.text, 14, weight: 600, relativeTo: .footnote)
                 .foregroundStyle(Palette.pace)
                 .padding(.horizontal, 4)
