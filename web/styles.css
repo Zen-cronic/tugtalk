@@ -971,8 +971,34 @@ to{
   margin:0 0 4px
 }
 .recording{
-  padding:20px 0;
-  margin-top:16px
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px 20px;
+  flex-wrap:wrap;
+  padding:10px 0;
+  margin-top:0
+}
+.recording h3{
+  margin:0;
+  font-size:16px
+}
+.recording .caption{
+  margin:2px 0 0
+}
+.recording .player{
+  margin-top:0;
+  flex:0 1 460px;
+  min-width:240px
+}
+.recording audio{
+  flex:1 1 auto;
+  min-width:0;
+  width:auto;
+  height:36px
+}
+.recordings-list .card-header{
+  margin-bottom:8px
 }
 button.quiet.danger{
   color:#a72419;
