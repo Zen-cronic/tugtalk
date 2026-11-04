@@ -759,3 +759,7 @@ to{
 .outcome-not_addressed { background: var(--coral); border-color: var(--coral); }
 .previous-request > summary { font-weight: 700; cursor: pointer; min-height: 30px; }
 @media (max-width: 720px) { .objective-heading { flex-direction: column; gap: 10px; } }
+
+.conversation-exercise .exercise-scenario { margin-top: 16px; font-size: 18px; line-height: 1.6; max-width: 720px; }
+.conversation-exercise blockquote { margin: 14px 0 0; padding: 14px 16px; background: var(--cream); border-radius: 12px; font-size: 16px; line-height: 1.5; }
+.conversation-exercise blockquote span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 5px; }

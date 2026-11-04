@@ -56,3 +56,32 @@ export async function readStablePractice(read) {
   }
   throw new Error('Your practice changed while loading. Refresh to check a consistent result.');
 }
+
+const exerciseStates = {
+  proposed:['Proposed','This exercise has not been started.'],
+  active:['In progress','This exercise is active; it is not a completed result.'],
+  assessed_addressed:['AI thinks you covered this point','The AI assessed this answer against the practice objective.'],
+  attempted:['Attempted','An attempt was recorded without a claim that the objective was addressed.'],
+  skipped:['Skipped','This exercise was skipped; no successful outcome is implied.'],
+  disputed:['Result disputed','The result was disputed. Its scenario and assessment are hidden.'],
+};
+export function renderPracticeExercises(overview, goalId, {fresh=true}={}) {
+  const exercises=array(overview?.practice_exercises).filter(e=>e.goal_id===goalId)
+    .sort((a,b)=>Number(b.state==='active')-Number(a.state==='active')||String(b.updated_at??'').localeCompare(String(a.updated_at??'')));
+  if(!exercises.length)return '';
+  const heading='<div class="sidebar-title"><h2>Conversation exercises</h2></div><p class="caption">Fictional scenarios to practise a part of a conversation. Separate from drills that count fillers or restarts.</p>';
+  if(!fresh)return `<section class="conversation-exercises under">${heading}<section class="card under"><h3>Refresh to check these exercises.</h3><p class="under">Refresh to see the latest practice. The scenario and result will appear once the update finishes.</p></section></section>`;
+  return `<section class="conversation-exercises under" aria-label="Conversation exercises">${heading}${exercises.map(exercise=>{
+    const stale=exercise.state==='stale'||exercise.freshness?.status==='stale'||exercise.superseded===true;
+    const known=Object.hasOwn(exerciseStates,exercise.state), current=exercise.freshness?.status==='current';
+    const usable=!stale&&current&&known&&exercise.state!=='disputed'&&exercise.scenario_type==='fictional_practice';
+    const [stateLabel,explanation]=['disputed','skipped'].includes(exercise.state)?exerciseStates[exercise.state]:stale?['Exercise needs review','The goal, an earlier answer or the request changed. This exercise needs a review before it can be used.']:!current||!known||exercise.scenario_type!=='fictional_practice'?['Practice unavailable','Refresh to check this exercise before using it.']:exerciseStates[exercise.state];
+    const showScenario=usable&&['proposed','active'].includes(exercise.state);
+    const result=usable&&['active','assessed_addressed','attempted'].includes(exercise.state)&&exercise.result?.evidence_type==='model_assessment'&&exercise.result?.assessment?.status==='assessed'?exercise.result.assessment:null;
+    const matches=array(result?.objectives).filter(o=>o.id===exercise.objective?.id), outcome=matches.length===1&&Object.hasOwn(outcomes,matches[0]?.status)?matches[0]:null;
+    const addressed=exercise.state==='assessed_addressed', resultMismatch=usable&&addressed&&(!outcome||outcome.status!=='addressed');
+    const badge=exercise.state==='assessed_addressed'&&usable&&!resultMismatch?'AI assessment':null;
+    const label=resultMismatch?'AI result unavailable':stateLabel;
+    return `<article class="card conversation-exercise under"><div class="card-header"><div class="eyebrow">${showScenario?'Fictional practice scenario':'Exercise status'}</div><span class="pill">${escape(badge??label)}</span></div>${showScenario?`<h3>${escape(exercise.title??'Saved conversation exercise')}</h3><p class="exercise-scenario">${escape(exercise.request_text??'No scenario text available.')}</p><p class="caption">${exercise.purpose==='transfer'?'Try the objective in a different situation.':exercise.purpose==='address_gap'?'Practise an objective left unanswered earlier.':''}</p>`:`<h3>${escape(label)}</h3>`}${usable&&exercise.objective?.text?`<div class="feedback"><h3>Practice objective</h3><p>${escape(exercise.objective.text)}</p></div>`:''}${outcome&&!resultMismatch?`<div class="feedback"><div class="objective-heading"><h3>Saved AI assessment</h3><span class="pill outcome-${escape(outcome.status)}">${escape({addressed:'AI: answered',partial:'AI: partly answered',not_addressed:'AI: not answered',unclear:'AI: unclear'}[outcome.status])}</span></div>${array(outcome.evidence).map(e=>`<blockquote><span>Words cited by the AI</span>“${escape(e.quote)}”</blockquote>`).join('')}${outcome.missing?`<p class="caption">${escape(outcome.missing)}</p>`:''}</div>`:''}<p class="caption">${escape(resultMismatch?'The current assessment could not be confirmed. Refresh to check it.':explanation)}</p><p class="caption">${exercise.created_via==='connector'?'Saved through your connected assistant or app.':'Creation source not recorded.'}</p><details class="record-details"><summary>Exercise details</summary><p>Record ${escape(exercise.id)} · version ${Number.isInteger(exercise.version)?exercise.version:'—'}<br>Source status: ${escape(exercise.freshness?.status??'unavailable')}<br>Saved by: ${exercise.created_via==='connector'?'a connected assistant or app; creator not identified':'not recorded'}</p></details></article>`;
+  }).join('')}<p class="caption">AI assessments describe individual answers. They are not measured learning or proof of lasting improvement.</p></section>`;
+}
