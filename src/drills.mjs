@@ -55,6 +55,9 @@ function refusal(source, now) {
   return null;
 }
 
+// A source's count of one habit, as a basis stores it: a missing or invalid metric counts as 0.
+const habitCount = (record, habit) => Number.isInteger(record.metrics?.[`${habit}_count`]) ? record.metrics[`${habit}_count`] : 0;
+
 // Checks a basis for an exercise on goalId and returns what is stored with it. Runs inside the write transaction.
 //   400 invalid_value       the basis is not {habit, source_ids, claimed_count}
 //   409 drill_open          the goal already has an open drill
@@ -78,8 +81,7 @@ export function checkBasis(store, user, goalId, basis, now = Date.now()) {
   const refused = sources.map(({ id, source }) => ({ id, reason: source?.kind === 'voice-rounds' && !semanticSourceCurrent(store,user,source.record) ? 'practice_stale' : refusal(source, now) })).filter(r => r.reason);
   if (refused.length) throw withDetails(new ApiError(422, 'basis_source_invalid', 'Cite only measured captures or voice rounds of this account from the last 14 days, not fixtures or hidden sessions.'), { refused });
 
-  const field = `${habit}_count`;
-  const per_source = sources.map(({ id, source }) => ({ id, kind: source.kind === 'sessions' ? 'session' : 'voice_round', version: source.record.version, count: Number.isInteger(source.record.metrics[field]) ? source.record.metrics[field] : 0 }));
+  const per_source = sources.map(({ id, source }) => ({ id, kind: source.kind === 'sessions' ? 'session' : 'voice_round', version: source.record.version, count: habitCount(source.record, habit) }));
   const count = per_source.reduce((n, s) => n + s.count, 0);
   if (count !== claimed_count) throw withDetails(new ApiError(422, 'basis_mismatch', `The basis claims ${claimed_count} ${habitWord(habit, claimed_count)}; code counts ${count} in the cited ${source_ids.length === 1 ? 'source' : 'sources'}. Correct claimed_count and retry with a new Idempotency-Key.`),
     { recomputed: { habit, count, per_source: per_source.map(({ id, count }) => ({ id, count })) } });
@@ -92,7 +94,7 @@ export function basisFreshness(store, user, basis, memo = null) {
   const stale = (basis.per_source ?? []).filter(ref => {
     const source = findSource(store,user,ref.id);
     return !source || source.record.deleted || (ref.version !== undefined && source.record.version !== ref.version)
-      || source.record.metrics?.[`${basis.habit}_count`] !== ref.count
+      || habitCount(source.record, basis.habit) !== ref.count
       || (source.kind === 'voice-rounds' && !semanticSourceCurrent(store,user,source.record,memo));
   });
   return { status: stale.length ? 'stale' : 'current', stale_source_ids: stale.map(x=>x.id) };

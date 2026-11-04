@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../src/store.mjs';
 import { createApp } from '../src/server.mjs';
-import { checkDueAt, drillParams, DUE_MAX_DAYS } from '../src/drills.mjs';
+import { checkDueAt, drillParams, DUE_MAX_DAYS, checkBasis, basisFreshness } from '../src/drills.mjs';
 
 function wav(seconds = 1, rate = 16000, tone = 330) {
   const samples = Math.round(seconds * rate), data = Buffer.alloc(samples * 2);
@@ -203,3 +203,22 @@ test('drillParams reads only X-Exercise-Id', () => {
   assert.deepEqual(drillParams({ 'x-exercise-id': 'abc-123' }), { exerciseId: 'abc-123' });
   assert.throws(() => drillParams({ 'x-exercise-id': 'a/b' }), { code: 'invalid_value' });
 });
+
+// A bare store with one measured capture, for basis checks that need no HTTP server.
+function withStore(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'drill-basis-'));
+  const store = new Store(join(dir, 'basis.sqlite'));
+  store.put('alice', 'goals', { id: 'goal-a', version: 1, title: 'Pace', target: 'Slow down' });
+  const capture = metrics => ({ id: 'capture-a', version: 1, source: 'capture', measurement_status: 'measured', goal_id: 'goal-a', deleted: false, occurred_at: new Date().toISOString(), metrics });
+  try { return fn(store, capture); } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('a source without the habit metric counts 0 and stays current, as the basis check counted it', () => withStore((store, capture) => {
+  store.put('alice', 'sessions', capture({ filler_count: 2 }));
+  const basis = checkBasis(store, 'alice', 'goal-a', { habit: 'restart', source_ids: ['capture-a'], claimed_count: 0 });
+  assert.equal(basis.per_source[0].count, 0);
+  assert.deepEqual(basisFreshness(store, 'alice', basis), { status: 'current', stale_source_ids: [] });
+  // A real change to the counted metric still makes the basis stale.
+  store.put('alice', 'sessions', capture({ filler_count: 2, restart_count: 1 }));
+  assert.deepEqual(basisFreshness(store, 'alice', { ...basis, per_source: [{ ...basis.per_source[0], version: undefined }] }), { status: 'stale', stale_source_ids: ['capture-a'] });
+}));
