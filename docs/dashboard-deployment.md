@@ -1,8 +1,8 @@
-# Shared landing and private dashboard hosting
+# Shared landing and public read-only dashboard hosting
 
-`deploy/dashboard_app.py` describes the shared Modal app, `tugtalk-landing`, with the public landing at `/` and the authenticated dashboard at `/app/`. It runs the Node gateway behind HTTPS with one container and no database volume. Its small Python entrypoint is serialized explicitly so container startup does not depend on importing an omitted deployment module. It adds only the two explicit built-asset allowlists, their public asset manifest and the two gateway entrypoint modules to its image; it does not package the repository, local preview passwords or provider keys.
+`deploy/dashboard_app.py` describes the shared Modal app, `tugtalk-landing`, with the public landing at `/` and the dashboard at `/app/`, which visitors can read without a code. It runs the Node gateway behind HTTPS with one container and no database volume. Its small Python entrypoint is serialized explicitly so container startup does not depend on importing an omitted deployment module. It adds only the two explicit built-asset allowlists, their public asset manifest and the two gateway entrypoint modules to its image; it does not package the repository, local preview passwords or provider keys.
 
-The manifest deliberately fixes `DASHBOARD_ALLOW_RECORDING_CHANGES=0` and `DASHBOARD_LOCAL_HTTP=0`. Browsers can review records and listen to/download kept audio; recording settings and deletion remain disabled. There are no model calls. The existing connector remains the authoritative store. The public landing has its own asset allowlist and font policy; the private dashboard retains its stricter content-security policy. Neither public files nor public requests expose the connector credential.
+The manifest deliberately fixes `DASHBOARD_ALLOW_RECORDING_CHANGES=0`, `DASHBOARD_LOCAL_HTTP=0` and `DASHBOARD_PUBLIC_READ=1`. Visitors, with no access code, can review records and listen to/download kept audio; recording settings and deletion remain disabled for everyone, signed in or not. The access code still signs the owner in. Visitor reads are rate-limited per client and in total (see [Public read mode](dashboard.md#public-read-mode)). Everything the configured account has saved is visible to anyone with the address. There are no model calls. The existing connector remains the authoritative store. The public landing has its own asset allowlist and font policy; the dashboard retains its stricter content-security policy. Neither public files nor public requests expose the connector credential.
 
 ## Prepare and validate locally
 
@@ -20,14 +20,14 @@ In that configured Python environment:
 python deploy/test_dashboard_manifest.py
 ```
 
-The manifest tests use a fake Modal module and make no account or cloud calls. They check the image allowlist, read-only secure configuration and invalid-origin rejection. The manifest also compares each built asset with its source and refuses stale or missing output.
+The manifest tests use a fake Modal module and make no account or cloud calls. They check the image allowlist, read-only secure configuration with public reads on, and invalid-origin rejection. The manifest also compares each built asset with its source and refuses stale or missing output.
 
 ## Configuration to approve before deployment
 
 Provision a separate Modal secret named `comms-coach-dashboard`, containing only:
 
 - `DASHBOARD_CONNECTOR_TOKEN`: the credential for the intended account, preferably restricted to read scope.
-- `DASHBOARD_PASSWORD`: a separate cryptographically random dashboard access code, at least 20 characters. Never reuse the connector token.
+- `DASHBOARD_PASSWORD`: a separate cryptographically random dashboard access code, at least 20 characters. Never reuse the connector token. With public reads on it only signs the owner in; it unlocks no write while recording changes are off.
 
 Create it through the provider's protected secret editor or an approved non-logging secret-provisioning flow. Do not place secret values in CLI arguments, source files, frontend variables or screenshots. Provisioning a new credential/secret and deploying the app are separate actions from preparing this manifest.
 
@@ -46,13 +46,13 @@ After deployment and secret provisioning are explicitly approved, the command in
 python -m modal deploy deploy/dashboard_app.py --profile <profile> --env <environment>
 ```
 
-Use the Python executable from the existing configured environment; this product checkout has no Poetry project of its own. Select the intended Modal profile and environment explicitly. Pass the two public origins through the command environment. The manifest references the named secret without embedding its values. It does not enable recording writes or keep a container permanently warm.
+Use the Python executable from the existing configured environment; this product checkout has no Poetry project of its own. Select the intended Modal profile and environment explicitly. Pass the two public origins through the command environment. The manifest references the named secret without embedding its values. It does not enable recording writes or keep a container permanently warm. To return to a code-only dashboard, set `DASHBOARD_PUBLIC_READ` to `'0'` and deploy again.
 
 ## Runtime behavior and live acceptance
 
-The manifest uses 0.25 CPU, 512 MiB, `max_containers=1`, `min_containers=0`, an idle window of 300 seconds, a 60-second function timeout and at most eight concurrent inputs. The container can scale down, preempt or restart; its in-memory sessions then expire and users sign in again. This is a single-account private dashboard, not durable multiuser identity. Do not increase the replica count without redesigning sessions and throttling. These limits are configuration, not a measured cost or availability guarantee.
+The manifest uses 0.25 CPU, 512 MiB, `max_containers=1`, `min_containers=0`, an idle window of 300 seconds, a 60-second function timeout and at most eight concurrent inputs. The container can scale down, preempt or restart; its in-memory sessions and visitor limits then reset and the owner signs in again. This is a single-account dashboard, readable by visitors, not durable multiuser identity. Do not increase the replica count without redesigning sessions and throttling. These limits are configuration, not a measured cost or availability guarantee.
 
-Before using real data in a demo, verify the exact public Host passes ingress; HTTP is redirected by the platform to HTTPS; cookies have Secure/HttpOnly/SameSite=Strict; anonymous API reads fail; logout invalidates the session; raw connector credentials are absent from browser traffic; and recording mutation routes remain disabled. With an authorized read-only account, compare a new saved practice and request version against the other devices. Test a revoked upstream token and sign-in after a gateway restart. Check startup/idle behavior within the approved hosting budget. Never make a private account publicly accessible for these checks.
+Before using real data in a demo, verify the exact public Host passes ingress; HTTP is redirected by the platform to HTTPS; cookies have Secure/HttpOnly/SameSite=Strict; anonymous API reads return the account's records while anonymous writes fail; logout invalidates the session; raw connector credentials are absent from browser traffic; and recording mutation routes remain disabled. With an authorized read-only account, compare a new saved practice and request version against the other devices. Test a revoked upstream token and sign-in after a gateway restart. Check startup/idle behavior within the approved hosting budget. Public read mode shows the configured account to everyone: use it only with an account whose records are meant to be seen, and turn it off before connecting any other account.
 
 No deployment, secret creation, domain configuration or personal-account change is performed by the offline tests. A successful local manifest import is not live ingress, billing or security validation.
 
