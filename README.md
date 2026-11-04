@@ -2,6 +2,8 @@
 
 Practise out loud. Your assistant remembers.
 
+Communication practice for interviews, meetings, sales pitches and public speaking, based on how you actually talk.
+
 Practise an answer out loud on Apple Watch or the Mac: an interview question, a stand-up update, a point in a meeting. Meta's speech-to-text writes down what you said. Code counts your fillers ("um"), unsure words ("I think", "maybe") and restarts. Muse Spark Open plays the other person: it asks a follow-up and assesses whether you covered the points you confirmed for this practice. Code checks every quote in the follow-up, and every piece of evidence in the assessment, against your own words before it is saved or spoken. The written observation and the Mac's screen card are model text, saved without that check. Muse, Meta's assistant, reads the same record through the API, so it remembers what you practised in any new chat.
 
 **Landing:** https://tugtalk.live, **API:** https://kaungzinhein--synthetic-coaching-connector-web.us-east.modal.run, **Mac app:** download link added at release, **Demo video:** link added at submission
