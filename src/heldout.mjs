@@ -111,14 +111,15 @@ export function stubFetch(label = () => 'habit') {
   return fetchImpl;
 }
 
-// One adjudication per transcript with the model-only words on, through the production client (models.adjudicateHabits).
+// One adjudication per transcript with the model-only words on and hedges sent (rule 2 scores hedge adjudication),
+// through the production client (models.adjudicateHabits), whatever the production defaults are.
 // Returns the stored adjudications and, per item, the raw labels the model sent, so the score can be recomputed offline.
 export async function runHeldout({ models, items, beforeItem = () => {}, onItem = () => {} }) {
   const adjudications = new Map(), records = [];
   for (const item of items) {
     let raw = null;
     beforeItem(item);
-    const recording = { ...models, adjudicateModelOnly: true,
+    const recording = { ...models, adjudicateModelOnly: true, adjudicateHedges: true,
       async adjudicateHabits(args) { const result = await models.adjudicateHabits(args); raw = result; return result; } };
     const adjudication = await adjudicateCapture({ models: recording, transcript: item.text, language: item.language });
     adjudications.set(item.id, adjudication);

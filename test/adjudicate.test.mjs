@@ -13,6 +13,9 @@ import { Store } from '../src/store.mjs';
 import { createApp } from '../src/server.mjs';
 
 const TEXT = 'Um, what kind of report do you need? I think it is, you know, kind of late.';
+// v1 adjudication (hedges sent, no model-only words): the production defaults are the held-out rules, so tests that pin v1
+// behaviour set it explicitly.
+const V1 = { ADJUDICATE_MODEL_ONLY: '0', ADJUDICATE_HEDGES: '1' };
 const label = (id, quote, value, reason = 'Short reason.') => ({ id, quote, label: value, reason });
 
 test('code proposes every ambiguous hit with its exact span and neighbouring words; pure vocal fillers are not sent', () => {
@@ -67,7 +70,7 @@ test('the model client sends one Spark Open request with the candidates, falls b
   const bodies = [];
   const replies = ["I can't help with that.", '{"labels": [{"id": "c1", "quote": "kind of", "label": "content", "reason": "Part of what kind of report."}]}'];
   const fetchImpl = async (url, init) => { bodies.push(JSON.parse(init.body)); return new Response(JSON.stringify({ id: 'req-9', choices: [{ message: { content: replies.shift() } }] }), { status: 200 }); };
-  const model = createAdjudicationModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl });
+  const model = createAdjudicationModel({ env: { BASETEN_API_KEY: 'k', ...V1 }, fetchImpl });
   const result = await adjudicateCapture({ models: model, transcript: 'What kind of report?', language: 'en' });
   assert.equal(bodies.length, 2, 'a refusal is retried once with the larger budget, like every Spark call');
   assert.deepEqual(bodies.map(b => b.max_tokens), ANALYSIS_BUDGETS);
@@ -75,10 +78,10 @@ test('the model client sends one Spark Open request with the candidates, falls b
   const user = JSON.parse(bodies[0].messages[1].content);
   assert.deepEqual(user, { transcript: 'What kind of report?', candidates: [{ id: 'c1', kind: 'hedge', before: 'What ', quote: 'kind of', after: ' report' }] });
   assert.equal(result.status, 'adjudicated'); assert.equal(result.adjudicated_count.hedges, 0); assert.equal(result.provider_request_id, 'req-9'); assert.equal(result.attempts, 2);
-  const refused = await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl: async () => new Response(JSON.stringify({ choices: [{ message: { content: 'No.' } }] })) }), transcript: 'What kind of report?', language: 'en' });
+  const refused = await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k', ...V1 }, fetchImpl: async () => new Response(JSON.stringify({ choices: [{ message: { content: 'No.' } }] })) }), transcript: 'What kind of report?', language: 'en' });
   assert.equal(refused.status, 'fallback'); assert.equal(refused.adjudicated_count.hedges, 1);
   let called = 0;
-  const unconfigured = await adjudicateCapture({ models: createAdjudicationModel({ env: {}, fetchImpl: async () => { called++; } }), transcript: 'What kind of report?', language: 'en' });
+  const unconfigured = await adjudicateCapture({ models: createAdjudicationModel({ env: V1, fetchImpl: async () => { called++; } }), transcript: 'What kind of report?', language: 'en' });
   assert.equal(called, 0); assert.equal(unconfigured.status, 'fallback'); assert.match(unconfigured.reason, /not configured/);
   const thrown = await adjudicateCapture({ models: { adjudicateHabits: async () => { throw new Error('boom'); } }, transcript: 'What kind of report?', language: 'en' });
   assert.equal(thrown.status, 'fallback');
@@ -133,7 +136,7 @@ test('with the flag off, candidates, stored adjudications and request bodies are
   for (const [t, l] of texts) {
     const { candidates } = adjudicationCandidates(t, l);
     out.push(candidates, buildAdjudication(t, l, null), buildAdjudication(t, l, { status: 'model_labels', labels: candidates.map((c, n) => ({ id: c.id, quote: c.quote, label: n % 2 ? 'habit' : 'content', reason: 'r' })), model: 'm', provider_request_id: 'r', attempts: 1 }));
-    await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl: async (u, init) => { bodies.push(init.body); return chatReply('{"labels":[]}'); } }), transcript: t, language: l });
+    await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k', ...V1 }, fetchImpl: async (u, init) => { bodies.push(init.body); return chatReply('{"labels":[]}'); } }), transcript: t, language: l });
   }
   assert.equal(texts.length, 130);
   assert.equal(sha(JSON.stringify(out)), 'ce50de39fa2eda597f4d026bbf151f7c43e76317cc0381345dbde2d0070b41bc');
@@ -142,9 +145,9 @@ test('with the flag off, candidates, stored adjudications and request bodies are
   assert.ok(out.every(x => Array.isArray(x) || !('model_only' in x)), 'no model_only block with the flag off');
 });
 
-test('the flag is on only when ADJUDICATE_MODEL_ONLY is exactly "1"', () => {
+test('the model-only flag is on unless ADJUDICATE_MODEL_ONLY is exactly "0"', () => {
   assert.deepEqual(MODEL_ONLY, { en: ['like'], fr: ['genre', 'quoi'] });
-  for (const [value, on] of [['1', true], [undefined, false], ['0', false], ['true', false], ['yes', false], [' 1', false]])
+  for (const [value, on] of [['1', true], [undefined, true], ['', true], ['0', false], ['false', true], [' 0', true]])
     assert.equal(createAdjudicationModel({ env: value === undefined ? {} : { ADJUDICATE_MODEL_ONLY: value } }).adjudicateModelOnly, on, String(value));
 });
 
@@ -157,7 +160,7 @@ test('with the flag on, every model-only word follows the lexicon candidates as 
   assert.deepEqual(modelOnlyCandidates('I likely unlike it. Pourquoi ?', 'en').candidates, [], 'only whole words');
   assert.deepEqual(modelOnlyCandidates('Genre, quoi.', 'en').candidates, [], 'per language');
   const bodies = [];
-  const model = { ...createAdjudicationModel({ env: { BASETEN_API_KEY: 'k', ADJUDICATE_MODEL_ONLY: '1' }, fetchImpl: async (u, init) => { bodies.push(JSON.parse(init.body)); return chatReply('{"labels":[]}'); } }) };
+  const model = { ...createAdjudicationModel({ env: { BASETEN_API_KEY: 'k', ADJUDICATE_MODEL_ONLY: '1', ADJUDICATE_HEDGES: '1' }, fetchImpl: async (u, init) => { bodies.push(JSON.parse(init.body)); return chatReply('{"labels":[]}'); } }) };
   await adjudicateCapture({ models: model, transcript: LIKE, language: 'en' });
   assert.equal(bodies[0].messages[0].content, adjudicationSystemPrompt('en'));
   assert.equal(bodies[0].reasoning_effort, 'low');
@@ -273,7 +276,7 @@ test('held-out scoring: an all-habit stub equals the lexicon and count-all; gold
   assert.equal(applyRules(fake(1, 1, 0.742, 0.5)).rule2_hedges_leave_adjudication.fires, true);
 });
 
-test('with ADJUDICATE_HEDGES=0 hedges are not proposed and keep the word-list count; other hits are unchanged', async () => {
+test('hedges are not proposed unless ADJUDICATE_HEDGES is exactly "1", and keep the word-list count; other hits are unchanged', async () => {
   const { adjudicationCandidates, buildAdjudication, createAdjudicationModel, adjudicateCapture } = await import('../src/adjudicate.mjs');
   const transcript = 'I think we could basically ship it, maybe Friday.';
   const all = adjudicationCandidates(transcript, 'en');
@@ -281,12 +284,31 @@ test('with ADJUDICATE_HEDGES=0 hedges are not proposed and keep the word-list co
   assert.ok(all.candidates.some(c => c.category === 'hedges'));
   assert.ok(!skipped.candidates.some(c => c.category === 'hedges'));
   assert.deepEqual(skipped.candidates.map(c => c.quote), all.candidates.filter(c => c.category !== 'hedges').map(c => c.quote));
-  assert.equal(createAdjudicationModel({ env: { ADJUDICATE_HEDGES: '0' } }).adjudicateHedges, false);
-  assert.equal(createAdjudicationModel({ env: {} }).adjudicateHedges, true);
+  for (const [value, on] of [['1', true], [undefined, false], ['', false], ['0', false], ['true', false], [' 1', false]])
+    assert.equal(createAdjudicationModel({ env: value === undefined ? {} : { ADJUDICATE_HEDGES: value } }).adjudicateHedges, on, String(value));
   let sent = null;
   const models = { adjudicateModelOnly: false, adjudicateHedges: false, async adjudicateHabits({ candidates }) { sent = candidates; return { status: 'unavailable', reason: 'test' }; } };
   const stored = await adjudicateCapture({ models, transcript, language: 'en' });
   assert.ok(sent === null || !sent.some(c => c.category === 'hedges'));
   const lexicon = buildAdjudication(transcript, 'en', null);
   assert.equal(stored.adjudicated_count?.hedges ?? stored.lexicon_count?.hedges, lexicon.lexicon_count?.hedges);
+});
+
+test('with hedges skipped they are counted as skipped_hedges, not always-habit, and the record says why under its own method', () => {
+  const skip = { skipHedges: true };
+  const hedgeOnly = buildAdjudication('Um, I think it is kind of late.', 'en', null, skip);
+  assert.equal(hedgeOnly.status, 'no_candidates');
+  assert.doesNotMatch(hedgeOnly.reason, /No ambiguous hits/);
+  assert.match(hedgeOnly.reason, /hedges keep the word-list count/);
+  assert.equal(hedgeOnly.method, 'spark-adjudication-v2-no-hedges');
+  assert.deepEqual([hedgeOnly.summary.hits, hedgeOnly.summary.always_habit, hedgeOnly.summary.skipped_hedges, hedgeOnly.summary.candidates], [3, 1, 2, 0]);
+  assert.deepEqual(hedgeOnly.adjudicated_count, hedgeOnly.lexicon_count);
+  // With a non-hedge candidate the hedges are still skipped and counted apart.
+  const mixed = buildAdjudication(TEXT, 'en', { status: 'model_labels', labels: [label('c1', 'you know', 'content')], model: ANALYSIS_MODEL, provider_request_id: 'r', attempts: 1 }, skip);
+  assert.equal(mixed.status, 'adjudicated'); assert.equal(mixed.method, 'spark-adjudication-v2-no-hedges');
+  assert.deepEqual([mixed.summary.always_habit, mixed.summary.skipped_hedges, mixed.summary.candidates], [1, 3, 1]);
+  assert.equal(mixed.adjudicated_count.hedges, mixed.lexicon_count.hedges);
+  // Without skipHedges the record is v1, with no skipped_hedges field.
+  const v1 = buildAdjudication('Um, ship it.', 'en', null);
+  assert.equal(v1.method, 'spark-adjudication-v1'); assert.equal(v1.reason, 'No ambiguous hits; the lexicon count stands.'); assert.ok(!('skipped_hedges' in v1.summary));
 });

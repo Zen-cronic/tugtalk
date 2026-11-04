@@ -50,7 +50,8 @@ function slowProviders(clock, { asr = 1, analysis = 1, adjudication = 1, reply =
     sent.analysis++; await clock.take(analysis * S);
     return chat(empty ? '' : '{"observation":"Short and clear.","suggested_exercise":"Say it again."}');
   };
-  const env = { MODEL_API_KEY: 'test', BASETEN_API_KEY: 'test' };
+  // Hedges sent (v1 adjudication), so the hedge-only clips still make an adjudication call to time.
+  const env = { MODEL_API_KEY: 'test', BASETEN_API_KEY: 'test', ADJUDICATE_HEDGES: '1' };
   return { sent, models: { ...createModelClients({ env, fetchImpl }), ...createAdjudicationModel({ env, fetchImpl }), ...createVoiceModel({ env, fetchImpl }) } };
 }
 

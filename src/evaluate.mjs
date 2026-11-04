@@ -194,7 +194,9 @@ export function runEval(raw = readFileSync(CORPUS_URL), scriptedRaw = readFileSy
 
 // The live arm: the real Muse Spark Open adjudication over the corpus. Paid; scripts/eval.mjs runs it only with
 // --live --approved. models must provide adjudicateHabits (createAdjudicationModel in src/adjudicate.mjs).
-export async function runLiveAdjudication({ models, raw = readFileSync(CORPUS_URL) }) {
+// The corpus eval scores v1 adjudication (hedges sent, no model-only words), whatever the production defaults are.
+export async function runLiveAdjudication({ models: client, raw = readFileSync(CORPUS_URL) }) {
+  const models = { ...client, adjudicateModelOnly: false, adjudicateHedges: true };
   const { corpus, items } = loadItems(raw);
   const plan = livePlan(items), predictions = [], records = [];
   let attempts = 0;

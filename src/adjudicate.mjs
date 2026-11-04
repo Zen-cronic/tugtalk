@@ -7,7 +7,7 @@
 // the transcript has it. Anything else keeps the lexicon count. The model can only remove a proposed hit;
 // it cannot add one or change a number, so the adjudicated count never exceeds the lexicon count.
 //
-// Model-only words (off unless ADJUDICATE_MODEL_ONLY=1): "like", "genre" and "quoi" are fillers in some sentences and
+// Model-only words (on unless ADJUDICATE_MODEL_ONLY=0): "like", "genre" and "quoi" are fillers in some sentences and
 // content in others, so the word list leaves them out. With the flag on, code also proposes every occurrence of them
 // (ids m1, m2, ...) in the same call, and reports them in a separate model_only block. They never enter metrics,
 // lexicon_count or adjudicated_count. model_only is "counted" only when every one of them got a label that passed
@@ -16,6 +16,8 @@ import { habitHits, sparkJSON, ANALYSIS_MODEL, LANGUAGES, HIT_ORDER } from './ca
 import { MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
 
 export const ADJUDICATION_METHOD = 'spark-adjudication-v1';
+// The method when hedges are not proposed (skipHedges): its counts are not comparable with v1's, so it has its own id.
+export const ADJUDICATION_METHOD_NO_HEDGES = 'spark-adjudication-v2-no-hedges';
 // Pure vocal fillers have no content reading, so code counts them without asking.
 export const ALWAYS_HABIT = { en: ['um', 'uh', 'erm'], fr: ['euh', 'bah'] };
 export const CONTEXT_WORDS = 6;
@@ -24,10 +26,10 @@ export const MAX_REASON_CHARS = 160;
 export const LABELS = ['habit', 'content'];
 export const REJECTIONS = ['missing', 'duplicate_id', 'quote_mismatch', 'invalid_label', 'missing_reason'];
 const KIND = { fillers: 'filler', hedges: 'hedge', restarts: 'restart' };
-// Words only the model can sort: counted as fillers only when labelled habit, and only behind ADJUDICATE_MODEL_ONLY.
+// Words only the model can sort: counted as fillers only when labelled habit, and only with the model-only words on.
 export const MODEL_ONLY = { en: ['like'], fr: ['genre', 'quoi'] };
 export const MAX_MODEL_ONLY_CANDIDATES = 20;
-export const modelOnlyEnabled = env => env?.ADJUDICATE_MODEL_ONLY === '1';
+export const modelOnlyEnabled = env => env?.ADJUDICATE_MODEL_ONLY !== '0';
 const isModelOnly = candidate => candidate.id.startsWith('m');
 const around = (text, tokens, first, last, start, end) => ({
   before: text.slice(tokens[Math.max(0, first - CONTEXT_WORDS)].start, start),
@@ -48,8 +50,9 @@ export function modelOnlyCandidates(transcript, language) {
 
 // Ambiguous hits in transcript order, numbered c1, c2, ... Hits beyond MAX_CANDIDATES are not sent and stay counted.
 // With modelOnly, the model-only candidates follow them (m1, m2, ...); without it the result is exactly as before.
-// With skipHedges (ADJUDICATE_HEDGES=0) hedges are not proposed and keep the word-list count: the pre-registered
-// held-out run (eval/README.md, rule 2) found adjudication lowered hedge recall by more than 0.2.
+// With skipHedges (the default of createAdjudicationModel; ADJUDICATE_HEDGES=1 turns it off) hedges are not proposed and
+// keep the word-list count: the pre-registered held-out run (eval/README.md, rule 2) found adjudication lowered hedge
+// recall by more than 0.2.
 export function adjudicationCandidates(transcript, language, { modelOnly = false, skipHedges = false } = {}) {
   const { text, tokens, hits } = habitHits(transcript, language);
   const ambiguous = hits.filter(h => !(skipHedges && h.category === 'hedges') && !ALWAYS_HABIT[language].includes(h.phrase));
@@ -57,7 +60,8 @@ export function adjudicationCandidates(transcript, language, { modelOnly = false
     id: `c${n + 1}`, category: h.category, phrase: h.phrase, quote: h.quote, start: h.start, end: h.end,
     ...around(text, tokens, h.first, h.last, h.start, h.end)
   }));
-  const result = { text, hits, candidates, over_cap: ambiguous.length - candidates.length };
+  const result = { text, hits, candidates, over_cap: ambiguous.length - candidates.length,
+    skipped_hedges: skipHedges ? hits.filter(h => h.category === 'hedges' && !ALWAYS_HABIT[language].includes(h.phrase)).length : 0 };
   if (!modelOnly) return result;
   const extra = modelOnlyCandidates(transcript, language);
   return { ...result, candidates: [...candidates, ...extra.candidates], model_only_over_cap: extra.over_cap };
@@ -71,11 +75,12 @@ export const adjudicationUserMessage = (transcript, candidates) => JSON.stringif
 export const acceptLabels = parsed => Array.isArray(parsed.labels) ? parsed.labels : null;
 
 // One Spark call per capture that has candidates (a second only when the first reply is unusable).
-// adjudicateModelOnly is read once from ADJUDICATE_MODEL_ONLY; it is off unless the variable is exactly "1".
+// The defaults are the held-out rules (eval/README.md): adjudicateModelOnly is on unless ADJUDICATE_MODEL_ONLY is exactly
+// "0" (rule 1 passed), and adjudicateHedges is off unless ADJUDICATE_HEDGES is exactly "1" (rule 2 fired).
 export function createAdjudicationModel({ env = process.env, fetchImpl = fetch } = {}) {
   return {
     adjudicateModelOnly: modelOnlyEnabled(env),
-    adjudicateHedges: env?.ADJUDICATE_HEDGES !== '0',
+    adjudicateHedges: env?.ADJUDICATE_HEDGES === '1',
     async adjudicateHabits({ transcript, language, candidates, budget }) {
       if (!env.BASETEN_API_KEY) return { status: 'unavailable', reason: 'Adjudication is not configured on this deployment.', attempts: 0 };
       const result = await sparkJSON({ env, system: adjudicationSystemPrompt(language), user: adjudicationUserMessage(transcript, candidates),
@@ -133,7 +138,7 @@ function modelOnlyBlock(language, results, over_cap, labelled, modelResult) {
 // Pure: candidates plus the model's result (or null when no call was made) -> the stored adjudication.
 // With modelOnly the record also gets a model_only block; every other field is computed exactly as without it.
 export function buildAdjudication(transcript, language, modelResult, { modelOnly = false, skipHedges = false } = {}) {
-  const { hits, candidates: proposed, over_cap, model_only_over_cap = 0 } = adjudicationCandidates(transcript, language, { modelOnly, skipHedges });
+  const { hits, candidates: proposed, over_cap, skipped_hedges, model_only_over_cap = 0 } = adjudicationCandidates(transcript, language, { modelOnly, skipHedges });
   const candidates = proposed.filter(c => !isModelOnly(c)), extra = proposed.filter(isModelOnly);
   const lexicon = byCategory(hits);
   const labelled = modelResult?.status === 'model_labels';
@@ -142,15 +147,17 @@ export function buildAdjudication(transcript, language, modelResult, { modelOnly
   const removed = byCategory(results.filter(r => !r.counted));
   const verified = results.filter(r => r.verified).length;
   const status = !candidates.length ? 'no_candidates' : verified === 0 ? 'fallback' : verified === candidates.length && over_cap === 0 ? 'adjudicated' : 'partial';
-  const reason = status === 'no_candidates' ? 'No ambiguous hits; the lexicon count stands.'
+  const reason = status === 'no_candidates' ? (skipped_hedges ? 'No hit was sent for a label: hedges keep the word-list count and the other hits are pure fillers; the lexicon count stands.' : 'No ambiguous hits; the lexicon count stands.')
     : !labelled ? (modelResult?.reason ?? 'Adjudication was not run.')
     : status === 'fallback' ? 'No label passed the check; the lexicon count stands.' : null;
   return {
-    status, method: ADJUDICATION_METHOD, reason,
+    status, method: skipHedges ? ADJUDICATION_METHOD_NO_HEDGES : ADJUDICATION_METHOD, reason,
     lexicon_count: lexicon,
     adjudicated_count: Object.fromEntries(HIT_ORDER.map(c => [c, lexicon[c] - removed[c]])),
     candidates: results,
-    summary: { hits: hits.length, always_habit: hits.length - candidates.length - over_cap, candidates: candidates.length, over_cap, verified,
+    // Hedges that were not sent (skipHedges) are counted as skipped_hedges, not as always-habit fillers.
+    summary: { hits: hits.length, always_habit: hits.length - candidates.length - over_cap - skipped_hedges, ...(skipHedges ? { skipped_hedges } : {}),
+      candidates: candidates.length, over_cap, verified,
       rejected: labelled ? candidates.length - verified : 0, content: results.filter(r => r.label === 'content').length, ignored_entries: ignored },
     model: labelled ? modelResult.model ?? ANALYSIS_MODEL : null, provider_request_id: labelled ? modelResult.provider_request_id ?? null : null,
     attempts: modelResult?.attempts ?? 0,
@@ -160,7 +167,8 @@ export function buildAdjudication(transcript, language, modelResult, { modelOnly
 
 // The capture step. Calls the model only when there is something ambiguous to decide, and only when the request's
 // time budget still allows it (then the lexicon count stands). Never throws. The model-only words are proposed only
-// when the adjudication client was created with ADJUDICATE_MODEL_ONLY=1 (models.adjudicateModelOnly).
+// when models.adjudicateModelOnly is true, and hedges are skipped only when models.adjudicateHedges is false; the
+// production client (createAdjudicationModel) sets both from the environment.
 export async function adjudicateCapture({ models, transcript, language, budget }) {
   const opts = { modelOnly: models?.adjudicateModelOnly === true, skipHedges: models?.adjudicateHedges === false };
   const { candidates } = adjudicationCandidates(transcript, language, opts);
