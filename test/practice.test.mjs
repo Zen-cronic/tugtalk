@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../src/store.mjs';
 import { createApp } from '../src/server.mjs';
-import { createPractice, changePractice, getPractice, claimPractice, failPractice, finishPractice, selectedPractice, validateAssessment, UNAVAILABLE_QUESTION } from '../src/practice.mjs';
+import { createPractice, changePractice, getPractice, claimPractice, failPractice, finishPractice, selectedPractice, validateAssessment, UNAVAILABLE_QUESTION, UNAVAILABLE_REPLIES } from '../src/practice.mjs';
 import { voiceParams, handleVoiceRound } from '../src/voice.mjs';
 import { createLiveRound, wavFromPcm } from '../src/live-voice.mjs';
 import { checkBasis, recordDrillResult, basisFreshness } from '../src/drills.mjs';
@@ -148,4 +148,13 @@ test('a deleted practice voice round is refused as deleted, not as practice_stal
  store.put('alice','voice-rounds',{...voice,version:2,deleted:true});
  assert.throws(()=>checkBasis(store,'alice','goal-a',{habit:'hedge',source_ids:[out.round_id],claimed_count:0}),e=>e.code==='basis_source_invalid'&&e.details.refused[0].reason==='deleted');
  assert.throws(()=>checkBasis(store,'alice','goal-a',{habit:'hedge',source_ids:['missing-round'],claimed_count:0}),e=>e.details.refused[0].reason==='not_found');
+}));
+test('unavailable assessments get the fixed reply in the round language, open and at the four-answer cap',()=>fixture(async({create,params,models,send})=>{
+ const unavailable={...models,async voiceReply(){return {status:'unavailable',attempts:1};}};
+ create();const fr=params('goal-a',{'x-language':'fr'});
+ for(let i=1;i<=4;i++){
+  const out=await send(`fr-unavailable-${i}`,fr,unavailable);
+  assert.equal(out.reply.question,i<4?UNAVAILABLE_REPLIES.fr.open:UNAVAILABLE_REPLIES.fr.capped);assert.equal(out.practice.state,i<4?'open':'capped');
+ }
+ create('goal-b');assert.equal((await send('en-unavailable',params('goal-b'),unavailable)).reply.question,UNAVAILABLE_REPLIES.en.open);
 }));

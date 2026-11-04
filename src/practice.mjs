@@ -5,6 +5,13 @@ import { exerciseDependencyCurrent, practiceExerciseChanged } from './practice-e
 
 export const PRACTICE_PATH = '/v1/practice-rounds';
 export const UNAVAILABLE_QUESTION = "I couldn't assess that answer. Please try again or revise the practice request.";
+// The fixed replies when no assessment is available, by language: the round stays open, or it has reached four answers.
+export const UNAVAILABLE_REPLIES = {
+  en: { open: UNAVAILABLE_QUESTION, capped: "I couldn't assess that answer. We've reached four answers, so this round is over. Revise the request to practise again." },
+  fr: { open: "Je n'ai pas pu évaluer cette réponse. Réessayez ou révisez la demande d'entraînement.",
+    capped: "Je n'ai pas pu évaluer cette réponse. Nous avons atteint quatre réponses, donc cette séance est terminée. Révisez la demande pour vous entraîner à nouveau." }
+};
+export const unavailableReply = (language, capped) => (UNAVAILABLE_REPLIES[language] ?? UNAVAILABLE_REPLIES.en)[capped ? 'capped' : 'open'];
 const KIND = 'practice-rounds', ATTEMPTS = 'practice-attempts', EVENTS = 'practice-events';
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);

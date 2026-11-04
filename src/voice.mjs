@@ -1,4 +1,4 @@
-import { claimPractice, failPractice, finishPractice, validateAssessment, semanticSystem, semanticMessage, UNAVAILABLE_QUESTION } from './practice.mjs';
+import { claimPractice, failPractice, finishPractice, validateAssessment, semanticSystem, semanticMessage, unavailableReply } from './practice.mjs';
 // Voice rounds: the person holds a key, answers out loud, and releases; the Mac posts the WAV here.
 // Meta transcribes it (file ASR, ENDPOINTING), code measures the answer, and one Muse Spark Open call plays the
 // other person in the conversation and picks the next move. Code then checks the reply: the quote must be the
@@ -303,7 +303,7 @@ export async function replyToAnswer(models, context, transcription, durationMs, 
     const addressed=assessment.status==='assessed' && assessment.objectives.every(o=>o.status==='addressed');
     const reason=addressed?'model_assessed_addressed':answer>=4?'answer_cap':'semantic_open';
     const move=addressed||answer>=4?'wrap_up':'follow_up', allowed=[move];
-    const question=assessment.status==='unavailable'?(answer>=4?"I couldn't assess that answer. We've reached four answers, so this round is over. Revise the request to practise again.":UNAVAILABLE_QUESTION)
+    const question=assessment.status==='unavailable'?unavailableReply(language,answer>=4)
       :addressed?(language==='fr'?"Selon mon évaluation, votre réponse traite la demande. Cette séance est terminée.":"My assessment is that your answer addresses the request. This practice round is complete.")
       :answer>=4?(language==='fr'?"Nous avons atteint quatre réponses. La séance se termine, sans confirmer que la demande est traitée.":"We've reached four answers. This round is over; addressing the request has not been confirmed.")
       :result.reply.assessment.next_question;
