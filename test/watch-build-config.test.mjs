@@ -36,3 +36,30 @@ test('watch connector key: the build carries it readable, and the docs say to ro
   for (const file of ['App.xcconfig', 'Secrets.example.xcconfig'])
     assert.match(readFileSync(`${watch}Config/${file}`, 'utf8'), /rotate (it|the key)\s*(\/\/ )?after the demo period/, file);
 });
+
+// The watch app's own bundle ID (the TestFlight wrapper keeps the shorter `…commscoach.watch`).
+const watchAppID = projectYml.match(/\n  CommsCoachWatch:[\s\S]*?PRODUCT_BUNDLE_IDENTIFIER: (\S+)/)[1];
+
+test('watch bundle IDs: every simulator launch in the docs starts the watch app, not the wrapper or an older ID', () => {
+  assert.equal(watchAppID, 'com.kaungzinhein.commscoach.watch.watchkitapp');
+  assert.ok(readFileSync(`${root}docs/watch-sparring.md`, 'utf8').includes(`simctl launch booted ${watchAppID}`), 'the guide launches the watch app');
+  for (const doc of ['docs/watch-sparring.md', 'apps/mac/README.md']) {
+    let text; try { text = readFileSync(`${root}${doc}`, 'utf8'); } catch { continue; }
+    for (const [, id] of text.matchAll(/simctl (?:launch|terminate) \S+ (\S+)/g)) assert.equal(id, watchAppID, `${doc}: ${id}`);
+    assert.doesNotMatch(text, /com\.zencronic\.commscoach/, doc);
+  }
+});
+
+test('watch Info.plist: project.yml is its one source, so the committed file holds only keys project.yml declares', () => {
+  const plist = readFileSync(`${watch}CommsCoachWatch/Info.plist`, 'utf8');
+  const keys = [...plist.matchAll(/^\t<key>([^<]+)<\/key>/gm)].map(m => m[1]).sort();
+  const info = projectYml.match(/\n    info:\n      path: CommsCoachWatch\/Info\.plist\n      properties:\n([\s\S]*?)\n    settings:/)[1];
+  const declared = [...info.matchAll(/^        (\w+):/gm)].map(m => m[1]);
+  // The keys XcodeGen writes into every generated Info.plist.
+  const generated = ['CFBundleDevelopmentRegion', 'CFBundleExecutable', 'CFBundleIdentifier', 'CFBundleInfoDictionaryVersion', 'CFBundleName', 'CFBundlePackageType'];
+  assert.deepEqual(keys, [...declared, ...generated].sort());
+  for (const key of ['CFBundleDisplayName', 'CFBundleVersion', 'CFBundleShortVersionString', 'CoachAPIToken']) {
+    const value = info.match(new RegExp(`^        ${key}: (.+)$`, 'm'))[1];
+    assert.match(plist, new RegExp(`<key>${key}</key>\\n\\t<string>${value.replace(/[$()]/g, '\\$&')}</string>`), key);
+  }
+});
