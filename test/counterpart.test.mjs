@@ -15,7 +15,7 @@ test('needMet: each need in English, with the near misses that must not count', 
     number: ['Conversion is up 8%.', 'It saves two hours a week.', 'About half the tickets.'],
     date: ['We ship by March 14.', 'On the 14th.', 'By Friday.', 'Tomorrow.', 'End of the quarter.', 'In two weeks.', 'Q1.', 'May 3rd works.'],
     decision: ['We decided to ship the beta.', "I'll ship the smaller version.", "Let's go with option B.", 'The answer is yes.'],
-    owner: ["I'll own it.", 'I will lead the launch.', "I'm responsible for the rollout.", "It's on me.", 'Dana owns it.'],
+    owner: ["I'll own it.", 'I will lead the launch.', "I'm responsible for the rollout.", "It's on me.", 'Kemi owns it.'],
     example: ['For example, the beta cut tickets.', 'Last quarter we did this.', 'Such as the pilot.', 'When we shipped the pilot it worked.']
   };
   const no = {
@@ -130,7 +130,7 @@ async function withRound({ transcripts, replies, models: extra = {} }, fn) {
   const store = new Store(join(dir, 'c.sqlite'));
   store.addToken('alice-secret', 'alice'); store.seed('alice');
   store.put('alice', 'screen-contexts', { id: 'card-1', version: 1, purpose: 'meeting_prep', app_name: 'Notes', occurred_at: '2026-11-02T14:00:00.000Z', deleted: false,
-    analysis: { summary: 'Asking Dana to approve the Q1 launch; she needs a ship date.', observation: 'o', next_step: 'n' } });
+    analysis: { summary: 'Asking Kemi to approve the Q1 launch; she needs a ship date.', observation: 'o', next_step: 'n' } });
   const calls = { transcribe: 0, voiceReply: 0, prompts: [] };
   const models = {
     async transcribe() { return { transcript: transcripts[calls.transcribe++], turns: [], audio_duration_ms: 1200, model: 'muse-voice-transcribe-1.0', provider_session_id: 'asr' }; },

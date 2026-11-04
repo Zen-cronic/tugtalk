@@ -42,7 +42,7 @@
       "raw": "{\"move\":\"follow_up\",\"quote\":\"I think\",\"question\":\"When you say the launch went well, what exactly do you mean by well, who decided that it went well, what numbers back it up, and what would you change next time around?\"}",
       "expect": { "quote": "I think", "quote_verified": true, "question": "When you say the launch went well, what exactly do you mean by well, who decided that it went well, what numbers back it up?" } },
     { "id": "personal-data", "language": "en", "transcript": "I can send the deck after the call.",
-      "raw": "{\"move\":\"follow_up\",\"quote\":\"send the deck\",\"question\":\"Send it to dana@example.com today, and what is in it?\"}",
+      "raw": "{\"move\":\"follow_up\",\"quote\":\"send the deck\",\"question\":\"Send it to kemi@example.com today, and what is in it?\"}",
       "expect": { "quote": "send the deck", "quote_verified": true, "question": "Send it to [email] today, and what is in it?" } },
     { "id": "fr-apostrophe", "language": "fr", "transcript": "Je pense qu’on peut lancer lundi.",
       "raw": "{\"move\":\"challenge\",\"quote\":\"Je pense qu'on peut\",\"question\":\"Vous pensez, ou vous savez ?\"}",

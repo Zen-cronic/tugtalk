@@ -17,7 +17,7 @@ public struct RedactionResult: Sendable, Equatable {
 ///
 /// Order matters: specific patterns first (emails, links, card-like and ID-like numbers), then
 /// Foundation's data detectors (addresses, phone numbers), then name recognition. A person name
-/// found anywhere is also removed everywhere else it appears ("Dana's email").
+/// found anywhere is also removed everywhere else it appears ("Kemi's email").
 public struct Redactor: Sendable {
     public static let method = "on-device-v1"
 
@@ -106,7 +106,7 @@ public struct Redactor: Sendable {
             if tag == .organizationName { orgs.append(token) }
             return true
         }
-        // Every word of a detected name, so "Dana's" and a bare "Whitfield" go too.
+        // Every word of a detected name, so "Kemi's" and a bare "Bello" go too.
         var personWords = Set<String>()
         for name in people {
             for part in name.split(separator: " ") where part.count >= 2 && part.first?.isUppercase == true {

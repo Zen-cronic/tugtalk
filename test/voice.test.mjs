@@ -42,7 +42,7 @@ test('safeQuestion: removes quoted words the speaker never said, keeps the ones 
   assert.equal(empty.question, FALLBACK_QUESTIONS.en.follow_up); assert.equal(empty.checks.replaced, true);
   const long = safeQuestion(Array(40).fill('word').join(' ') + '?', ANSWER, 'follow_up', 'en');
   assert.equal(long.question.split(' ').length, MAX_QUESTION_WORDS); assert.equal(long.checks.cut_to_words, MAX_QUESTION_WORDS);
-  assert.match(safeQuestion('Email dana@example.com your numbers, then tell me why?', ANSWER, 'follow_up', 'en').question, /\[email\]/);
+  assert.match(safeQuestion('Email kemi@example.com your numbers, then tell me why?', ANSWER, 'follow_up', 'en').question, /\[email\]/);
   assert.equal(safeQuestion('« Vous allez tripler » ?', 'Je pense que oui.', 'challenge', 'fr').question, FALLBACK_QUESTIONS.fr.challenge);
 });
 
@@ -221,12 +221,12 @@ test('POST /v1/voice-rounds: the prompt is grounded in the goal, the latest watc
     store.put('alice', 'sessions', { id: 'mac-1', version: 1, source: 'capture', capture_device: 'mac', measurement_status: 'measured', occurred_at: '2026-11-02T14:30:00.000Z', deleted: false,
       transcript: 'y', metrics: { word_count: 1, words_per_minute: 1, filler_count: 9, hedge_count: 9, restart_count: 9, pauses: {} } });
     store.put('alice', 'screen-contexts', { id: 'card-1', version: 1, purpose: 'meeting_prep', app_name: 'Notes', occurred_at: at, deleted: false, text_sha256: 'f'.repeat(64),
-      analysis: { summary: 'Preparing to ask Dana to lead the Q1 launch.', observation: 'o', next_step: 'n' } });
+      analysis: { summary: 'Preparing to ask Kemi to lead the Q1 launch.', observation: 'o', next_step: 'n' } });
     await round(wav(2), { key: 'voice-ground-1', headers: { 'X-Goal-Id': goal.id, 'X-Screen-Context-Id': 'card-1' } });
     await round(wav(2.5), { key: 'voice-ground-2', headers: { 'X-Goal-Id': goal.id } });
     const first = JSON.parse(calls.prompts[0].user), second = JSON.parse(calls.prompts[1].user);
     assert.deepEqual(first.goal, { title: 'Lead the Q1 launch', target: 'Ask without hedging' });
-    assert.deepEqual(first.screen_card, { purpose: 'meeting_prep', app_name: 'Notes', summary: 'Preparing to ask Dana to lead the Q1 launch.' });
+    assert.deepEqual(first.screen_card, { purpose: 'meeting_prep', app_name: 'Notes', summary: 'Preparing to ask Kemi to lead the Q1 launch.' });
     assert.equal(JSON.stringify(first).includes('f'.repeat(64)), false, 'no screen-text hash or other stored fields');
     assert.equal(first.latest_watch_session.hedge_count, 3, 'the latest watch session, not a newer Mac capture');
     assert.equal(first.latest_watch_session.longest_pause_ms, 1400);

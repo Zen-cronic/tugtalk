@@ -71,7 +71,7 @@ final class ScreenMappingTests: XCTestCase {
 
 final class LineMatcherTests: XCTestCase {
     let lines = [
-        line("Meeting prep: 1:1 with Dana Whitfield", y: 0.9),
+        line("Meeting prep: 1:1 with Kemi Bello", y: 0.9),
         line("Goal: ask to own the Q1 launch", y: 0.8),
         line("Shipped the beta two weeks early", y: 0.6),
         line("The ask (at the end): could I maybe lead the launch?", y: 0.2),

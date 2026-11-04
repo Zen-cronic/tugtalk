@@ -2,7 +2,7 @@
   "eval": "voice-reply-checks",
   "label": "Scripted voice replies, not live model runs.",
   "replies": "voice-replies-scripted-v1",
-  "replies_sha256": "7e606f41ff0e68cc78cfd2362c9ac901e6a12129bba26a851ad89287b23533c1",
+  "replies_sha256": "003ea5fbeb9a60f8e7f7002d2d8547b7250e73738db69135f5faebd3838f32ba",
   "provenance": "Scripted voice replies, not live model runs. Written by the comms-coach authors on 2026-11-02, knowing how the check works, to cover the cases it must accept and reject. Transcripts are invented. Each case has the raw model text and what code should return.",
   "counts": {
     "cases": 20,

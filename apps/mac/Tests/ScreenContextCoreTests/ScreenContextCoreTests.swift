@@ -6,7 +6,7 @@ import XCTest
 private let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "../../Fixtures").standardized
 
 /// Every personal value planted in the synthetic fixture. None may survive redaction.
-private let planted = ["Dana", "Whitfield", "dana.whitfield", "example.com", "555-0199", "555", "0199", "416",
+private let planted = ["Kemi", "Bello", "kemi.bello", "example.com", "555-0199", "555", "0199", "416",
                        "4111", "046 454 286", "454", "a8F3kQ92", "docs.example", "token=", "200 King", "King Street", "M5H", "3T4"]
 
 private func assertNoPlanted(_ text: String, file: StaticString = #filePath, line: UInt = #line) {
@@ -65,7 +65,7 @@ final class FixtureImageTests: XCTestCase {
         let image = try ImageLoading.cgImage(at: fixtures.appending(path: "meeting-prep.png"))
         let ocr = try VisionTextReader().read(image)
         XCTAssertTrue(ocr.contains("Q1 launch"), "OCR read the fixture: \(ocr.prefix(80))")
-        XCTAssertTrue(ocr.contains("Whitfield"), "the fixture really contains the planted name before redaction")
+        XCTAssertTrue(ocr.contains("Bello"), "the fixture really contains the planted name before redaction")
         let redacted = Redactor().redact(ocr)
         assertNoPlanted(redacted.text)
         XCTAssertGreaterThanOrEqual(redacted.total, 8)

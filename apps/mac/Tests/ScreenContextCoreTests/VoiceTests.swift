@@ -127,7 +127,7 @@ final class SequenceProtocol: URLProtocol, @unchecked Sendable {
     override func stopLoading() {}
 }
 
-let voiceReceiptJSON = #"{"round_id":"vr1","receipt_id":"rc1","replayed":false,"transcript":"Um, I think maybe I should lead it.","metrics":{"word_count":8,"words_per_minute":132.5,"filler_count":1,"hedge_count":2,"restart_count":0,"pauses":{"count":1,"longest_ms":900},"onset_ms_approx":1200},"reply":{"move":"challenge","question":"You said maybe. Why should Dana pick you?","quote":"maybe I should lead it","quote_verified":true},"model":"meta-models/muse-spark-open-1026","provider_request_id":"chatcmpl-1","latency_ms":{"asr":2100,"model":1700,"total":3900},"extra":true}"#
+let voiceReceiptJSON = #"{"round_id":"vr1","receipt_id":"rc1","replayed":false,"transcript":"Um, I think maybe I should lead it.","metrics":{"word_count":8,"words_per_minute":132.5,"filler_count":1,"hedge_count":2,"restart_count":0,"pauses":{"count":1,"longest_ms":900},"onset_ms_approx":1200},"reply":{"move":"challenge","question":"You said maybe. Why should Kemi pick you?","quote":"maybe I should lead it","quote_verified":true},"model":"meta-models/muse-spark-open-1026","provider_request_id":"chatcmpl-1","latency_ms":{"asr":2100,"model":1700,"total":3900},"extra":true}"#
 
 final class VoiceRoundAPITests: XCTestCase {
     private func api() -> CoachAPI {

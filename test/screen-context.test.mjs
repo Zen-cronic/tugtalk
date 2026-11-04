@@ -112,7 +112,7 @@ test('screen context: the server re-scrubs missed personal data in the input and
     next_step: 'Quote card 4111 1111 1111 1111.', model: 'meta-models/muse-spark-open-1026', provider_request_id: 'r' };
   const { models, calls } = stubModels(leaky);
   await withServer(models, async ({ post }) => {
-    const r = await post(body({ text: 'Reach me at dana.k@example.org or +1 416 555 0199. Account 123456789.' }));
+    const r = await post(body({ text: 'Reach me at kemi.b@example.org or +1 416 555 0199. Account 123456789.' }));
     assert.equal(r.status, 200);
     assert.deepEqual(r.data.record.redaction.server_counts, { email: 1, phone: 1, number: 1 });
     assert.equal(calls.last.text, 'Reach me at [email] or [phone]. Account [number].', 'the model never sees what the device missed');
