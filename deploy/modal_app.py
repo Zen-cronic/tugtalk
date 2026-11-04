@@ -30,7 +30,7 @@ replay_enabled = '1' if os.environ.get('REPLAY_ENABLED', '') == '1' else ''
 
 @app.function(image=image, volumes={'/data': volume}, secrets=[models_secret],
               env={'CONNECTOR_TOKEN_HASH': bootstrap_hash,
-                   'CONNECTOR_PUBLIC_HOST': 'kaungzinhein113--synthetic-coaching-connector-web.us-east.modal.run',
+                   'CONNECTOR_PUBLIC_HOST': 'kaungzinhein--synthetic-coaching-connector-web.us-east.modal.run',
                    # The observation and the screen card ask for medium reasoning effort; the provider default stalled
                    # or came back empty on 2 of 3 bench calls. Voice replies set low in code (src/voice.mjs).
                    'ANALYSIS_EFFORT': 'medium',
