@@ -77,6 +77,8 @@ public struct SparringMachine: Sendable {
     public private(set) var phase: Phase = .ready(answer: 1)
     /// The server's measurements of each answer so far.
     public private(set) var metrics: [VoiceMetrics] = []
+    /// Answers the server has replied to with a question, with or without measurements.
+    public private(set) var answered = 0
     private var promptEndedAt: Date?
     /// The other person's need for this round, from the first reply that named one. Never stored on the watch beyond the round.
     public private(set) var need: String?
@@ -95,9 +97,6 @@ public struct SparringMachine: Sendable {
         self.goalID = goalID; self.language = language; self.screenContextID = screenContextID; self.newKey = newKey; self.newEndKey = newEndKey
     }
 
-    /// Answers the server has replied to.
-    public var answered: Int { metrics.count }
-
     /// Record tapped: on "Your turn", on a question still being spoken (it stops), on a failure, or on
     /// Round done ("Record again" starts a new round).
     public mutating func record(at now: Date) -> [Effect] {
@@ -113,7 +112,7 @@ public struct SparringMachine: Sendable {
             let drop: [Effect] = upload.map { [.discard(key: $0.idempotencyKey)] } ?? []
             return drop + start(answer, at: now, prompt: currentPrompt(at: now))
         case .done:
-            metrics = []; promptEndedAt = nil; need = nil
+            metrics = []; answered = 0; promptEndedAt = nil; need = nil
             return start(1, at: now, prompt: nil)
         case .recording, .thinking:
             return []
@@ -141,7 +140,7 @@ public struct SparringMachine: Sendable {
         case .ready(let answer): next = answer; effects = []
         case .replying(let shown) where !shown.endsRound: next = shown.answer + 1; effects = shown.spoken ? [] : [.stopSpeech]
         case .failed(let answer, _, let upload): next = answer; effects = upload.map { [.discard(key: $0.idempotencyKey)] } ?? []
-        case .done: metrics = []; need = nil; next = 1; effects = []
+        case .done: metrics = []; answered = 0; need = nil; next = 1; effects = []
         default: return []
         }
         promptEndedAt = nil
@@ -164,6 +163,7 @@ public struct SparringMachine: Sendable {
             phase = .failed(answer: answer, failure: .noQuestion, upload: nil)
             return [.discard(key: key)]
         }
+        answered += 1
         if let m = receipt.metrics { metrics.append(m) }
         serverOpen = !receipt.reply.wrapsUp
         if need == nil, let named = receipt.counterpart?.need { need = named }
@@ -251,7 +251,7 @@ public struct SparringMachine: Sendable {
         case .thinking, .done: return []
         default: break
         }
-        if metrics.isEmpty {
+        if answered == 0 {
             phase = .ready(answer: 1); promptEndedAt = nil; need = nil
             return effects + owedEnd()
         }
@@ -260,12 +260,16 @@ public struct SparringMachine: Sendable {
 
     /// The screen closed. A round the server still holds open is ended there, so the next round starts at answer 1.
     /// An answer still uploading is left to finish, since the server may save it: its late reply is ignored, and the
-    /// round end waits for `leftUploadFinished`.
+    /// round end waits for `leftUploadFinished`. An answer still recording is stopped and thrown away.
     public mutating func leave() -> [Effect] {
         if case .thinking(_, let upload) = phase {
             leftUploadKey = upload.idempotencyKey
             phase = .ready(answer: 1)
             return []
+        }
+        if case .recording(_, let upload) = phase {
+            phase = .ready(answer: 1); promptEndedAt = nil
+            return [.stopRecording(key: upload.idempotencyKey), .discard(key: upload.idempotencyKey)] + owedEnd()
         }
         return owedEnd()
     }

@@ -412,3 +412,50 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         guard case .failed = plain.phase else { Issue.record("expected a failure"); return }
     }
 }
+
+@Suite struct ReviewFixes {
+    @Test func leavingWhileRecordingStopsAndDiscardsTheAnswer() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        _ = m.record(at: t0)
+        guard case .recording(_, let up) = m.phase else { Issue.record("not recording"); return }
+        #expect(m.leave() == [.stopRecording(key: up.idempotencyKey), .discard(key: up.idempotencyKey)])
+        #expect(m.phase == .ready(answer: 1))
+        #expect(m.stop(at: t0.addingTimeInterval(3)) == [])
+    }
+
+    @Test func leavingWhileRecordingAFollowUpStillEndsTheRoundOnTheServer() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up = answer(&m, at: t0)
+        _ = m.replied(key: up.idempotencyKey, receipt("r1"))
+        _ = m.speechFinished(roundID: "r1", at: t0.addingTimeInterval(8))
+        _ = m.record(at: t0.addingTimeInterval(9))
+        guard case .recording(_, let up2) = m.phase else { Issue.record("not recording"); return }
+        #expect(m.leave() == [.stopRecording(key: up2.idempotencyKey), .discard(key: up2.idempotencyKey), .endRoundOnServer(key: "end-1")])
+        #expect(m.phase == .ready(answer: 1))
+    }
+
+    @Test func aReplyWithoutMeasurementsStillCountsAsAnAnswer() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up = answer(&m, at: t0)
+        let bare = VoiceRoundReceipt(round_id: "r1", receipt_id: "r-r1", replayed: true, transcript: "So I could lead it.", metrics: nil,
+                                     reply: VoiceReply(move: "challenge", question: "Why you?", quote: nil, quote_verified: false))
+        _ = m.replied(key: up.idempotencyKey, bare)
+        #expect(m.answered == 1 && m.metrics.isEmpty)
+        _ = m.speechFinished(roundID: "r1", at: t0.addingTimeInterval(8))
+        // End round goes to Round done (with no measurements), not back to the start as if nothing was answered.
+        #expect(m.endRound() == [.endRoundOnServer(key: "end-1")])
+        guard case .done(nil, let last, _, _) = m.phase else { Issue.record("not done: \(m.phase.name)"); return }
+        #expect(last == "Why you?")
+        _ = m.record(at: t0.addingTimeInterval(20))
+        #expect(m.answered == 0)
+    }
+
+    @Test func anInterruptedRecordingUnderHalfASecondIsNotSent() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next)
+        _ = m.record(at: t0)
+        guard case .recording(_, let up) = m.phase else { Issue.record("not recording"); return }
+        // A call or Siri cuts the recording off: the app stops it as a Stop tap (not capped), so the minimum applies.
+        #expect(m.stop(at: t0.addingTimeInterval(0.2), capped: false) == [.stopRecording(key: up.idempotencyKey), .discard(key: up.idempotencyKey)])
+        #expect(m.phase == .failed(answer: 1, failure: .tooShort, upload: nil))
+    }
+}
