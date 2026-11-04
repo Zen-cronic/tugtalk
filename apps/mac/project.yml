@@ -11,14 +11,15 @@ settings:
   base:
     DEVELOPMENT_TEAM: LVG4WJ7M59
     # Apple Development identity, no provisioning profile: a stable signature keeps the
-    # Screen Recording grant across rebuilds. No sandbox, no notarization (local builds only).
+    # Screen Recording grant across rebuilds. No sandbox. Hardened Runtime is on so the
+    # archive can be exported with Developer ID and notarized.
     CODE_SIGN_STYLE: Manual
     CODE_SIGN_IDENTITY: "Apple Development"
     PROVISIONING_PROFILE_SPECIFIER: ""
-    ENABLE_HARDENED_RUNTIME: NO
+    ENABLE_HARDENED_RUNTIME: YES
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.9.1"
+    CURRENT_PROJECT_VERSION: "2"
 targets:
   CommsCoachMac:
     type: application
@@ -28,9 +29,16 @@ targets:
     dependencies:
       - package: ScreenContextCore
         product: ScreenContextCore
+    entitlements:
+      path: CommsCoachMac/CommsCoachMac.entitlements
+      properties:
+        com.apple.security.device.audio-input: true
+        com.apple.security.device.camera: true
     info:
       path: CommsCoachMac/Info.plist
       properties:
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleDisplayName: TugTalk
         CFBundleName: TugTalk
         LSUIElement: true
