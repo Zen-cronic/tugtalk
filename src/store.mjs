@@ -191,8 +191,7 @@ export class Store {
     try {
       const previous=this.replay(user,method,path,body,key);
       if (previous) { this.db.exec('COMMIT'); return previous; }
-      const reserved=this.db.prepare('SELECT data FROM records WHERE user_id=? AND kind=? AND id=?').get(user,'practice-attempts',digest(key));
-      if(reserved && (method!=='POST'||path!=='/v1/voice-rounds')) throw new ApiError(409,'idempotency_conflict','This key is reserved for an answer.');
+      // replay() has already refused a key reserved for an answer.
       const record=fn();
       const result={receipt_id:randomUUID(),saved:true,record,record_version:record.version,saved_at:new Date().toISOString(),replayed:false};
       this.db.prepare('INSERT INTO receipts VALUES(?,?,?,?,?,?)').run(result.receipt_id,user,key,fingerprint,JSON.stringify(result),result.saved_at);
