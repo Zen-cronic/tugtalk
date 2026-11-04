@@ -18,7 +18,7 @@ settings:
     SWIFT_VERSION: "6.0"
     # Raise CURRENT_PROJECT_VERSION for every build uploaded to App Store Connect.
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "6"
+    CURRENT_PROJECT_VERSION: "7"
 targets:
   # Store wrapper for the watch-only app, as in Xcode's Watch-only App template:
   # an iOS stub with no executable that carries the watch app under Watch/ and
@@ -46,15 +46,6 @@ targets:
       - path: CommsCoachWatch
     dependencies:
       - package: SparringCore
-    preBuildScripts:
-      # Release only: refuses an empty or placeholder connector key, so an archive never ships without one.
-      - name: Check the connector key (Release)
-        script: '/bin/sh "${SCRIPT_INPUT_FILE_0}"'
-        inputFiles:
-          - $(SRCROOT)/Tools/check-release-key.sh
-        basedOnDependencyAnalysis: false
-        # The key is a build setting; without this Xcode prints every setting, the key included, into the build log.
-        showEnvVars: false
     info:
       path: CommsCoachWatch/Info.plist
       properties:

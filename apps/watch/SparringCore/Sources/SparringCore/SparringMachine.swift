@@ -88,13 +88,9 @@ public struct SparringMachine: Sendable {
     private let newKey: @Sendable () -> String
     private let newEndKey: @Sendable () -> String
 
-    /// `pendingEndKey`: a round end an earlier screen sent but the server never confirmed (`PendingRoundEndStore`). It is
-    /// sent again, with the same key, before this screen's first answer.
-    public init(goalID: String?, language: VoiceLanguage, screenContextID: String? = nil, pendingEndKey: String? = nil,
-                newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() },
+    public init(goalID: String?, language: VoiceLanguage, screenContextID: String? = nil, newKey: @escaping @Sendable () -> String = { RoundRequests.newIdempotencyKey() },
                 newEndKey: @escaping @Sendable () -> String = { RoundRequests.newRoundEndKey() }) {
-        self.goalID = goalID; self.language = language; self.screenContextID = screenContextID; self.pendingEndKey = pendingEndKey
-        self.newKey = newKey; self.newEndKey = newEndKey
+        self.goalID = goalID; self.language = language; self.screenContextID = screenContextID; self.newKey = newKey; self.newEndKey = newEndKey
     }
 
     /// Answers the server has replied to.
@@ -188,9 +184,8 @@ public struct SparringMachine: Sendable {
     public mutating func uploadFailed(key: String, _ failure: RoundFailure) -> [Effect] {
         guard case .thinking(let answer, let upload) = phase, upload.idempotencyKey == key else { return [] }
         // The screen card was hidden on the Mac after the overview was read: the same answer goes again without it.
-        // Nothing was saved under this key (the server refused before any model call), so the key is reused. Only the
-        // server's `screen_context_not_found` means that; another 404 (a deleted goal) is an ordinary failure.
-        if failure.screenCardGone, upload.screenContextID != nil {
+        // Nothing was saved under this key (the server refused before any model call), so the key is reused.
+        if failure.status == 404, upload.screenContextID != nil {
             screenContextID = nil
             let again = upload.withoutScreenCard()
             phase = .thinking(answer: answer, upload: again)
@@ -262,12 +257,7 @@ public struct SparringMachine: Sendable {
     }
 
     /// The screen closed. A round the server still holds open is ended there, so the next round starts at answer 1.
-    /// An answer still uploading is saved by the server anyway and holds its round open, so it is owed an end too
-    /// (the app sends it after the upload finishes), and its late reply is ignored.
-    public mutating func leave() -> [Effect] {
-        if case .thinking = phase { serverOpen = true; phase = .ready(answer: 1) }
-        return owedEnd()
-    }
+    public mutating func leave() -> [Effect] { owedEnd() }
 
     /// The server saved (or replayed) the round end sent with this key.
     public mutating func roundEndSent(key: String) { if pendingEndKey == key { pendingEndKey = nil } }

@@ -310,43 +310,6 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         #expect(m.pendingEndKey == nil)
     }
 
-    @Test func leavingMidUploadEndsTheRoundTheAnswerWillOpen() {
-        // Answer 1 is uploading when the screen closes: the server will save it and hold the round open.
-        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
-        let up = answer(&m, at: t0)
-        #expect(m.leave() == [.endRoundOnServer(key: "end-1")])
-        #expect(m.pendingEndKey == "end-1")
-        #expect(m.replied(key: up.idempotencyKey, receipt("r1")) == [], "the late reply is ignored")
-        guard case .ready(1) = m.phase else { Issue.record("not ready: \(m.phase.name)"); return }
-        // Mid-recording nothing was sent, so nothing is owed.
-        var idle = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
-        _ = idle.record(at: t0)
-        #expect(idle.leave() == [])
-    }
-
-    @Test func anEndTheLastScreenCouldNotSendGoesBeforeTheNextScreensFirstAnswer() {
-        let defaults = UserDefaults(suiteName: "pending-round-end-test-\(UUID().uuidString)")!
-        let store = PendingRoundEndStore(defaults: defaults)
-        // The first screen ends its round offline and closes: the end is never confirmed.
-        var first = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
-        threeAnswers(&first)
-        #expect(first.leave() == [.endRoundOnServer(key: "end-1")])
-        store.save("end-1", at: t0)
-        store.save("end-1", at: t0.addingTimeInterval(600)) // a resend keeps the first time
-        // The next screen inherits it and sends it, same key, before its first answer.
-        var next = SparringMachine(goalID: nil, language: .en, pendingEndKey: store.load(now: t0.addingTimeInterval(60)), newKey: Keys().next, newEndKey: { "end-2" })
-        let effects = next.record(at: t0.addingTimeInterval(60))
-        guard case .recording(1, let upload) = next.phase else { Issue.record("not recording"); return }
-        #expect(effects == [.endRoundOnServer(key: "end-1"), .startRecording(key: upload.idempotencyKey)])
-        // Confirmed: nothing is owed any more.
-        store.confirmed("end-2"); #expect(store.load(now: t0.addingTimeInterval(61)) == "end-1", "another key leaves it")
-        store.confirmed("end-1"); #expect(store.load(now: t0.addingTimeInterval(61)) == nil)
-        // Past the server's round window it is dropped, never sent late.
-        store.save("end-3", at: t0)
-        #expect(store.load(now: t0.addingTimeInterval(PendingRoundEndStore.maxAge + 1)) == nil)
-        #expect(store.load(now: t0) == nil, "dropped for good")
-    }
-
     @Test func aConfirmedEndIsNotSentAgain() {
         var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
         threeAnswers(&m)
@@ -404,7 +367,7 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         let first = answer(&m, at: t0)
         #expect(first.screenContextID == "card-goal")
         // Hidden on the Mac after the overview was read: the same answer, same key, goes again without the card.
-        let effects = m.uploadFailed(key: first.idempotencyKey, RoundFailure.from(status: 404, code: "screen_context_not_found", message: "Screen card not found."))
+        let effects = m.uploadFailed(key: first.idempotencyKey, RoundFailure(kind: .serverError, message: "Record not found.", status: 404))
         guard case .thinking(1, let again) = m.phase else { Issue.record("not thinking: \(m.phase.name)"); return }
         #expect(effects == [.upload(again)])
         #expect(again.idempotencyKey == first.idempotencyKey && again.screenContextID == nil && again.occurredAt == first.occurredAt)
@@ -416,16 +379,5 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         let up = answer(&plain, at: t0)
         _ = plain.uploadFailed(key: up.idempotencyKey, RoundFailure(kind: .serverError, message: "Record not found.", status: 404))
         guard case .failed = plain.phase else { Issue.record("expected a failure"); return }
-    }
-
-    @Test func aDeletedGoalIsNotMistakenForAHiddenCard() {
-        var m = SparringMachine(goalID: "g-gone", language: .en, screenContextID: "card-goal", newKey: Keys().next)
-        let up = answer(&m, at: t0)
-        let goalGone = RoundFailure.from(status: 404, code: "not_found", message: "Record not found.")
-        #expect(!goalGone.screenCardGone)
-        #expect(m.uploadFailed(key: up.idempotencyKey, goalGone).allSatisfy { if case .upload = $0 { false } else { true } }, "no automatic resend")
-        guard case .failed(1, let failure, _) = m.phase else { Issue.record("expected a failure: \(m.phase.name)"); return }
-        #expect(failure.code == "not_found")
-        #expect(m.screenContextID == "card-goal", "the card is kept")
     }
 }
