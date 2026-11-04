@@ -28,3 +28,11 @@ test('watch Release build: the key check is a build phase of the watch app targe
   const target = projectYml.slice(projectYml.indexOf('\n  CommsCoachWatch:\n'));
   assert.match(target, /preBuildScripts:\n\s+# [^\n]*\n\s+- name: Check the connector key \(Release\)\n\s+script: '\/bin\/sh "\$\{SCRIPT_INPUT_FILE_0\}"'\n\s+inputFiles:\n\s+- \$\(SRCROOT\)\/Tools\/check-release-key\.sh/);
 });
+
+test('watch connector key: the build carries it readable, and the docs say to rotate it and keep testing internal', () => {
+  const docs = readFileSync(`${root}docs/watch-sparring.md`, 'utf8');
+  assert.match(docs, /read that key from the app's Info\.plist/);
+  assert.match(docs, /the key is rotated after the demo period, and this build is never opened to external testing/);
+  for (const file of ['App.xcconfig', 'Secrets.example.xcconfig'])
+    assert.match(readFileSync(`${watch}Config/${file}`, 'utf8'), /rotate (it|the key)\s*(\/\/ )?after the demo period/, file);
+});

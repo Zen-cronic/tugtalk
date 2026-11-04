@@ -1,5 +1,8 @@
 // Shared settings. Machine-local values (the synthetic connector key) live in the
 // Git-ignored Secrets.xcconfig; copy Secrets.example.xcconfig to create it.
+// The key ships readable inside every build (Info.plist CoachAPIToken): rotate it after the demo period,
+// and never open external testing with a build that carries it. Release builds refuse an empty key
+// (Tools/check-release-key.sh).
 // xcconfig treats "//" as a comment, so the URL scheme is split with $(SLASH).
 SLASH = /
 COACH_API_BASE_URL = https:$(SLASH)$(SLASH)kaungzinhein--synthetic-coaching-connector-web.us-east.modal.run
