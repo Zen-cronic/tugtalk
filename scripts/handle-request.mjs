@@ -39,6 +39,7 @@ import { createLiveRound, createRealtimeModel } from '../src/live-voice.mjs';
 import { createModelClients } from '../src/capture.mjs';
 import { createVoiceModel } from '../src/voice.mjs';
 import { createBudget, MODEL_BUDGET_MS } from '../src/budget.mjs';
+import { failOrphanedReservations } from '../src/practice.mjs';
 
 const MAX_LINE = 12 * 1024 * 1024; // base64 of an 8 MiB recording plus the envelope
 const emit = message => new Promise(resolve => process.stdout.write(JSON.stringify(message) + '\n', resolve));
@@ -70,6 +71,9 @@ if (hash) {
   store.db.prepare('INSERT OR IGNORE INTO tokens(hash,user_id,scopes) VALUES(?,?,?)').run(hash, 'synthetic-operator', JSON.stringify(['read', 'write']));
   store.seed('synthetic-operator');
 }
+// A practice reservation left by a worker that was killed (for example after its reservation commit failed) would
+// otherwise block that round until a manual recovery; no request is in flight yet, so it is failed now.
+failOrphanedReservations(store);
 const bootDirty = changes() > 0;
 if (bootDirty) closeForCommit();
 

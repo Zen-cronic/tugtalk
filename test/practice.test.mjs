@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../src/store.mjs';
 import { createApp } from '../src/server.mjs';
-import { createPractice, changePractice, getPractice, claimPractice, failPractice, finishPractice, selectedPractice, validateAssessment, UNAVAILABLE_QUESTION, UNAVAILABLE_REPLIES } from '../src/practice.mjs';
+import { createPractice, changePractice, getPractice, claimPractice, failPractice, finishPractice, selectedPractice, validateAssessment, UNAVAILABLE_QUESTION, UNAVAILABLE_REPLIES, PENDING_EXPIRY_MS, failOrphanedReservations } from '../src/practice.mjs';
 import { voiceParams, handleVoiceRound } from '../src/voice.mjs';
 import { createLiveRound, wavFromPcm } from '../src/live-voice.mjs';
 import { checkBasis, recordDrillResult, basisFreshness } from '../src/drills.mjs';
@@ -165,4 +165,18 @@ test('a failed or cancelled answer keeps the round version, so the next answer n
  live.audio(Buffer.alloc(24000*2));live.cancel();assert.equal((await live.done).status,499);
  const raw=store.get('alice','practice-rounds',r.id);assert.equal(raw.version,r.version);assert.equal(raw.pending,null);assert.equal(raw.reservation_epoch,2);
  const out=await send('pinned-next',pinned);assert.equal(out.practice.round_id,r.id);assert.equal(out.practice.answer,1);
+}));
+test('a reservation older than any request deadline recovers on the next claim; a recent one still blocks',()=>fixture(async({store,create,params,send})=>{
+ const r=create();claimPractice(store,'alice',params(),'stuck-key');
+ await assert.rejects(send('too-soon'),e=>e.code==='turn_in_progress');
+ const raw=store.get('alice','practice-rounds',r.id);store.put('alice','practice-rounds',{...raw,pending:{...raw.pending,since:new Date(Date.now()-PENDING_EXPIRY_MS-1000).toISOString()}});
+ const out=await send('after-expiry');assert.equal(out.practice.answer,1);
+ assert.equal(store.get('alice','practice-attempts',raw.pending.attempt_id).failure,'expired');
+}));
+test('a worker start fails every reservation a killed worker left, so the round answers again',()=>fixture(async({store,create,params,send})=>{
+ const a=create(),b=create('goal-b');const left=claimPractice(store,'alice',params(),'orphan-key');
+ assert.equal(failOrphanedReservations(store),1);assert.equal(failOrphanedReservations(store),0);
+ assert.equal(store.get('alice','practice-rounds',a.id).pending,null);assert.equal(store.get('alice','practice-attempts',left.attempt.id).status,'failed');
+ assert.deepEqual(store.get('alice','practice-rounds',b.id),{...b});
+ assert.equal((await send('after-restart')).practice.round_id,a.id);
 }));

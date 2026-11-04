@@ -14,6 +14,10 @@ export const UNAVAILABLE_REPLIES = {
 export const unavailableReply = (language, capped) => (UNAVAILABLE_REPLIES[language] ?? UNAVAILABLE_REPLIES.en)[capped ? 'capped' : 'open'];
 const KIND = 'practice-rounds', ATTEMPTS = 'practice-attempts', EVENTS = 'practice-events';
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
+// A reservation older than this belongs to a request that can no longer finish: the hosting adapter stops waiting for
+// any request after MODEL_DEADLINE + GRACE (175 s, deploy/bridge.py), and the model budget is 120 s (src/budget.mjs).
+// The next claim on the round fails it instead of answering turn_in_progress.
+export const PENDING_EXPIRY_MS = 180_000;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const fail = (code, message, status = 409) => { throw new ApiError(status, code, message); };
 const now = () => new Date().toISOString();
@@ -138,11 +142,12 @@ export function claimPractice(store, user, params, key, fingerprint = null) {
       if (JSON.stringify(previous.params) !== JSON.stringify(normalized) || (fingerprint && previous.fingerprint && JSON.stringify(previous.fingerprint) !== JSON.stringify(fingerprint))) fail('idempotency_conflict', 'This key already identifies another answer.');
       fail(previous.status === 'pending' ? 'turn_in_progress' : 'attempt_consumed', 'This answer key is already reserved or consumed. Read the round; recover if needed, then use a new key.');
     }
-    const round = selectedPractice(store, user, params);
+    let round = selectedPractice(store, user, params);
     if (!round) return null;
     if (practiceFreshness(store, user, round).status !== 'current') fail('practice_stale', 'Practice sources changed. Fetch and revise the confirmed request before answering.');
     if (round.state !== 'open') fail('practice_closed', 'This practice round is closed. Fetch and revise the request to practise again.');
     if (params.replyMode === 'code') fail('semantic_model_required', 'This confirmed request requires a model assessment; code-only mode cannot assess it.');
+    if (round.pending && Date.now() - Date.parse(round.pending.since) > PENDING_EXPIRY_MS) round = clearReservation(store, user, round, 'expired');
     if (round.pending) fail('turn_in_progress', 'Another answer to this goal is in progress.');
     const nonce = randomUUID(), attempt = { id: attemptId, version: 1, status: 'pending', params: normalized, fingerprint,
       round_id: round.id, round_version: round.version, request_version: round.request_version, epoch: round.reservation_epoch, nonce, started_at: now() };
@@ -151,15 +156,36 @@ export function claimPractice(store, user, params, key, fingerprint = null) {
     return { round, attempt };
   });
 }
+// Fails the round's pending attempt and clears its reservation. Returns the updated round.
+// The round's version stays: a failed or cancelled answer changes nothing a client pins, so the next answer may name
+// the same version. The new epoch (and the failed attempt) still refuse a late result from this reservation.
+function clearReservation(store, user, round, reason) {
+  const saved = find(store, user, ATTEMPTS, round.pending.attempt_id);
+  if (saved?.status === 'pending') store.put(user, ATTEMPTS, { ...saved, version: saved.version + 1, status: 'failed', failure: reason });
+  const next = { ...round, pending: null, reservation_epoch: round.reservation_epoch + 1, updated_at: now() };
+  store.put(user, KIND, next);
+  return next;
+}
 export function failPractice(store, user, reservation, reason = 'failed') {
   if (!reservation) return;
   transaction(store, () => {
     const { attempt } = reservation, current = store.get(user, KIND, attempt.round_id), saved = store.get(user, ATTEMPTS, attempt.id);
     if (saved.status !== 'pending' || current.pending?.nonce !== attempt.nonce) return;
-    store.put(user, ATTEMPTS, { ...saved, version: saved.version + 1, status: 'failed', failure: reason });
-    // The round's version stays: a failed or cancelled answer changes nothing a client pins, so the next answer may name
-    // the same version. The new epoch (and the failed attempt) still refuse a late result from this reservation.
-    store.put(user, KIND, { ...current, pending: null, reservation_epoch: current.reservation_epoch + 1, updated_at: now() });
+    clearReservation(store, user, current, reason);
+  });
+}
+// For the hosting worker at start (scripts/handle-request.mjs). The adapter runs one worker and starts a new one only
+// after the last exited or was killed, so no answer can be in progress: a reservation still pending belonged to a
+// request that died with that process, for example one whose reservation commit failed. Each is failed here, before
+// any request can be refused turn_in_progress by it. Returns how many were cleared.
+export function failOrphanedReservations(store, reason = 'worker_restarted') {
+  return transaction(store, () => {
+    let cleared = 0;
+    for (const { user_id: user, data } of store.db.prepare('SELECT user_id, data FROM records WHERE kind=?').all(KIND)) {
+      const round = JSON.parse(data);
+      if (round.pending) { clearReservation(store, user, round, reason); cleared++; }
+    }
+    return cleared;
   });
 }
 // Called only inside the voice receipt's transaction; a late or stale result cannot advance state.

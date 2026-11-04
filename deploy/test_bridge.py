@@ -143,6 +143,35 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(route_label('GET','/v1/practice-rounds/private-id'),'GET /v1/practice-rounds/{id}')
         self.assertEqual(route_label('GET','/v1/practice-exercises/private-id'),'GET /v1/practice-exercises/{id}')
 
+    async def test_a_failed_reservation_commit_leaves_the_round_usable_on_the_next_request(self):
+        # The real worker. The reservation is written, its commit fails, and the worker is killed before any model call.
+        data = bytes(48000)
+        wav = (b'RIFF' + (36 + len(data)).to_bytes(4, 'little') + b'WAVEfmt ' + (16).to_bytes(4, 'little')
+               + (1).to_bytes(2, 'little') + (1).to_bytes(2, 'little') + (24000).to_bytes(4, 'little')
+               + (48000).to_bytes(4, 'little') + (2).to_bytes(2, 'little') + (16).to_bytes(2, 'little')
+               + b'data' + len(data).to_bytes(4, 'little') + data)
+        # A reply model only looks configured; no transcription key, so no provider can be called.
+        keys = {'BASETEN_API_KEY': 'not-a-real-key', 'MODEL_API_KEY': '', 'MMS_TTS_TOKEN': '', 'WIT_TTS_TOKEN': '', 'REPLAY_ENABLED': ''}
+        with patch.dict(os.environ, keys):
+            status, data = await self.call('POST', '/v1/goals', {'title': 'Deliver', 'target': 'Answer the request'})
+            goal = data['record']
+            status, data = await self.call('POST', '/v1/practice-rounds', {'goal_id': goal['id'], 'expected_goal_version': 1, 'confirmed': True,
+                'request_text': 'When can you deliver?', 'objectives': [{'id': 'date', 'text': 'Give a date.'}]})
+            self.assertEqual(status, 200); round_id = data['record']['id']
+            answer = lambda key: self.raw('/v1/voice-rounds', wav, [(b'content-type', b'audio/wav'), (b'idempotency-key', key), (b'x-goal-id', goal['id'].encode())])
+            self.volume.fail = True
+            status, _ = await answer(b'reserve-then-fail')
+            self.assertEqual(status, 503)
+            self.volume.fail = False
+            status, view = await self.call('GET', '/v1/practice-rounds/' + round_id)
+            self.assertEqual(status, 200)
+            self.assertIsNone(view['pending'], 'the next worker failed the reservation the killed one left')
+            self.assertEqual((view['state'], view['version']), ('open', 1))
+            self.assertEqual(self.app.worker.starts, 2)
+            # The next answer is claimed (no turn_in_progress) and stops only at the missing transcription key.
+            status, body = await answer(b'next-answer-key')
+            self.assertEqual((status, body['error']), (503, 'transcription_unconfigured'))
+
     async def test_full_loop_runs_on_one_long_lived_worker(self):
         status, context = await self.call('GET','/v1/context')
         self.assertEqual(status,200); self.assertEqual(len(context['sessions']),2)

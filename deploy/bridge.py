@@ -243,6 +243,8 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                 raise RuntimeError('Persist requires the database lock')
             state['pending'] = True
             if not await settle(timing):
+                # The worker is killed (no go is sent, so no model is called); the next worker fails the reservation it
+                # left at start (scripts/handle-request.mjs), so the round is not stuck in turn_in_progress.
                 raise RuntimeError('Reservation commit failed')
             await worker.send({'id': rid, 'go': True})
             return True
