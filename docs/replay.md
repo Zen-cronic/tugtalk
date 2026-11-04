@@ -1,6 +1,6 @@
 # Hands check (Mac, opt-in per round)
 
-At the end of a spoken practice round, the Mac can show how long a phone or a paper was in your hand while you answered: `phone in hand 3 s · SAM 3.1 · counted by code`. Meta's SAM 3.1 finds the boxes; code counts the seconds. It is off by default and asked each round.
+At the end of a spoken practice round, the Mac can show how long a phone or a paper was in your hand while you answered: `phone in hand 3 s, SAM 3.1, counted by code`. Meta's SAM 3.1 finds the boxes; code counts the seconds. It is off by default and asked each round.
 
 ## Privacy
 

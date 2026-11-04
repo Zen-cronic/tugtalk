@@ -36,7 +36,7 @@ Muse corrects `claimed_count` and retries with a new Idempotency-Key. A saved dr
 
 ## 2. The watch shows it
 
-On launch and when the goal changes, the watch reads `GET /v1/goals/{id}/context` and picks the newest exercise with a basis and no check-in. The setup card then shows **Today's drill · set by Muse** with the drill's title (or **Next drill** when it is due after today).
+On launch and when the goal changes, the watch reads `GET /v1/goals/{id}/context` and picks the newest exercise with a basis and no check-in. The setup card then shows **Today's drill, set by Muse** with the drill's title (or **Next drill** when it is due after today).
 
 ## 3. One capture records a measured result
 

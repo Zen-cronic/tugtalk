@@ -1,6 +1,6 @@
 # Faced the camera (Mac, optional)
 
-While you hold ⌃⌥T to answer, the Mac can count how much of the answer your head faced the camera, and how often you looked away. The reply card shows "62% faced the camera · Looked away 3 times", and the same numbers go into the voice round as `metrics.camera`, so Muse on your phone can quote them from the shared record.
+While you hold ⌃⌥T to answer, the Mac can count how much of the answer your head faced the camera, and how often you looked away. The reply card shows "62% faced the camera, Looked away 3 times", and the same numbers go into the voice round as `metrics.camera`, so Muse on your phone can quote them from the shared record.
 
 It follows your **head**, not your eyes. Your eyes can drop to your notes while your head stays still, so we say "faced the camera", never "eye contact", and nothing here describes how you felt or came across.
 
