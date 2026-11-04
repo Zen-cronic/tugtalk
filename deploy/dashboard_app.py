@@ -21,8 +21,20 @@ def https_origin(name):
     return value.rstrip('/')
 
 
+def positive_integer(name):
+    value = os.environ.get(name, '')
+    if not value.isascii() or not value.isdigit() or value.startswith('0') or len(value) > 9:
+        raise RuntimeError(f'{name} must be set to a positive whole number.')
+    return value
+
+
 origin = https_origin('DASHBOARD_ORIGIN')
 upstream = https_origin('DASHBOARD_UPSTREAM')
+# Visitor rate limits for public read mode. Their values are set at deploy time from the deploy shell's environment,
+# never in a committed file; a missing or invalid one stops the deploy.
+PUBLIC_LIMIT_VARIABLES = ('DASHBOARD_PUBLIC_READ_LIMIT', 'DASHBOARD_PUBLIC_READ_TOTAL',
+                          'DASHBOARD_PUBLIC_MEDIA_LIMIT', 'DASHBOARD_PUBLIC_MEDIA_TOTAL')
+public_limits = {name: positive_integer(name) for name in PUBLIC_LIMIT_VARIABLES}
 # A separately provisioned secret contains only DASHBOARD_PASSWORD and
 # DASHBOARD_CONNECTOR_TOKEN. No model keys or database volume are needed.
 secret = modal.Secret.from_name('comms-coach-dashboard')
@@ -56,7 +68,7 @@ image = (image.add_local_file(ROOT / 'src' / 'dashboard-gateway.mjs', '/app/src/
          # Visitors read the dashboard without a code; every write still needs a sign-in and stays disabled.
          'DASHBOARD_PUBLIC_READ': '1',
          # Every request arrives through the hosting proxy: sign-in throttling keys on X-Forwarded-For.
-         'DASHBOARD_TRUST_PROXY': '1'},
+         'DASHBOARD_TRUST_PROXY': '1', **public_limits},
     min_containers=0, max_containers=1, scaledown_window=300,
     cpu=0.25, memory=512, timeout=60,
 )

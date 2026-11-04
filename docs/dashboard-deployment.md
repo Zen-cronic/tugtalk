@@ -2,7 +2,7 @@
 
 `deploy/dashboard_app.py` describes the shared Modal app, `tugtalk-landing`, with the public landing at `/` and the dashboard at `/app/`, which visitors can read without a code. It runs the Node gateway behind HTTPS with one container and no database volume. Its small Python entrypoint is serialized explicitly so container startup does not depend on importing an omitted deployment module. It adds only the two explicit built-asset allowlists, their public asset manifest and the two gateway entrypoint modules to its image; it does not package the repository, local preview passwords or provider keys.
 
-The manifest deliberately fixes `DASHBOARD_ALLOW_RECORDING_CHANGES=0`, `DASHBOARD_LOCAL_HTTP=0` and `DASHBOARD_PUBLIC_READ=1`. Visitors, with no access code, can review records and listen to/download kept audio; recording settings and deletion remain disabled for everyone, signed in or not. The access code still signs the owner in. Visitor reads are rate-limited per client and in total (see [Public read mode](dashboard.md#public-read-mode)). Everything the configured account has saved is visible to anyone with the address. There are no model calls. The existing connector remains the authoritative store. The public landing has its own asset allowlist and font policy; the dashboard retains its stricter content-security policy. Neither public files nor public requests expose the connector credential.
+The manifest deliberately fixes `DASHBOARD_ALLOW_RECORDING_CHANGES=0`, `DASHBOARD_LOCAL_HTTP=0` and `DASHBOARD_PUBLIC_READ=1`. Visitors, with no access code, can review records and listen to/download kept audio; recording settings and deletion remain disabled for everyone, signed in or not. The access code still signs the owner in. Visitor reads are rate-limited per client and in total (see [Public read mode](dashboard.md#public-read-mode)). The manifest takes the four limits, `DASHBOARD_PUBLIC_READ_LIMIT`, `DASHBOARD_PUBLIC_READ_TOTAL`, `DASHBOARD_PUBLIC_MEDIA_LIMIT` and `DASHBOARD_PUBLIC_MEDIA_TOTAL`, from the deploy command's environment, as it does the origins, and refuses to deploy if one is missing or is not a positive whole number. Their values are set at deploy time and are not in any committed file. Everything the configured account has saved is visible to anyone with the address. There are no model calls. The existing connector remains the authoritative store. The public landing has its own asset allowlist and font policy; the dashboard retains its stricter content-security policy. Neither public files nor public requests expose the connector credential.
 
 ## Prepare and validate locally
 
@@ -20,7 +20,7 @@ In that configured Python environment:
 python deploy/test_dashboard_manifest.py
 ```
 
-The manifest tests use a fake Modal module and make no account or cloud calls. They check the image allowlist, read-only secure configuration with public reads on, and invalid-origin rejection. The manifest also compares each built asset with its source and refuses stale or missing output.
+The manifest tests use a fake Modal module and make no account or cloud calls. They check the image allowlist, read-only secure configuration with public reads on, visitor limits taken from the environment (and refused when missing or invalid), and invalid-origin rejection. The manifest also compares each built asset with its source and refuses stale or missing output.
 
 ## Configuration to approve before deployment
 
@@ -46,7 +46,7 @@ After deployment and secret provisioning are explicitly approved, the command in
 python -m modal deploy deploy/dashboard_app.py --profile <profile> --env <environment>
 ```
 
-Use the Python executable from the existing configured environment; this product checkout has no Poetry project of its own. Select the intended Modal profile and environment explicitly. Pass the two public origins through the command environment. The manifest references the named secret without embedding its values. It does not enable recording writes or keep a container permanently warm. To return to a code-only dashboard, set `DASHBOARD_PUBLIC_READ` to `'0'` and deploy again.
+Use the Python executable from the existing configured environment; this product checkout has no Poetry project of its own. Select the intended Modal profile and environment explicitly. Pass the two public origins and the four visitor limits through the command environment; keep the limits in a git-ignored local file such as `.data/public-limits.env` (mode 0600) and source it in the deploy shell. The manifest references the named secret without embedding its values. It does not enable recording writes or keep a container permanently warm. To return to a code-only dashboard, set `DASHBOARD_PUBLIC_READ` to `'0'` and deploy again.
 
 ## Runtime behavior and live acceptance
 

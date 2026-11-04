@@ -11,6 +11,9 @@ import unittest
 from unittest.mock import patch
 
 MANIFEST = Path(__file__).with_name('dashboard_app.py')
+# Test values only; the hosted limits are set at deploy time and are not in the repository.
+LIMITS = {'DASHBOARD_PUBLIC_READ_LIMIT': '11', 'DASHBOARD_PUBLIC_READ_TOTAL': '111',
+          'DASHBOARD_PUBLIC_MEDIA_LIMIT': '3', 'DASHBOARD_PUBLIC_MEDIA_TOTAL': '33'}
 
 
 class Image:
@@ -47,7 +50,7 @@ class DashboardManifestTests(unittest.TestCase):
     def load(self, env=None):
         with patch.dict(sys.modules, {'modal': fake_modal()}), patch.dict(os.environ, {
             'DASHBOARD_ORIGIN': 'https://dashboard.example.test',
-            'DASHBOARD_UPSTREAM': 'https://connector.example.test', **(env or {})
+            'DASHBOARD_UPSTREAM': 'https://connector.example.test', **LIMITS, **(env or {})
         }):
             return runpy.run_path(str(MANIFEST))
 
@@ -83,7 +86,7 @@ class DashboardManifestTests(unittest.TestCase):
         # Exercise the installed SDK's actual transport, in a child with no repository on sys.path.
         with patch.dict(os.environ, {
             'DASHBOARD_ORIGIN': 'https://dashboard.example.test',
-            'DASHBOARD_UPSTREAM': 'https://connector.example.test',
+            'DASHBOARD_UPSTREAM': 'https://connector.example.test', **LIMITS,
         }):
             loaded = runpy.run_path(str(MANIFEST))
         info = loaded['web']._get_source_info()
@@ -103,6 +106,27 @@ print('portable')
                                     capture_output=True, cwd=directory)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
         self.assertEqual(result.stdout.strip(), b'portable')
+
+    def test_public_limits_come_from_the_deploy_environment(self):
+        config = self.load()['app'].config
+        for name, value in LIMITS.items():
+            self.assertEqual(config['env'][name], value, name)
+        manifest = MANIFEST.read_text()
+        for name in LIMITS:
+            self.assertNotRegex(manifest, rf"'{name}':\s*'\d", 'no limit value is written in the manifest')
+
+    def test_missing_or_invalid_public_limits_stop_the_deploy(self):
+        for name in LIMITS:
+            for value in ['', '0', '-3', '1.5', '12abc', ' 12', '０', '9999999999']:
+                with self.subTest(name=name, value=value), self.assertRaises(RuntimeError):
+                    self.load({name: value})
+        with patch.dict(os.environ, {}, clear=False):
+            for name in LIMITS:
+                os.environ.pop(name, None)
+            with patch.dict(sys.modules, {'modal': fake_modal()}), patch.dict(os.environ, {
+                'DASHBOARD_ORIGIN': 'https://dashboard.example.test',
+                'DASHBOARD_UPSTREAM': 'https://connector.example.test'}), self.assertRaises(RuntimeError):
+                runpy.run_path(str(MANIFEST))
 
     def test_unsafe_or_ambiguous_origins_are_refused(self):
         for value in ['http://dashboard.example.test', 'https://user:secret@dashboard.example.test',
