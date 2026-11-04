@@ -105,3 +105,15 @@ test('combined public routing allows only site assets and never exposes account 
  const head=await h.request('/',{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.text,'');
  assert.equal(h.calls.length,0);
 });
+test('one dashboard asset list: the build, the hosting app and the gateway all read it, and the gateway serves each',async t=>{
+ const { readFile } = await import('node:fs/promises');
+ const list=JSON.parse(await readFile(new URL('../web/dashboard-assets.json',import.meta.url),'utf8'));
+ assert.ok(list.includes('index.html')&&list.includes('practice-view.js'));
+ for(const [file,needle] of [['scripts/dashboard-build.mjs',"web/dashboard-assets.json"],['deploy/dashboard_app.py',"'dashboard-assets.json'"],['src/dashboard-gateway.mjs',"'../web/dashboard-assets.json'"]]){
+  const source=await readFile(new URL(`../${file}`,import.meta.url),'utf8');assert.ok(source.includes(needle),`${file} reads the shared list`);
+  assert.ok(!source.includes("'practice-view.js'"),`${file} keeps no copy of the list`);
+ }
+ const h=await harness(t);
+ for(const name of list){const r=await h.request(name==='index.html'?'/app/':`/app/${name}`);assert.equal(r.status,200,name);assert.ok(r.headers.get('content-type'),name);}
+ assert.equal((await h.request('/app/dashboard-assets.json')).status,404);
+});

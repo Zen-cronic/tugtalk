@@ -7,11 +7,8 @@ from urllib.parse import urlsplit
 import modal
 
 ROOT = Path(__file__).resolve().parents[1]
-ASSETS = (
-    'index.html', 'app.js', 'practice-view.js', 'styles.css', 'icon.svg',
-    'Anybody.ttf', 'HankenGrotesk.ttf', 'AzeretMono.ttf',
-    'Anybody-OFL.txt', 'HankenGrotesk-OFL.txt', 'AzeretMono-OFL.txt',
-)
+# The one dashboard asset list, also read by scripts/dashboard-build.mjs and src/dashboard-gateway.mjs.
+ASSETS = tuple(json.loads((ROOT / 'web' / 'dashboard-assets.json').read_text()))
 
 
 def https_origin(name):
@@ -46,6 +43,7 @@ for asset in LANDING_ASSETS:
         raise RuntimeError('Landing assets are absent or stale. Run npm run dashboard:build first.')
     image = image.add_local_file(built, f'/app/build/landing/{asset}')
 image = image.add_local_file(ROOT / 'src' / 'landing-assets.json', '/app/src/landing-assets.json')
+image = image.add_local_file(ROOT / 'web' / 'dashboard-assets.json', '/app/web/dashboard-assets.json')
 image = (image.add_local_file(ROOT / 'src' / 'dashboard-gateway.mjs', '/app/src/dashboard-gateway.mjs')
          .add_local_file(ROOT / 'scripts' / 'dashboard-start.mjs', '/app/scripts/dashboard-start.mjs'))
 

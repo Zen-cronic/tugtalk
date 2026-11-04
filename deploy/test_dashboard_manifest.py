@@ -1,4 +1,5 @@
 """Offline manifest checks: fake Modal decorators, no account or cloud calls."""
+import json
 import os
 import subprocess
 import tempfile
@@ -53,11 +54,20 @@ class DashboardManifestTests(unittest.TestCase):
     def test_only_explicit_assets_and_gateway_are_packaged(self):
         loaded = self.load()
         files = loaded['image'].files
-        self.assertEqual(len(files), len(loaded['ASSETS']) + len(loaded['LANDING_ASSETS']) + 3)
+        self.assertEqual(len(files), len(loaded['ASSETS']) + len(loaded['LANDING_ASSETS']) + 4)
+        self.assertIn((str(MANIFEST.parents[1] / 'web' / 'dashboard-assets.json'), '/app/web/dashboard-assets.json'), files,
+                      'the gateway reads the asset list at run time')
         self.assertTrue(all('/.data/' not in source and '/.env' not in source for source, _ in files))
         self.assertEqual(loaded['app'].config['include_source'], False)
         self.assertNotIn('volumes', loaded['app'].config)
         self.assertEqual(loaded['app'].name, 'comms-coach-landing')
+
+    def test_packaged_dashboard_assets_are_the_shared_list(self):
+        loaded = self.load()
+        shared = json.loads((MANIFEST.parents[1] / 'web' / 'dashboard-assets.json').read_text())
+        self.assertEqual(list(loaded['ASSETS']), shared)
+        packaged = [dest for _, dest in loaded['image'].files if dest.startswith('/app/build/dashboard/')]
+        self.assertEqual(packaged, [f'/app/build/dashboard/{name}' for name in shared])
 
     def test_read_only_single_instance_secure_configuration(self):
         config = self.load()['app'].config

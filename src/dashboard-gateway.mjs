@@ -4,7 +4,10 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import landingAssetNames from './landing-assets.json' with { type: 'json' };
+import dashboardAssetNames from '../web/dashboard-assets.json' with { type: 'json' };
 const landingAssets = new Set(landingAssetNames);
+// The dashboard files the build copies and the hosting app packages: the same list, web/dashboard-assets.json.
+const assets = new Set(dashboardAssetNames);
 
 const hash = value => createHash('sha256').update(value).digest();
 const same = (a, b) => timingSafeEqual(hash(a), hash(b));
@@ -20,8 +23,7 @@ const routes = [
   ['GET', new RegExp(`^/media/(${id})$`), m => `/v1/media/${m[1]}`],
   ['DELETE', new RegExp(`^/media/(${id})$`), m => `/v1/media/${m[1]}`],
 ];
-const mime = { '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ttf': 'font/ttf' };
-const assets = new Set(['index.html', 'app.js', 'practice-view.js', 'styles.css', 'icon.svg', 'Anybody.ttf', 'HankenGrotesk.ttf', 'AzeretMono.ttf']);
+const mime = { '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.txt': 'text/plain; charset=utf-8' };
 class Failure extends Error { constructor(status, message) { super(message); this.status = status; } }
 async function bytes(stream, max) {
   const chunks = []; let n = 0;
