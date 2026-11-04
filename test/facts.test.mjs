@@ -390,7 +390,7 @@ function measurementChecks(evalResult) {
     'adjudication-model': async () => {
       let sent;
       const fetchImpl = async (url, init) => { sent = JSON.parse(init.body); return chat('{"labels":[]}'); };
-      await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }), transcript: 'What kind of report?', language: 'en' });
+      await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }), transcript: 'I mean it.', language: 'en' });
       return `${sent.model}, temperature ${sent.temperature}`;
     },
     'adjudication-calls': async () => {
@@ -400,8 +400,8 @@ function measurementChecks(evalResult) {
         await adjudicateCapture({ models: createAdjudicationModel({ env: { BASETEN_API_KEY: 'k' }, fetchImpl }), transcript, language: 'en' });
         return calls;
       };
-      const good = '{"labels":[{"id":"c1","quote":"kind of","label":"content","reason":"r"}]}';
-      return `${await count('What kind of report?', [good])} with ambiguous hits, ${await count('What kind of report?', ['No.', 'Still no.'])} if the reply is unusable, ${await count('Um, uh, the report.', [good])} without`;
+      const good = '{"labels":[{"id":"c1","quote":"I mean","label":"content","reason":"r"}]}';
+      return `${await count('I mean it.', [good])} with ambiguous hits, ${await count('I mean it.', ['No.', 'Still no.'])} if the reply is unusable, ${await count('Um, uh, the report.', [good])} without`;
     },
     'always-habit': () => Object.keys(LEXICON).map(language => {
       const never = Object.values(LEXICON[language]).flat().filter(phrase => !adjudicationCandidates(`${phrase}.`, language).candidates.length);

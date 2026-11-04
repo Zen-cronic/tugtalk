@@ -49,3 +49,14 @@ test('reader rejects stale or absent metadata and does not fall back after a fai
  await reader.overview();fail=true;await assert.rejects(reader.overview(),/network unavailable/);
  fail=false;stale=true;await assert.rejects(reader.overview(),/stale/);
 });
+
+test('context instructions match the plain reply style: ids are checked, not cited, unless the user asks',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'fresh-instructions-')); const store=new Store(join(dir,'state.sqlite'));
+ try {
+   store.seed('alice');
+   const {instructions}=store.context('alice');
+   assert.doesNotMatch(instructions,/Cite/);
+   assert.match(instructions,/Check session ids and versions yourself/);
+   assert.match(instructions,/show ids only if the user asks/);
+ } finally {store.close();rmSync(dir,{recursive:true,force:true});}
+});

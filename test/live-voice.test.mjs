@@ -455,6 +455,88 @@ test('realtime: a turn Meta marks final mid-hold does not end the wait; the last
   assert.equal(result.transcript, ANSWER, 'the whole answer, not the sentence finalized mid-hold');
 });
 
+test('realtime: a non-empty final after endStream does not end the stream; the turns after it are kept until the empty final', async () => {
+  const meta = fakeMeta();
+  const model = createRealtimeModel({ env: { MODEL_API_KEY: 'k' }, WebSocketImpl: meta.FakeSocket, ...FAST });
+  const session = model.openRealtime({ sessionId: 's-final-then-more' });
+  await tick();
+  const socket = meta.sockets[0];
+  socket.ack();
+  session.send(pcm(200, 1));
+  socket.onEnd = () => {
+    // Meta finalizes the first sentence right after endStream, then sends a second turn, then the empty final.
+    socket.say({ type: 'speechStart', turnId: 0, audioProcessedMs: 0 });
+    socket.say({ type: 'transcript', transcript: 'We ship Friday.', final: true });
+    socket.say({ type: 'speechEnd', turnId: 0, audioProcessedMs: 900 });
+    socket.say({ type: 'speechComplete', turnId: 0, transcript: 'We ship Friday.' });
+    setTimeout(() => {
+      socket.say({ type: 'speechStart', turnId: 1, audioProcessedMs: 1000 });
+      socket.say({ type: 'speechEnd', turnId: 1, audioProcessedMs: 1900 });
+      socket.say({ type: 'speechComplete', turnId: 1, transcript: 'Then we measure it.' });
+      socket.say({ type: 'transcript', transcript: '', final: true });
+    }, 40);
+  };
+  const result = await session.finish();
+  assert.equal(result.transcript, 'We ship Friday. Then we measure it.', 'the second turn is not cut off');
+  assert.equal(result.turns.length, 2);
+});
+
+test('realtime: after a non-empty final, a normal close ends the stream; with neither the empty final nor the close it is a failure', async () => {
+  const meta = fakeMeta();
+  const model = createRealtimeModel({ env: { MODEL_API_KEY: 'k' }, WebSocketImpl: meta.FakeSocket, ...FAST });
+  const closed = model.openRealtime({ sessionId: 's-final-then-close' });
+  await tick();
+  const a = meta.sockets.at(-1);
+  a.ack(); closed.send(pcm(100, 1));
+  a.onEnd = () => {
+    a.say({ type: 'speechStart', turnId: 0, audioProcessedMs: 0 });
+    a.say({ type: 'transcript', transcript: 'We ship Friday.', final: true });
+    setTimeout(() => { a.say({ type: 'speechEnd', turnId: 0, audioProcessedMs: 900 }); a.say({ type: 'speechComplete', turnId: 0, transcript: 'We ship Friday, then we measure.' }); a.drop(1000); }, 40);
+  };
+  assert.equal((await closed.finish()).transcript, 'We ship Friday, then we measure.', 'the words before the close are kept');
+  // A non-empty final alone is not the end: no empty final and no close within the final timeout fails closed.
+  const silent = model.openRealtime({ sessionId: 's-final-only' });
+  await tick();
+  const b = meta.sockets.at(-1);
+  b.ack(); silent.send(pcm(100, 2));
+  b.onEnd = () => b.say({ type: 'transcript', transcript: 'We ship Friday.', final: true });
+  await assert.rejects(silent.finish(), /no final turn/);
+  // Every final before endStream (the speaker paused, then released) and nothing after it: the finals before endStream
+  // are not the end, so the wait fails closed and the caller transcribes the full audio with the file endpoint.
+  const paused = model.openRealtime({ sessionId: 's-finals-before-end' });
+  await tick();
+  const c = meta.sockets.at(-1);
+  c.ack(); paused.send(pcm(100, 3));
+  c.say({ type: 'speechStart', turnId: 0, audioProcessedMs: 0 });
+  c.say({ type: 'transcript', transcript: 'We ship Friday.', final: true });
+  c.say({ type: 'transcript', transcript: '', final: true });
+  await assert.rejects(paused.finish(), /no final turn/);
+});
+
+test('live: a client that closed the socket after release still gets its speech prefetched once the live round is saved', async () => {
+  const s = setup();
+  try {
+    const prefetched = [], prefetch = s.models.prefetchSpeech;
+    s.models.prefetchSpeech = (id, ...rest) => { prefetched.push(id); return prefetch(id, ...rest); };
+    const frames = [pcm(1000, 5), pcm(800, 6)];
+    const round = s.open({ ...START, idempotency_key: 'live-race-03' });
+    await tick();
+    metaAnswers(s.meta.sockets[0]);
+    frames.forEach(f => round.audio(f));
+    await tick();
+    round.end();
+    round.cancel(); // the Mac gave up on the socket; its upload of the same hold comes after this round is saved
+    const result = await round.done;
+    await result.speechDone;
+    assert.equal(result.status, 200);
+    assert.deepEqual(prefetched, [result.body.round_id], 'the saved round has its speech ready for the upload\'s replay');
+    assert.equal(s.audio.length, 0, 'no audio frames go to a client that went away'); assert.equal(s.calls.tts, 1);
+    const params = voiceParams({ 'x-language': 'en', 'x-occurred-at': START.occurred_at, 'x-prompt-ended-at': START.prompt_ended_at });
+    const upload = await handleVoiceRound(s.store, s.models, 'alice', { params, audio: wavFromPcm(Buffer.concat(frames)) }, 'live-race-03', 'req-upload-3');
+    assert.equal(upload.round_id, result.body.round_id, 'the upload replays the live round');
+  } finally { s.cleanup(); }
+});
+
 test('live: a client that closed the socket after release for its fallback upload gets no speech made; the upload saved first wins', async () => {
   const s = setup();
   try {

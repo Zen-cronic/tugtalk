@@ -45,8 +45,8 @@ where id in ('cb3396f7-f53a-4fcd-a514-fbec6c35fc0b',
 Both ids, methods, paths and statuses match exactly what Muse reported. Each `created_at` falls 12 to 13 ms after the response's `as_of`, because the log row is written as the response is sent. Both rows carry a user id, so both requests were authenticated.
 
 The same table shows:
-- **Nothing was fetched early.** Between registration (21:28 UTC) and 21:40:13 UTC there were no requests at all.
-- **Only these two requests in the run.** From 21:28 UTC to 21:50:54 UTC the table holds exactly these two rows and no request other than a GET. Muse had posted its suggestion before 21:43 UTC.
+- **Nothing was fetched early.** Between registration (21:28 UTC, 16:28 EST) and 21:40:13 UTC (16:40:13 EST) there were no requests at all.
+- **Only these two requests in the run.** From 21:28 UTC to 21:50:54 UTC (16:28 to 16:50:54 EST) the table holds exactly these two rows and no request other than a GET. Muse had posted its suggestion before 21:43 UTC (16:43 EST).
 - **Nothing was written.** The `receipts` table, which records every write, has no row in that window. Its latest earlier row is from October 30.
 
 ## What this proves
@@ -60,7 +60,7 @@ The goal choice alone proves nothing, because older chat history would have poin
 ## What it doesn't prove
 
 - **Synthetic test account.** The record belongs to one synthetic account, not a real user.
-- **The watch hasn't been tested on a real device.** This run reads the shared record; it says nothing about capture on a physical Apple Watch, which so far has run only in the watchOS simulator.
+- **Watch capture isn't part of this run.** This run reads the shared record; it says nothing about capture on the Apple Watch. Most watch runs used the watchOS simulator; on a real Apple Watch, one capture has succeeded (Nov 4, 13:08 EST), and TestFlight builds have been tested on a watch.
 - **One run.** One scheduled run gives no reliability rate.
 - **Conditions.** A laptop with the browser open was running at the time. Delivery to a phone and a run with the laptop closed were not observed.
 - **Pull, not push.** The task was set up with an explicit prompt, and Muse pulled the record on its own schedule. TugTalk never wakes Muse, and quiet hours, snooze and a product-owned cadence don't exist yet.

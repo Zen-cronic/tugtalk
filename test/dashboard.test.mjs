@@ -91,7 +91,7 @@ test('one origin serves the public landing and private app with distinct securit
  const home=await h.request('/');assert.equal(home.status,200);assert.match(home.text,/Practise on your watch/);assert.match(home.text,/href="\/app\/"/);assert.match(home.text,/src="\/motion-init.js"/);
  assert.ok(!home.text.includes(token));assert.equal(h.calls.length,0);
  assert.match(home.headers.get('content-security-policy'),/fonts.googleapis.com/);
- const app=await h.request('/app/');assert.equal(app.status,200);assert.match(app.text,/Your practice/);
+ const app=await h.request('/app/');assert.equal(app.status,200);assert.match(app.text,/TugTalk: your practice/);
  assert.doesNotMatch(app.headers.get('content-security-policy'),/googleapis|unsafe-inline/);
  assert.equal((await h.request('/app-api/context')).status,401);
  await h.login();assert.equal((await h.request('/app-api/context')).status,200);
@@ -150,4 +150,13 @@ test('each tab path serves the app shell with the app policy; other app paths an
  assert.equal((await h.request('/app/app.js')).status,200);assert.match((await h.request('/app/styles.css')).headers.get('content-type'),/css/);
  assert.equal((await h.request('/app/dashboard-assets.json')).status,404);
  assert.equal((await h.request('/app-api/context')).status,401);assert.equal(h.calls.length,0);
+});
+
+test('no middle dot (U+00B7) in the landing page, the dashboard or the README, in any spelling', async () => {
+ const { readFile } = await import('node:fs/promises');
+ const files=['site/index.html','site/main.js','site/styles.css','web/index.html','web/app.js','web/practice-view.js','web/styles.css','README.md'];
+ for (const f of files) {
+   const text=await readFile(new URL(`../${f}`,import.meta.url),'utf8');
+   assert.doesNotMatch(text,/·|&middot;|&#183;|&#xB7;|\\00B7|\\u00B7/i,f);
+ }
 });

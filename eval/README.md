@@ -81,7 +81,7 @@ What it does not show: how often Muse Spark Open itself labels correctly. 28 of 
 
 `npm run eval -- --live` prints the cost of a live run and stops: **42 Muse Spark Open calls** (one per item with candidates), at most 84 if every first reply needs the larger-budget retry. With `--approved` and `BASETEN_API_KEY` set, it runs the production adjudication client on every item and writes `eval/live-results.json`. `npm run eval` does not regenerate that file; a new live run overwrites it.
 
-It ran once, on November 2, 2026 (`ran_at` 15:07 UTC), with `reasoning_effort: "low"`. All 42 calls returned HTTP 200 with `finish_reason` `stop` on the first attempt, so there were no retries. The median was 1.56 s per call, from that run's call log; `live-results.json` does not store timings. The corpus is the same self-labelled one as above (the file records its SHA-256).
+It ran once, on November 2, 2026 (`ran_at` 15:07 UTC, 10:07 EST), with `reasoning_effort: "low"`. All 42 calls returned HTTP 200 with `finish_reason` `stop` on the first attempt, so there were no retries. The median was 1.56 s per call, from that run's call log; `live-results.json` does not store timings. The corpus is the same self-labelled one as above (the file records its SHA-256).
 
 | System | Precision | Recall | F1 |
 |---|---|---|---|
@@ -167,7 +167,7 @@ How the run is done:
 
 ### Held-out live run, Nov 4
 
-One run, on November 4, 2026 (`ran_at` 17:05 UTC), exactly as registered above: `meta-models/muse-spark-open-1026`, `reasoning_effort: "low"`, temperature 0, model-only words on. **60 calls, all HTTP 200 with `finish_reason` `stop` on the first attempt, no retries**, 99 s in all. Every model-only word got a label that passed code's check, so all 60 transcripts are `counted`. The set is **a synthetic held-out set: 60 transcripts written and labelled by a separate agent, not real speech.** Every label, check and Baseten request id is in `heldout-live-results.json`; `npm run eval -- --heldout` recomputes the score from the stored labels.
+One run, on November 4, 2026 (`ran_at` 17:05 UTC, 12:05 EST), exactly as registered above: `meta-models/muse-spark-open-1026`, `reasoning_effort: "low"`, temperature 0, model-only words on. **60 calls, all HTTP 200 with `finish_reason` `stop` on the first attempt, no retries**, 99 s in all. Every model-only word got a label that passed code's check, so all 60 transcripts are `counted`. The set is **a synthetic held-out set: 60 transcripts written and labelled by a separate agent, not real speech.** Every label, check and Baseten request id is in `heldout-live-results.json`; `npm run eval -- --heldout` recomputes the score from the stored labels.
 
 | Model-only words (86) | Precision | Recall | F1 |
 |---|---|---|---|
