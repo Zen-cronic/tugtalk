@@ -79,8 +79,9 @@ export function createRealtimeModel({ env = process.env, WebSocketImpl = globalT
       let receivedBytes = 0, finalReceived = false;
       let settleFinal, settleDrained, partial = '';
       const finalSeen = new Promise(r => { settleFinal = r; });
-      // Only a final turn after endStream is the last one: Meta can mark a mid-hold sentence final, and counting that
-      // would let finish() return as soon as the queue drains, before the hold's last words arrive.
+      // Only the stream's end after endStream is the last turn: the empty final transcript, or a normal close (1000).
+      // A non-empty final is one sentence finalized, mid-hold or after endStream, and more turns can follow it; counting
+      // it would let finish() return before the hold's last words arrive.
       const final = () => { if (!endSent) return; finalReceived = true; settleFinal(); };
       // Settles once endStream is sent (every queued byte went first), or on failure.
       const drained = new Promise(r => { settleDrained = r; });
@@ -130,7 +131,6 @@ export function createRealtimeModel({ env = process.env, WebSocketImpl = globalT
           case 'transcript':
             if (m.final === true && (!m.transcript || !String(m.transcript).trim())) { final(); break; }
             partial = String(m.transcript ?? ''); onPartial(text());
-            if (m.final === true) final();
             break;
           case 'error': fail('transcriber error'); break;
           default: break;
