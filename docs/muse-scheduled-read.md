@@ -60,7 +60,7 @@ The goal choice alone proves nothing, because older chat history would have poin
 ## What it doesn't prove
 
 - **Synthetic test account.** The record belongs to one synthetic account, not a real user.
-- **The watch hasn't been tested on a real device.** This run reads the shared record; it says nothing about capture on a physical Apple Watch, which so far has run only in the watchOS simulator.
+- **Watch capture isn't part of this run.** This run reads the shared record; it says nothing about capture on the Apple Watch. Most watch runs used the watchOS simulator; on a real Apple Watch, one capture has succeeded (Nov 4, 13:08 EST), and TestFlight builds have been tested on a watch.
 - **One run.** One scheduled run gives no reliability rate.
 - **Conditions.** A laptop with the browser open was running at the time. Delivery to a phone and a run with the laptop closed were not observed.
 - **Pull, not push.** The task was set up with an explicit prompt, and Muse pulled the record on its own schedule. TugTalk never wakes Muse, and quiet hours, snooze and a product-owned cadence don't exist yet.
