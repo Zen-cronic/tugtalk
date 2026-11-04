@@ -91,9 +91,9 @@ For voice without a microphone (Debug builds only), add `-voiceFixtureWAV <path 
 
 1. Store the connector key in the login Keychain. The command prompts for it, so it never appears in shell history:
    `security add-generic-password -s com.kaungzinhein.commscoach.mac -a connector -w`
-   On first use macOS asks whether Comms Coach may read it; choose **Always Allow**. The signature is stable, so the answer survives rebuilds.
+   On first use macOS asks whether TugTalk may read it; choose **Always Allow**. The signature is stable, so the answer survives rebuilds.
 2. Open the app. In the menu, choose the goal under **Goal** (goals load after the first check) and the purpose under **Purpose**.
-3. Press ⌃⌥Space with the window you want read in front. The first time, the companion explains Screen Recording; **Continue** shows the macOS prompt once, and **Open Settings** goes to Privacy & Security › Screen Recording. Turn on Comms Coach, then quit and reopen it.
+3. Press ⌃⌥Space with the window you want read in front. The first time, the companion explains Screen Recording; **Continue** shows the macOS prompt once, and **Open Settings** goes to Privacy & Security › Screen Recording. Turn on TugTalk, then quit and reopen it.
 4. The card shows the receipt. **Undo** hides it from the record. **Ask Muse** copies a question about the card and opens Muse; you paste and send it. The companion never types into Muse or any other app.
 
 The Keychain key is sent only over HTTPS to the coach host built into the app (`CoachAPI.defaultBaseURL`); a changed `baseURL` setting for any other host or scheme is refused, and the bubble says so. A 429 (more than 30 cards in an hour) shows the limit without a Retry button, because the limit does not lift in seconds.

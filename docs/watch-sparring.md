@@ -84,7 +84,7 @@ The project has two targets, as in Xcode's Watch-only App template:
 
 Use the `CommsCoach` scheme to archive and upload, and the `CommsCoachWatch` scheme for simulator and watch runs. Archiving the watch app on its own makes an archive App Store Connect can't accept.
 
-1. In App Store Connect, **Apps › + › New App**: platform iOS (watch-only apps are listed there), name "Comms Coach", bundle ID `com.kaungzinhein.commscoach.watch`, any SKU.
+1. In App Store Connect, **Apps › + › New App**: platform iOS (watch-only apps are listed there), name "TugTalk", bundle ID `com.kaungzinhein.commscoach.watch`, any SKU.
 2. Archive and upload. The upload uses Xcode's signed-in account to sign for distribution, and makes the App IDs and store profiles for both bundle IDs:
    ```sh
    cd apps/watch && xcodegen generate
@@ -93,7 +93,7 @@ Use the `CommsCoach` scheme to archive and upload, and the `CommsCoachWatch` sch
    ```
    The destination is iOS because the wrapper is the archived target; Xcode builds the embedded watch app for watchOS. Raise `CURRENT_PROJECT_VERSION` in `project.yml` before each new upload (both targets share it). The build includes the synthetic test account's connector key from `Config/Secrets.xcconfig`, as every local build does.
 3. In **TestFlight › Internal Testing**, add a group, add yourself, and add the build once it has finished processing.
-4. On the iPhone paired with the watch, open TestFlight and install Comms Coach. It installs on the watch.
+4. On the iPhone paired with the watch, open TestFlight and install TugTalk. It installs on the watch.
 
 ## One live round (Nov 2, 15:56 EST)
 
