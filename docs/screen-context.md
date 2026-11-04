@@ -70,9 +70,9 @@ The text itself is not stored (`text_retained: false`); only the hash, the lengt
 
 On Modal, the bridge keeps the 16 KiB JSON limit for this route but gives it the long model deadline (150 s), and the worker releases the database lock during the model call, as recordings do.
 
-## Profiles
+## Hooks
 
-`createHandler(store, {screenContextHooks})` accepts `system(ctx)` to replace the prompt and `extendRecord(record, ctx)` to add fields inside the write transaction. A language-practice profile could map `purpose: reading` to its own context field this way.
+`createHandler(store, {screenContextHooks})` accepts `system(ctx)` to replace the prompt and `extendRecord(record, ctx)` to add fields inside the write transaction.
 
 ## Local development
 
