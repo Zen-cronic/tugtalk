@@ -41,7 +41,7 @@ It uses the same routes as the Mac (`docs/voice.md`):
 | Not signed in | The connector key from `Secrets.xcconfig` is missing or refused (401): the same setup the watch's captures use |
 | Microphone off | "Microphone access is off. Enable it in Settings." and **Try again** |
 | A recording under 0.5 s | Not sent (the server's minimum); "That was too short to send." |
-| Keep my recordings on | "Recording kept" under the question and on Round done, when the server's `media.kept` is true |
+| Keep my recordings on | No line when the server kept the recording; "Recording not kept: storage full" when it could not |
 
 ## Code
 
