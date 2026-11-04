@@ -340,6 +340,37 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         _ = m.replied(key: up.idempotencyKey, receipt("r1"))
         #expect(m.leave() == [.endRoundOnServer(key: "end-1")])
     }
+
+    @Test func leavingWhileAnAnswerUploadsEndsTheRoundOnceItIsSaved() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up = answer(&m, at: t0)
+        #expect(m.leave() == [], "the end waits for the upload")
+        #expect(m.replied(key: up.idempotencyKey, receipt("r1")) == [], "the late reply is not shown or spoken")
+        #expect(m.leftUploadFinished(key: up.idempotencyKey, receipt("r1")) == [.endRoundOnServer(key: "end-1")])
+        #expect(m.leftUploadFinished(key: up.idempotencyKey, receipt("r1")) == [], "one end per left upload")
+        #expect(m.leftUploadFinished(key: "another", receipt("r2")) == [], "only the upload that was left")
+    }
+
+    @Test func aLeftUploadThatFailedOrWrappedUpOwesNoEnd() {
+        var failed = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up1 = answer(&failed, at: t0)
+        _ = failed.leave()
+        #expect(failed.leftUploadFinished(key: up1.idempotencyKey, nil) == [], "nothing saved, nothing open")
+        var wrapped = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up2 = answer(&wrapped, at: t0)
+        _ = wrapped.leave()
+        #expect(wrapped.leftUploadFinished(key: up2.idempotencyKey, receipt("r1", move: "wrap_up")) == [], "a wrap-up ended it")
+    }
+
+    @Test func aLeftUploadThatFailedStillEndsARoundOpenFromEarlierAnswers() {
+        var m = SparringMachine(goalID: nil, language: .en, newKey: Keys().next, newEndKey: { "end-1" })
+        let up1 = answer(&m, at: t0)
+        _ = m.replied(key: up1.idempotencyKey, receipt("r1"))
+        _ = m.speechFinished(roundID: "r1", at: t0.addingTimeInterval(8))
+        let up2 = answer(&m, at: t0.addingTimeInterval(9))
+        #expect(m.leave() == [])
+        #expect(m.leftUploadFinished(key: up2.idempotencyKey, nil) == [.endRoundOnServer(key: "end-1")])
+    }
 }
 
 @Suite struct ScreenCardOnTheWrist {

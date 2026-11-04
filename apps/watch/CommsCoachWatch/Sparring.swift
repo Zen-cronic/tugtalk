@@ -16,7 +16,8 @@ final class SparringModel: ObservableObject {
     private let speaker = RoundSpeaker()
     /// Finished recordings by idempotency key, kept until the server has replied (so Retry can resend them).
     private var files: [String: URL] = [:]
-    private var uploadTask: Task<Void, Never>?
+    /// The answer uploading now. Its value is the server's receipt, or nil when the upload failed.
+    private var uploadTask: Task<VoiceRoundReceipt?, Never>?
     private var speechTask: Task<Void, Never>?
     /// The last round end sent to the server (`POST /v1/voice-rounds/end`). The next answer waits for it.
     private var endTask: Task<Void, Never>?
@@ -68,12 +69,26 @@ final class SparringModel: ObservableObject {
     func endRound() { apply(machine.endRound()) }
 
     /// The screen closed: nothing keeps recording or speaking, and no recording is left behind. A round the server
-    /// still holds open is ended there, so the next round, on any device, starts at answer 1.
+    /// still holds open is ended there, so the next round, on any device, starts at answer 1. An answer still
+    /// uploading is not cancelled (the server may save it); once it is saved, one round end follows it.
     func leave() {
+        let left: String? = if case .thinking(_, let upload) = machine.phase { upload.idempotencyKey } else { nil }
         apply(machine.leave())
         _ = recorder.stop()
         speaker.stop()
-        uploadTask?.cancel(); speechTask?.cancel()
+        speechTask?.cancel()
+        if let left, let client, let upload = uploadTask {
+            let after = machine // this screen's round only: nothing is kept for the next screen
+            Task {
+                var machine = after
+                let receipt = await upload.value
+                for case .endRoundOnServer(let key) in machine.leftUploadFinished(key: left, receipt) {
+                    _ = try? await client.endRound(idempotencyKey: key)
+                }
+            }
+        } else {
+            uploadTask?.cancel()
+        }
         for url in files.values { try? FileManager.default.removeItem(at: url) }
         files = [:]
         #if DEBUG
@@ -137,10 +152,12 @@ final class SparringModel: ObservableObject {
                 let wav = try Data(contentsOf: file)
                 let receipt = try await client.send(upload, wav: wav)
                 self?.apply(self?.machine.replied(key: upload.idempotencyKey, receipt) ?? [])
+                return receipt
             } catch is CancellationError {
-                return
+                return nil
             } catch {
                 self?.apply(self?.machine.uploadFailed(key: upload.idempotencyKey, RoundFailure.from(error)) ?? [])
+                return nil
             }
         }
     }

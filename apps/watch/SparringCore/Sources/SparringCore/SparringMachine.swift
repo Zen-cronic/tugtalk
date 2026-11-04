@@ -85,6 +85,8 @@ public struct SparringMachine: Sendable {
     private var serverOpen = false
     /// The key of a round end the server has not confirmed yet.
     public private(set) var pendingEndKey: String?
+    /// The answer that was still uploading when the screen closed.
+    private var leftUploadKey: String?
     private let newKey: @Sendable () -> String
     private let newEndKey: @Sendable () -> String
 
@@ -257,7 +259,25 @@ public struct SparringMachine: Sendable {
     }
 
     /// The screen closed. A round the server still holds open is ended there, so the next round starts at answer 1.
-    public mutating func leave() -> [Effect] { owedEnd() }
+    /// An answer still uploading is left to finish, since the server may save it: its late reply is ignored, and the
+    /// round end waits for `leftUploadFinished`.
+    public mutating func leave() -> [Effect] {
+        if case .thinking(_, let upload) = phase {
+            leftUploadKey = upload.idempotencyKey
+            phase = .ready(answer: 1)
+            return []
+        }
+        return owedEnd()
+    }
+
+    /// The upload the screen left behind finished: `receipt` when the server saved the answer, nil when it failed.
+    /// A saved answer without a wrap-up holds the round open, so one end is sent for it. Kept only as long as this round.
+    public mutating func leftUploadFinished(key: String, _ receipt: VoiceRoundReceipt?) -> [Effect] {
+        guard leftUploadKey == key else { return [] }
+        leftUploadKey = nil
+        if let receipt { serverOpen = !receipt.reply.wrapsUp }
+        return owedEnd()
+    }
 
     /// The server saved (or replayed) the round end sent with this key.
     public mutating func roundEndSent(key: String) { if pendingEndKey == key { pendingEndKey = nil } }
