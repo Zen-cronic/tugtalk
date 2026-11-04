@@ -450,7 +450,7 @@ struct NotchBarBody: View {
         case .voiceSpeaking(let card):
             ReplyCard(card: card, compact: compact, onClose: close, onLayout: { model.layoutNeeded() })
         case .speaking(let card):
-            CardTitle(eyebrow: card.replayed ? "Already saved · \(card.appName)" : "Card saved · \(card.appName)", sample: card.isPreview, onClose: close)
+            CardTitle(eyebrow: card.replayed ? "Already saved from \(card.appName)" : "Card saved from \(card.appName)", sample: card.isPreview, onClose: close)
             MainLine(text: card.observation, compact: compact)
             if !compact {
                 LabelledLine(label: "Next step", text: card.nextStep)
@@ -463,7 +463,7 @@ struct NotchBarBody: View {
             CardTitle(eyebrow: text == model.hotkeyNotice ? "Shortcut" : "Note", onClose: close)
             NoticeText(text: text)
         case .nudging(let nudge, _):
-            CardTitle(eyebrow: "Updated · \(nudge.goalTitle)", onClose: close)
+            CardTitle(eyebrow: "Updated: \(nudge.goalTitle)", onClose: close)
             MainLine(text: nudge.detail, compact: compact)
         case .offline(let reason, _):
             CardTitle(eyebrow: model.phase.heading, onClose: close)
@@ -501,7 +501,7 @@ struct NotchBarBody: View {
             SaidDisclosure(quote: round.quote, transcript: round.transcriptSnippet, onLayout: { model.layoutNeeded() })
             RecordingNote(note: round.recordingNote)
         } else if ui.latest == .card, let card = model.lastCard {
-            CardTitle(eyebrow: "Latest card · \(card.appName)", sample: card.isPreview)
+            CardTitle(eyebrow: "Latest card from \(card.appName)", sample: card.isPreview)
             MainLine(text: card.observation, compact: false)
             LabelledLine(label: "Next step", text: card.nextStep)
         } else {
@@ -567,13 +567,13 @@ struct CardTitle: View {
     var sample = false
     var onClose: (() -> Void)? = nil
 
-    /// "Round 1 · Sample", with one divider. "Sample" is Debug previews only; `-noSampleTag YES` hides it for the video.
+    /// "Round 1, Sample", with one divider. "Sample" is Debug previews only; `-noSampleTag YES` hides it for the video.
     private var meta: String? {
         var parts = [trailing].compactMap { $0 }
         #if DEBUG
         if sample, !UserDefaults.standard.bool(forKey: "noSampleTag") { parts.append("Sample") }
         #endif
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
     var body: some View {

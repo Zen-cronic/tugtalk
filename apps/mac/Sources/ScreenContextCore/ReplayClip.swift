@@ -202,7 +202,7 @@ public struct ReplayCounts: Decodable, Sendable, Equatable {
     public var label: String {
         let parts = [("phone", seconds.phone_in_hand), ("paper", seconds.paper_in_hand)].filter { $0.1 > 0 }
             .map { "\($0.0) in hand \(Self.seconds($0.1))" }
-        return parts.isEmpty ? "no phone or paper in hand" : parts.joined(separator: " · ")
+        return parts.isEmpty ? "no phone or paper in hand" : parts.joined(separator: ", ")
     }
 
     /// "3 s" for whole seconds, else one decimal ("2.8 s").

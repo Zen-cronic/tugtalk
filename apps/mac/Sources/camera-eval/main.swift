@@ -74,7 +74,7 @@ case "synthetic":
         rows.append(SyntheticRow(scenario: scenario.name, seconds: scenario.duration, expected: expected, measured: measured,
                                  worst_pct_error: errors.max() ?? 0, count_matches: matches))
         let name = scenario.name.padding(toLength: 42, withPad: " ", startingAt: 0)
-        print(name + String(format: " expected %3d%%, %d away · worst error %2d pts · count right %2d/%d",
+        print(name + String(format: " expected %3d%%, %d away, worst error %2d pts, count right %2d/%d",
                             expected?.faced_camera_pct ?? -1, expected?.looked_away_count ?? -1, errors.max() ?? 0, matches, seeds.count))
     }
     let report = SyntheticReport(method: "vision-face-pose-v1 meter on synthetic head angles (camera-eval synthetic)",
@@ -110,7 +110,7 @@ case "poses":
     FileHandle.standardError.write(Data(String(format: "%d frames, face found in %d; Vision %.1f ms per frame on average\n",
                                                samples.count, found, samples.isEmpty ? 0 : 1000 * visionSeconds / Double(samples.count)).utf8))
     if let m = CameraMeter.measure(samples, rule: rule) {
-        FileHandle.standardError.write(Data("Meter: \(m.facedLine) · \(m.lookedAwayLine)\(m.longestLine.map { " · \($0)" } ?? "")\n".utf8))
+        FileHandle.standardError.write(Data("Meter: \(m.facedLine), \(m.lookedAwayLine)\(m.longestLine.map { ", \($0)" } ?? "")\n".utf8))
     }
 
 case "score":

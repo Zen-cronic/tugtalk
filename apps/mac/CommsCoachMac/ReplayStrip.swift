@@ -39,7 +39,7 @@ struct ReplayToggle: View {
 }
 
 /// One cell per second of the round's answers, filled by the share of that second with a phone or paper in hand,
-/// then the label: "phone in hand 3 s · SAM 3.1 · counted by code". Counted objects only.
+/// then the label: "phone in hand 3 s, found by SAM 3.1, counted by code". Counted objects only.
 struct ReplayStrip: View {
     let result: ReplayCheck.Result
 
@@ -48,7 +48,7 @@ struct ReplayStrip: View {
         case .sending:
             HStack(spacing: 8) {
                 ThinkingDots()
-                Text("Checking what's in your hands · SAM 3.1").font(TypeFace.body(13, weight: 600)).foregroundStyle(Color(Tok.muted))
+                Text("Checking what's in your hands with SAM 3.1").font(TypeFace.body(13, weight: 600)).foregroundStyle(Color(Tok.muted))
             }
             .accessibilityElement(children: .combine)
         case .counted(let counts):
@@ -56,7 +56,7 @@ struct ReplayStrip: View {
                 HStack(spacing: 3) {
                     ForEach(Array(counts.cells.enumerated()), id: \.offset) { _, fill in ReplayCell(fill: fill) }
                 }
-                Text("\(counts.label) · SAM 3.1 · counted by code")
+                Text("\(counts.label), found by SAM 3.1, counted by code")
                     .font(TypeFace.body(13, weight: 650)).foregroundStyle(Color(Tok.ink))
                     .lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }

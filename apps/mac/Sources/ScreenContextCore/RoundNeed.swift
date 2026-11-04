@@ -19,7 +19,7 @@ public struct RoundNeed: Sendable, Equatable {
     public init() {}
 
     /// One reply arrived. `answer` is its place in the round (1 starts a new round). Returns the card line: "Need: a date"
-    /// during the round, and at the wrap-up "Need: a date · met on answer 2 · unsure words 1 → 0", after which the need
+    /// during the round, and at the wrap-up "Need: a date, met on answer 2, unsure words 1 → 0", after which the need
     /// is dropped. Nil when no need was named.
     public mutating func record(_ counterpart: VoiceCounterpart?, hedges: Int?, answer: Int, endsRound: Bool) -> String? {
         if answer <= 1 { reset() }
@@ -37,13 +37,13 @@ public struct RoundNeed: Sendable, Equatable {
 
     public mutating func reset() { need = nil; metOn = nil; answers = 0; firstHedges = nil; lastHedges = nil }
 
-    /// "Need: a date · met on answer 2 · unsure words 1 → 0". "Unsure words" are the code-counted hedges.
+    /// "Need: a date, met on answer 2, unsure words 1 → 0". "Unsure words" are the code-counted hedges.
     public static func line(need: String, metOn: Int?, answers: Int, firstHedges: Int?, lastHedges: Int?) -> String {
         var parts = ["Need: \(phrase(need))"]
         if let metOn { parts.append("met on answer \(metOn)") }
         else { parts.append("not met in \(answers) \(answers == 1 ? "answer" : "answers")") }
         if let a = firstHedges, let b = lastHedges, answers > 1 { parts.append("unsure words \(a)\u{00A0}→\u{00A0}\(b)") }
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: ", ")
     }
 
     /// "a date", "an owner".
@@ -57,6 +57,6 @@ public struct RoundNeed: Sendable, Equatable {
     /// Where the line's parts come from: during the round only the need is shown, and it is the model's pick; at the
     /// wrap-up, whether it was met and the counts are code's.
     public static func source(endsRound: Bool, model: String) -> String {
-        endsRound ? "need picked by \(model) · met and counts measured by code" : "picked by \(model) from your card"
+        endsRound ? "need picked by \(model), met and counts measured by code" : "picked by \(model) from your card"
     }
 }

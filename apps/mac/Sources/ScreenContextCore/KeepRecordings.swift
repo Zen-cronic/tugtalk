@@ -52,9 +52,9 @@ public enum KeepRecordingsCopy {
     public static let turnOff = "Turn Off"
     public static let turnOffAndDelete = "Turn Off and Delete Kept Recordings"
 
-    /// "3 kept · 1.2 MB".
+    /// "3 kept, 1.2 MB".
     public static func summary(_ counts: KeptCounts) -> String {
-        "\(counts.recordings) kept · \(size(counts.bytes))"
+        "\(counts.recordings) kept, \(size(counts.bytes))"
     }
 
     public static func size(_ bytes: Int) -> String {

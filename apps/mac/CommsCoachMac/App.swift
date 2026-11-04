@@ -114,7 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.goals = { [weak self] in self?.poller.goals ?? [] }
         menu.connectionStatus = { [weak self] in
             let source = Connection.isLocalDevelopmentRequested ? "Local test server" : "Shared record"
-            return "\(source) · \(self?.poller.lastStatus ?? "")"
+            return "\(source), \(self?.poller.lastStatus ?? "")"
         }
         // A nudge that arrived during a capture shows once the companion is free again.
         phaseWatch = model.$phase.sink { [weak self] phase in

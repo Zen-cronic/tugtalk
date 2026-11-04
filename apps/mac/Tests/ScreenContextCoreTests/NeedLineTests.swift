@@ -12,7 +12,7 @@ final class NeedLineTests: XCTestCase {
         XCTAssertNil(round.need)
         XCTAssertEqual(round.record(c("date", met: false, answer: 1), hedges: 1, answer: 1, endsRound: false), "Need: a date")
         XCTAssertEqual(round.need, "date", "sent back with answer 2")
-        XCTAssertEqual(round.record(c("date", met: true, answer: 2), hedges: 0, answer: 2, endsRound: true), "Need: a date · met on answer 2 · unsure words 1\u{00A0}→\u{00A0}0")
+        XCTAssertEqual(round.record(c("date", met: true, answer: 2), hedges: 0, answer: 2, endsRound: true), "Need: a date, met on answer 2, unsure words 1\u{00A0}→\u{00A0}0")
         XCTAssertNil(round.need, "dropped when the round ends")
     }
 
@@ -20,7 +20,7 @@ final class NeedLineTests: XCTestCase {
         var round = RoundNeed()
         _ = round.record(c("owner", met: false, answer: 1), hedges: 2, answer: 1, endsRound: false)
         for answer in 2...3 { _ = round.record(c("owner", met: false, answer: answer), hedges: 1, answer: answer, endsRound: false) }
-        XCTAssertEqual(round.record(c("owner", met: false, answer: 4), hedges: 1, answer: 4, endsRound: true), "Need: an owner · not met in 4 answers · unsure words 2\u{00A0}→\u{00A0}1")
+        XCTAssertEqual(round.record(c("owner", met: false, answer: 4), hedges: 1, answer: 4, endsRound: true), "Need: an owner, not met in 4 answers, unsure words 2\u{00A0}→\u{00A0}1")
     }
 
     func testOnlyTheFirstNamedNeedCountsAndAnUnknownWordIsIgnored() {
@@ -47,7 +47,7 @@ final class NeedLineTests: XCTestCase {
         XCTAssertEqual(RoundNeed.needs.map(RoundNeed.phrase), ["a number", "a date", "a decision", "an owner", "an example"])
         XCTAssertEqual(RoundNeed.codeOnlyLine, "Code-only question (no model)")
         XCTAssertEqual(RoundNeed.source(endsRound: false, model: "Muse Spark Open"), "picked by Muse Spark Open from your card")
-        XCTAssertEqual(RoundNeed.source(endsRound: true, model: "Muse Spark Open"), "need picked by Muse Spark Open · met and counts measured by code")
+        XCTAssertEqual(RoundNeed.source(endsRound: true, model: "Muse Spark Open"), "need picked by Muse Spark Open, met and counts measured by code")
     }
 
     func testTheReceiptAndTheLiveReplyDecodeTheCounterpartAndACodeOnlyReplyHasNoModel() throws {

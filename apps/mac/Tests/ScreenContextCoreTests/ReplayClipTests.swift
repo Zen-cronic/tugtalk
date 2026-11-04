@@ -96,7 +96,7 @@ final class ReplayClipTests: XCTestCase {
         XCTAssertEqual(receipt.replay.cells, [1, 1, 1, 1, 0, 0, 0, 1, 1, 1])
         let both = ReplayCounts(method: "m", fps: 10, frames: 30, seconds: ReplaySeconds(phone_in_hand: 2.8, paper_in_hand: 0.4),
                                 per_second: [ReplaySecond(frames: 10, phone_in_hand: 5, paper_in_hand: 0, in_hand: 5)])
-        XCTAssertEqual(both.label, "phone in hand 2.8\u{00A0}s · paper in hand 0.4\u{00A0}s")
+        XCTAssertEqual(both.label, "phone in hand 2.8\u{00A0}s, paper in hand 0.4\u{00A0}s")
         XCTAssertEqual(both.cells, [0.5])
         let none = ReplayCounts(method: "m", fps: 10, frames: 30, seconds: ReplaySeconds(phone_in_hand: 0, paper_in_hand: 0), per_second: [])
         XCTAssertEqual(none.label, "no phone or paper in hand")

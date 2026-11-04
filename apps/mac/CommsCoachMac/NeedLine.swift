@@ -1,8 +1,8 @@
 import ScreenContextCore
 import SwiftUI
 
-/// The other person's need on a spoken-round card: "Need: a date" during the round, and at the wrap-up "Need: a date ·
-/// met on answer 2 · unsure words 1 → 0". The caption says which part is whose: the need word is the model's; whether it
+/// The other person's need on a spoken-round card: "Need: a date" during the round, and at the wrap-up "Need: a date,
+/// met on answer 2, unsure words 1 → 0". The caption says which part is whose: the need word is the model's; whether it
 /// was met, and the counts, are code's. A code-only reply says so instead of naming a model.
 struct NeedLine: View {
     let card: VoiceCard

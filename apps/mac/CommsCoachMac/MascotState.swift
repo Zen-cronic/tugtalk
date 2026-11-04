@@ -63,7 +63,7 @@ struct VoiceCard: Equatable {
     var sampleSource: String?
     /// The other person's need and the move gate for this answer (`counterpart`), when the coach sent them.
     var counterpart: VoiceCounterpart?
-    /// "Need: a date · met on answer 2 · unsure words 1 → 0", from `RoundNeed` on this Mac. Nil without a need.
+    /// "Need: a date, met on answer 2, unsure words 1 → 0", from `RoundNeed` on this Mac. Nil without a need.
     var needLine: String?
     /// No model wrote this question (`X-Reply-Mode: code`).
     var codeOnly: Bool { counterpart?.isCodeOnly == true }
@@ -118,7 +118,7 @@ struct VoiceCard: Equatable {
         return (cut.lastIndex(of: " ").map { String(cut[..<$0]) } ?? String(cut)) + "…"
     }
 
-    /// "42 words · 132 per minute · 1 filler · 2 unsure words", from the code-computed metrics.
+    /// "42 words, 132 per minute, 1 filler, 2 unsure words", from the code-computed metrics.
     var metricsLine: String? {
         guard let m = metrics else { return nil }
         func count(_ n: Int?, _ one: String, _ many: String) -> String? { n.map { "\($0) \($0 == 1 ? one : many)" } }
@@ -126,11 +126,11 @@ struct VoiceCard: Equatable {
                      count(m.filler_count, "filler", "fillers"), count(m.hedge_count, "unsure word", "unsure words"),
                      m.restart_count.flatMap { $0 > 0 ? count($0, "restart", "restarts") : nil },
                      m.onset_ms_approx.map { String(format: "started about %.1f s after the question", $0 / 1000) }]
-        let line = parts.compactMap { $0 }.joined(separator: " · ")
+        let line = parts.compactMap { $0 }.joined(separator: ", ")
         return line.isEmpty ? nil : line
     }
 
-    /// "Voice reply 3.9 s after you let go · speech-to-text 2.1 s · model 1.7 s".
+    /// "Voice reply 3.9 s after you let go, speech-to-text 2.1 s, model 1.7 s".
     var latencyLine: String? {
         func seconds(_ ms: Double?) -> String? { ms.map { String(format: "%.1f s", $0 / 1000) } }
         var parts: [String] = []
@@ -138,7 +138,7 @@ struct VoiceCard: Equatable {
         else if let total = seconds(latency?.total) { parts.append("Coach replied in \(total)") }
         if let asr = seconds(latency?.asr) { parts.append("speech-to-text \(asr)") }
         if let model = seconds(latency?.model) { parts.append("model \(model)") }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
     /// The short timing for the card footer: "reply 4.1 s after you let go".

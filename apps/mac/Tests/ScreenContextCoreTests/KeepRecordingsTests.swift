@@ -60,7 +60,7 @@ final class KeepRecordingsTests: XCTestCase {
     }
 
     func testTheSummaryIsPlain() {
-        XCTAssertEqual(KeepRecordingsCopy.summary(KeptCounts(recordings: 3, bytes: 1_234_567, cap_bytes: 200_000_000)), "3 kept · 1.2 MB")
+        XCTAssertEqual(KeepRecordingsCopy.summary(KeptCounts(recordings: 3, bytes: 1_234_567, cap_bytes: 200_000_000)), "3 kept, 1.2 MB")
         XCTAssertEqual(KeepRecordingsCopy.size(52_400_000), "52 MB")
         XCTAssertEqual(KeepRecordingsCopy.label, "Keep my recordings")
     }

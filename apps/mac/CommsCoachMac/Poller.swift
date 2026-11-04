@@ -44,7 +44,7 @@ final class Poller {
             let new = ObservedState(overview)
             let nudges = NudgeDiff.changes(from: observed, to: new)
             observed = new
-            lastStatus = "Checked \(Date().formatted(date: .omitted, time: .shortened)) · revision \(overview.snapshot_revision.prefix(8))"
+            lastStatus = "Checked \(Date().formatted(date: .omitted, time: .shortened)), revision \(overview.snapshot_revision.prefix(8))"
             if let first = nudges.first { await present(first, api: api) }
             showWaitingIfFree()
         } catch {
