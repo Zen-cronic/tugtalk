@@ -27,9 +27,10 @@ async function analyzeBody(extra = {}, env = { BASETEN_API_KEY: 'k' }) {
 
 test('analyze: the default request is byte-for-byte unchanged; a custom system prompt replaces only the system message', async () => {
   const body = await analyzeBody();
-  // Hash of the request body produced before the hook existed (commit 9314c77).
-  assert.equal(createHash('sha256').update(body).digest('hex'), 'a3a59c9c4addc4d85e6581d5861f313681da8d68b487e821e60ce8833f616b10');
+  // Hash of the default request body (commit 9314c77, with the prompt's "learner" later renamed "speaker").
+  assert.equal(createHash('sha256').update(body).digest('hex'), 'ac116b4f1c683d1ea1b557cc1a3c7308dcc711513e2cf54a3043b6b987cbcf30');
   assert.equal(JSON.parse(body).messages[0].content, analysisSystemPrompt('fr'));
+  assert.doesNotMatch(analysisSystemPrompt('en'), /learner/, 'the prompt calls the person the speaker');
   const custom = JSON.parse(await analyzeBody({ system: 'You are a French tutor. Reply with JSON only.' }));
   const original = JSON.parse(body);
   assert.equal(custom.messages[0].content, 'You are a French tutor. Reply with JSON only.');
@@ -37,7 +38,7 @@ test('analyze: the default request is byte-for-byte unchanged; a custom system p
 });
 
 test('analyze: with ANALYSIS_EFFORT unset, empty or unknown, the pinned request body is unchanged', async () => {
-  const pinned = 'a3a59c9c4addc4d85e6581d5861f313681da8d68b487e821e60ce8833f616b10';
+  const pinned = 'ac116b4f1c683d1ea1b557cc1a3c7308dcc711513e2cf54a3043b6b987cbcf30';
   for (const effort of [undefined, '', 'max', 'MEDIUM']) {
     const env = { BASETEN_API_KEY: 'k', ...(effort === undefined ? {} : { ANALYSIS_EFFORT: effort }) };
     assert.equal(createHash('sha256').update(await analyzeBody({}, env)).digest('hex'), pinned, `ANALYSIS_EFFORT=${effort}`);

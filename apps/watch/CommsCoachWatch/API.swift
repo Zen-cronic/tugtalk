@@ -159,8 +159,7 @@ struct CoachAPI {
         if let goalID { request.setValue(goalID, forHTTPHeaderField: "X-Goal-Id") }
         if let exerciseID { request.setValue(exerciseID, forHTTPHeaderField: "X-Exercise-Id") } // the open drill: measured against its basis
         if language == "fr" {
-            // The wearer records only their own speech. A French-practice backend requires these;
-            // this backend's hosting adapter does not forward them.
+            // The wearer records only their own speech.
             request.setValue("self_only", forHTTPHeaderField: "X-Consent-Basis")
             request.setValue("self_declared", forHTTPHeaderField: "X-Attribution")
             request.setValue("everyday", forHTTPHeaderField: "X-Context")
