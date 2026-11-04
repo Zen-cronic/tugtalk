@@ -120,17 +120,6 @@ private struct SlotIn: ViewModifier {
 /// (back, change, more). Red is never a button colour: it marks fillers, and the live recording light.
 struct CoachButtonStyle: ButtonStyle {
     enum Kind { case primary, practise, secondary }
-    /// How the tinted buttons are drawn. `tonal` (a translucent fill of the colour, with text in the colour) is the
-    /// chosen look; `filled` and `outlined` were the other two options on the comparison sheet.
-    enum Look: String { case tonal, filled, outlined }
-
-    static var look: Look {
-        #if DEBUG
-        // `-buttonLook filled|outlined|tonal`: renders the other options for a side-by-side comparison.
-        if let raw = UserDefaults.standard.string(forKey: "buttonLook"), let look = Look(rawValue: raw) { return look }
-        #endif
-        return .tonal
-    }
 
     var kind: Kind = .primary
     var height: CGFloat = 44
@@ -152,20 +141,13 @@ struct CoachButtonStyle: ButtonStyle {
     }
 
     func makeBody(configuration: Configuration) -> some View {
-        let solid = kind == .primary || Self.look == .filled
+        // The main action is solid with ink text; the others are a 30% fill of their colour, with text in that colour.
+        let solid = kind == .primary
         return configuration.label
-            .face(.text, kind == .primary ? 17 : 16, weight: 700, relativeTo: .headline)
+            .face(.text, solid ? 17 : 16, weight: 700, relativeTo: .headline)
             .foregroundStyle(solid ? Palette.ink : tint)
             .frame(maxWidth: .infinity, minHeight: height)
-            .background {
-                if solid {
-                    Capsule().fill(tint)
-                } else if Self.look == .outlined {
-                    Capsule().strokeBorder(tint, lineWidth: 2)
-                } else {
-                    Capsule().fill(tint.opacity(0.3))
-                }
-            }
+            .background(Capsule().fill(solid ? tint : tint.opacity(0.3)))
             .contentShape(Capsule())
             .opacity(configuration.isPressed ? 0.7 : 1)
     }

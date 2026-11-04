@@ -48,7 +48,7 @@ While a drill is open, the watch sends its id as `X-Exercise-Id` with the next r
   "feedback": "Measured by code: 0 hedges in this capture (session …). The drill's basis was 3 hedges in 2 sessions. One measured result, not a trend." }
 ```
 
-The session record gets a `drill` block with the check-in id, and the watch shows **Drill: 0 hedges this capture · basis 3 in 2 sessions · measured by code**.
+The session record gets a `drill` block with the check-in id, and the watch shows **Drill: 0 unsure words now, 3 in 2 earlier sessions. Counted by code.**
 
 - It is recorded once per drill. A later capture that names the same drill saves normally and gets `drill: { status: "not_measured", reason: "already_recorded" }`.
 - An exercise without a basis is never measured (`reason: "no_basis"`).
