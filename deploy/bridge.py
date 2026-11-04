@@ -231,6 +231,44 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
         state['pending'] = False
         return True
 
+    async def worker_phase(message, rid, held, timing, limit):
+        """Handles one database phase from the worker: persist, release or acquire. Returns whether the database lock
+        is held afterwards. Raises when the phase is out of order or the commit a persist needs failed."""
+        phase = message['phase']
+        # asyncio.Lock has no owner, so a phase out of order must never release another request's hold.
+        if phase in ('release', 'acquire') and (phase == 'release') != held:
+            raise RuntimeError('Worker phase out of order')
+        if phase == 'persist':
+            if not held:
+                raise RuntimeError('Persist requires the database lock')
+            state['pending'] = True
+            if not await settle(timing):
+                raise RuntimeError('Reservation commit failed')
+            await worker.send({'id': rid, 'go': True})
+            return True
+        if phase == 'release':
+            lock.release()
+            return False
+        if phase == 'acquire':
+            with timing.phase('lock_wait'):
+                await asyncio.wait_for(lock.acquire(), timeout=limit())
+            await worker.send({'id': rid, 'go': True})
+            return True
+        return held   # any other phase is ignored, as before
+
+    async def settle_response(message, held, timing):
+        """The worker's final response: its timings are kept, and a dirty one is committed before it may be answered.
+        Returns the message, or None when no success can be claimed."""
+        if not held:
+            raise RuntimeError('Worker answered without the database lock')
+        for name, ms in (message.get('timing') or {}).items():
+            if name in ('handler', 'checkpoint', 'close', 'reopen'):
+                timing.add(name, float(ms))
+        if message.get('dirty'):
+            state['pending'] = True
+        # Commit before acknowledging: a failed commit means no success is claimed.
+        return message if await settle(timing) else None
+
     async def startup():
         # Start the worker before the first request arrives, so a cold start pays for it once, off the request path.
         timing = Timing()
@@ -385,38 +423,14 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                     if held and message.get('dirty'):
                         state['pending'] = True
                     return None
-                phase = message.get('phase')
-                # asyncio.Lock has no owner, so a phase out of order must never release another request's hold.
-                if phase in ('release', 'acquire') and (phase == 'release') != held:
-                    raise RuntimeError('Worker phase out of order')
-                if phase == 'persist':
-                    if not held:
-                        raise RuntimeError('Persist requires the database lock')
-                    state['pending'] = True
-                    if not await settle(timing):
-                        raise RuntimeError('Reservation commit failed')
-                    await worker.send({'id': rid, 'go': True})
-                elif phase == 'release':
-                    lock.release(); held = False
-                elif phase == 'acquire':
-                    with timing.phase('lock_wait'):
-                        await asyncio.wait_for(lock.acquire(), timeout=until(hard_deadline))
-                    held = True
-                    await worker.send({'id': rid, 'go': True})
+                if message.get('phase'):
+                    held = await worker_phase(message, rid, held, timing, lambda: until(hard_deadline))
                 elif 'head' in message:
                     await on_head(message['head'])
                 elif 'chunk' in message:
                     await on_chunk(base64.b64decode(message['chunk']))
                 elif 'response' in message:
-                    if not held:
-                        raise RuntimeError('Worker answered without the database lock')
-                    for name, ms in (message.get('timing') or {}).items():
-                        if name in ('handler', 'checkpoint', 'close', 'reopen'):
-                            timing.add(name, float(ms))
-                    if message.get('dirty'):
-                        state['pending'] = True
-                    # Commit before acknowledging: a failed commit means no success is claimed.
-                    return message if await settle(timing) else None
+                    return await settle_response(message, held, timing)
         except (Exception, asyncio.CancelledError) as exc:
             if held:
                 # The worker may be mid-request on the database; restart it rather than hand the lock on.
@@ -560,33 +574,10 @@ def create_bridge(volume, *, worker_path='/app/scripts/handle-request.mjs', data
                         state['pending'] = True
                     message = None
                     break
-                phase = message.get('phase')
-                if phase in ('release', 'acquire') and (phase == 'release') != held:
-                    raise RuntimeError('Worker phase out of order')
-                if phase == 'persist':
-                    if not held:
-                        raise RuntimeError('Persist requires the database lock')
-                    state['pending'] = True
-                    if not await settle(timing):
-                        raise RuntimeError('Reservation commit failed')
-                    await worker.send({'id': rid, 'go': True})
-                elif phase == 'release':
-                    lock.release(); held = False
-                elif phase == 'acquire':
-                    with timing.phase('lock_wait'):
-                        await asyncio.wait_for(lock.acquire(), timeout=until(deadline + GRACE))
-                    held = True
-                    await worker.send({'id': rid, 'go': True})
+                if message.get('phase'):
+                    held = await worker_phase(message, rid, held, timing, lambda: until(deadline + GRACE))
                 elif 'response' in message:
-                    if not held:
-                        raise RuntimeError('Worker answered without the database lock')
-                    for name, ms in (message.get('timing') or {}).items():
-                        if name in ('handler', 'checkpoint', 'close', 'reopen'):
-                            timing.add(name, float(ms))
-                    if message.get('dirty'):
-                        state['pending'] = True
-                    if not await settle(timing):
-                        message = None
+                    message = await settle_response(message, held, timing)
                     break
             if held:
                 lock.release(); held = False

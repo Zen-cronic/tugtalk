@@ -74,6 +74,19 @@ const bootDirty = changes() > 0;
 if (bootDirty) closeForCommit();
 
 const granted = new Map(); // id -> resolve, for a request waiting on "go"
+// Waits for the adapter's "go" for this request.
+const waitForGo = async (id, message) => {
+  const go = new Promise(resolve => granted.set(id, resolve));
+  await emit(message);
+  await go;
+};
+// The database phases of one request, the same for HTTP and live rounds. persist closes the database so the adapter
+// can commit it (a practice reservation, or a saved answer) and returns once that commit succeeded.
+const lockPhases = id => ({
+  async persist() { closeForCommit(); await waitForGo(id, { id, phase: 'persist', dirty: true }); },
+  async release() { await emit({ id, phase: 'release' }); },
+  async acquire() { await waitForGo(id, { id, phase: 'acquire' }); }
+});
 
 async function serve(id, envelope, budgetMs) {
   const started = performance.now();
@@ -83,20 +96,7 @@ async function serve(id, envelope, budgetMs) {
   // with the next committed write, as a read's does.
   const dirty = envelope.method !== 'GET' && !SPEECH_PATH.test(envelope.path ?? '');
   let headSent = false, output, aborted = false;
-  const phases = {
-    async persist() {
-      closeForCommit();
-      const go = new Promise(resolve => granted.set(id, resolve));
-      await emit({id,phase:'persist',dirty:true});
-      await go;
-    },
-    async release() { await emit({ id, phase: 'release' }); },
-    async acquire() {
-      const go = new Promise(resolve => granted.set(id, resolve));
-      await emit({ id, phase: 'acquire' });
-      await go;
-    }
-  };
+  const phases = lockPhases(id);
   const req = Readable.from([Buffer.from(envelope.body_b64 ?? '', 'base64')]);
   Object.assign(req, { method: envelope.method, url: envelope.path, headers: envelope.headers ?? {}, budgetMs: Number.isFinite(budgetMs) ? budgetMs : undefined });
   const chunks = [];
@@ -135,20 +135,7 @@ const liveModels = { ...createModelClients(), ...createVoiceModel(), ...createSp
 async function live(id, envelope, budgetMs) {
   const started = performance.now();
   const opened = reopened; reopened = null;
-  const phases = {
-    async persist() {
-      closeForCommit();
-      const go = new Promise(resolve => granted.set(id, resolve));
-      await emit({id,phase:'persist',dirty:true});
-      await go;
-    },
-    async release() { await emit({ id, phase: 'release' }); },
-    async acquire() {
-      const go = new Promise(resolve => granted.set(id, resolve));
-      await emit({ id, phase: 'acquire' });
-      await go;
-    }
-  };
+  const phases = lockPhases(id);
   const budget = createBudget({ totalMs: Math.min(MODEL_BUDGET_MS, Number.isFinite(budgetMs) ? budgetMs : Infinity) });
   let result;
   try {
