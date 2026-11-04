@@ -51,8 +51,12 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(showingResult ? "Result" : "TugTalk")
+            #if DEBUG
+            // Launch flags only (`-openSetup`, `-openSparring`). Taps use NavigationLink, as the goal card does:
+            // on the watch, a tap that set `practise` never opened the round (TestFlight build 8).
             .navigationDestination(isPresented: $showSetup) { SetupList(model: model) }
-            .navigationDestination(isPresented: $practise) { SparringView(goal: model.selectedGoal, latestCard: model.latestCard, language: model.language) }
+            .navigationDestination(isPresented: $practise) { practiseRound }
+            #endif
         }
     }
 
@@ -130,11 +134,15 @@ struct ContentView: View {
 
     /// Opens a spoken round: answer out loud and Tug asks the follow-up, up to three answers.
     private var practiseButton: some View {
-        Button { practise = true } label: {
+        NavigationLink { practiseRound } label: {
             Text("Practise this answer").lineLimit(1).minimumScaleFactor(0.7).padding(.horizontal, 12) // clear of the capsule's curve
         }
         .buttonStyle(CoachButtonStyle(.practise))
         .accessibilityHint("Answer out loud, and Tug asks a follow-up question")
+    }
+
+    private var practiseRound: some View {
+        SparringView(goal: model.selectedGoal, latestCard: model.latestCard, language: model.language)
     }
 
     /// Goal and language in one card; it opens one list with both choices.
