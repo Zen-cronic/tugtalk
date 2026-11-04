@@ -125,3 +125,12 @@ test('ending or revising the source round keeps active and completed exercises a
  // A correction of the assessed answer itself still makes the exercise stale.
  store.put('u','voice-rounds',{...s.voice,version:s.voice.version+1,deleted:true});assert.equal(getPracticeExercise(store,'u',active.id).state,'stale');
 }));
+test('a superseded or stale exercise does not block a new proposal; an open one names the skip remedy',()=>fixture(async({store,source,propose,activate,key})=>{
+ const s=await source(),first=propose(s);
+ assert.throws(()=>propose(s,{title:'Another one'}),e=>e.code==='practice_exercise_open'&&e.message.includes(first.id)&&/action skip/.test(e.message));
+ const active=activate(first);let target=store.get('u','practice-rounds',active.activation.round_id);
+ changePractice(store,'u',target.id,{action:'revise',expected_version:target.version,expected_goal_version:1,request_text:'Ordinary revised practice',objectives:[{id:'delivery',text:'Explain your plan.'}],confirmed:true},key());
+ target=store.get('u','practice-rounds',target.id);changePractice(store,'u',target.id,{expected_version:target.version,action:'end'},key());
+ assert.equal(store.get('u','practice-exercises',active.id).superseded,true);assert.equal(store.get('u','practice-exercises',active.id).state,'active');
+ assert.equal(propose(s,{title:'After the revision'}).state,'proposed','the superseded exercise no longer blocks');
+}));

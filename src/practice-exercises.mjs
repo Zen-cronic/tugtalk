@@ -82,7 +82,9 @@ export function createPracticeExercise(store,user,body,key){
   if(!asCited||exerciseBasisReasons(store,user,e).length)fail('exercise_basis_stale','The cited source must be a current terminal round and its latest answer on this goal.');
   if(!objective||source.assessment?.status!=='assessed'||!outcome||!(body.purpose==='transfer'?outcome.status==='addressed':['partial','not_addressed'].includes(outcome.status)))fail('exercise_basis_unclear','This outcome cannot support that purpose. Clarify the request or choose the matching purpose.');
   if(normalized(body.request_text)===normalized(source.request_text))fail('scenario_unchanged','Propose a different fictional scenario; an exact copy is not a follow-up.',400);
-  if(store.list(user,KIND).some(x=>x.goal_id===e.goal_id&&['proposed','active'].includes(x.state)))fail('practice_exercise_open','This goal already has a proposed or active practice exercise.');
+  // A superseded or stale exercise can no longer be used, so it does not block a new proposal.
+  const open=store.list(user,KIND).find(x=>x.goal_id===e.goal_id&&['proposed','active'].includes(x.state)&&!x.superseded&&exerciseFreshness(store,user,x).status==='current');
+  if(open)fail('practice_exercise_open',`This goal already has a proposed or active practice exercise (${open.id}). Skip it (PATCH ${PRACTICE_EXERCISES_PATH}/${open.id} with action skip) before proposing another.`);
   return save(store,user,e,'propose');
  });
 }
