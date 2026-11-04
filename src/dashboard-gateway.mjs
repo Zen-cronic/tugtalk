@@ -24,6 +24,21 @@ const routes = [
   ['DELETE', new RegExp(`^/media/(${id})$`), m => `/v1/media/${m[1]}`],
 ];
 const mime = { '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.txt': 'text/plain; charset=utf-8' };
+// Sign-in throttling counts failed codes only. One client (see clientKey) gets LOGIN_CLIENT_FAILURES failures per
+// LOGIN_WINDOW_MS; past that it waits out the window, while every other client can still sign in. Each failure also
+// waits a fixed delay, which grows a little when many failures arrive from all clients (a short global backoff that
+// never refuses a correct code).
+export const LOGIN_WINDOW_MS = 60 * 1000, LOGIN_CLIENT_FAILURES = 5, LOGIN_CLIENTS = 4096, LOGIN_FAILURE_DELAY_MS = 250, LOGIN_MAX_BACKOFF = 8;
+// Behind the hosting proxy every connection comes from the proxy, so the client is the left-most X-Forwarded-For entry.
+// Without the proxy (trustProxy false) the header is ignored and the socket address is used.
+function clientKey(req, trustProxy) {
+  if (trustProxy) {
+    const first = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
+    if (/^[0-9A-Fa-f.:]{2,45}$/.test(first)) return first;
+  }
+  return req.socket.remoteAddress ?? 'unknown';
+}
+const pause = ms => ms > 0 ? new Promise(resolve => setTimeout(resolve, ms)) : Promise.resolve();
 class Failure extends Error { constructor(status, message) { super(message); this.status = status; } }
 async function bytes(stream, max) {
   const chunks = []; let n = 0;
@@ -37,13 +52,15 @@ async function jsonBody(req) {
 function cookieValue(req, name) {
   return (req.headers.cookie ?? '').split(';').map(v => v.trim()).find(v => v.startsWith(`${name}=`))?.slice(name.length + 1) ?? '';
 }
-export function createDashboard({ origin, upstream, token, password, secure = true, webRoot = fileURLToPath(new URL('../web/', import.meta.url)), landingRoot = null, fetchImpl = fetch, now = Date.now, demo = false, allowRecordingChanges = false, sessionMs = 8 * 60 * 60 * 1000, timeoutMs = 10000 }) {
+export function createDashboard({ origin, upstream, token, password, secure = true, webRoot = fileURLToPath(new URL('../web/', import.meta.url)), landingRoot = null, fetchImpl = fetch, now = Date.now, demo = false, allowRecordingChanges = false, sessionMs = 8 * 60 * 60 * 1000, timeoutMs = 10000, trustProxy = false, failureDelayMs = LOGIN_FAILURE_DELAY_MS }) {
   const publicURL = new URL(origin), apiURL = new URL(upstream);
   if (!['http:', 'https:'].includes(publicURL.protocol) || (!secure && !['127.0.0.1', 'localhost', '[::1]'].includes(publicURL.hostname))) throw new Error('Insecure cookies are allowed only on loopback.');
   if (secure && publicURL.protocol !== 'https:') throw new Error('HTTPS is required.');
   if (apiURL.protocol !== 'https:' && !(apiURL.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(apiURL.hostname))) throw new Error('The API must use HTTPS or loopback.');
   if (publicURL.username || publicURL.password || apiURL.username || apiURL.password || !token || typeof password !== 'string' || password.length < 20) throw new Error('Server credentials and a long access code are required.');
-  const passwordHash = hash(password), sessions = new Map(), attempts = new Map();
+  // failures: client -> times of its failed codes in the window; recentFailures: every client's, for the backoff.
+  const passwordHash = hash(password), sessions = new Map(), failures = new Map();
+  let recentFailures = [];
   const cookieName = secure ? '__Host-comms-session' : 'comms-session';
   const cookie = (value, age) => `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${age}${secure ? '; Secure' : ''}`;
   const server = createServer(async (req, res) => {
@@ -58,14 +75,21 @@ export function createDashboard({ origin, upstream, token, password, secure = tr
       if (writing && req.headers.origin !== publicURL.origin) throw new Failure(403, 'Reload this page before making a change.');
       const t = now();
       for (const [key, value] of sessions) if (value.expires <= t) sessions.delete(key);
-      for (const [key, value] of attempts) if (value.until <= t) attempts.delete(key);
+      const windowStart = t - LOGIN_WINDOW_MS;
+      for (const [key, times] of failures) { const kept = times.filter(at => at > windowStart); if (kept.length) failures.set(key, kept); else failures.delete(key); }
+      recentFailures = recentFailures.filter(at => at > windowStart);
       if (route === '/app-api/login' && req.method === 'POST') {
-        const key = req.socket.remoteAddress ?? 'unknown';
-        const bucket = attempts.get(key) ?? { count: 0, until: t + 15 * 60 * 1000 };
-        if (bucket.count >= 5 || attempts.size >= 2048) throw new Failure(429, 'Too many sign-in attempts. Try again in 15 minutes.');
-        bucket.count++; attempts.set(key, bucket);
+        // A client beyond the table's size shares one bucket, so a flood of new addresses cannot lock anyone else out.
+        let key = clientKey(req, trustProxy);
+        if (!failures.has(key) && failures.size >= LOGIN_CLIENTS) key = 'overflow';
+        if ((failures.get(key)?.length ?? 0) >= LOGIN_CLIENT_FAILURES) throw new Failure(429, 'Too many sign-in attempts. Try again in a minute.');
         const body = await jsonBody(req);
-        if (typeof body?.password !== 'string' || !timingSafeEqual(hash(body.password), passwordHash)) throw new Failure(401, 'That access code did not work.');
+        if (typeof body?.password !== 'string' || !timingSafeEqual(hash(body.password), passwordHash)) {
+          failures.set(key, [...(failures.get(key) ?? []), t]);
+          if (recentFailures.length < LOGIN_CLIENTS) recentFailures.push(t);
+          await pause(failureDelayMs * Math.min(LOGIN_MAX_BACKOFF, 1 + Math.floor(recentFailures.length / 20)));
+          throw new Failure(401, 'That access code did not work.');
+        }
         if (sessions.size >= 256) throw new Failure(503, 'Sign-in is busy. Try again later.');
         sessions.delete(cookieValue(req, cookieName));
         const sessionID = randomBytes(32).toString('hex'), csrf = randomBytes(24).toString('hex');

@@ -117,3 +117,24 @@ test('one dashboard asset list: the build, the hosting app and the gateway all r
  for(const name of list){const r=await h.request(name==='index.html'?'/app/':`/app/${name}`);assert.equal(r.status,200,name);assert.ok(r.headers.get('content-type'),name);}
  assert.equal((await h.request('/app/dashboard-assets.json')).status,404);
 });
+test('sign-in counts failures only, per forwarded client: another client signs in after five wrong codes, and failures wait',async t=>{
+  let now=1000;const h=await harness(t,{trustProxy:true,failureDelayMs:0,now:()=>now});
+  const attempt=(client,code)=>h.request('/app-api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Forwarded-For':`${client}, 10.0.0.1`},body:JSON.stringify({password:code})});
+  for(let i=0;i<5;i++)assert.equal((await attempt('203.0.113.9','wrong')).status,401);
+  assert.equal((await attempt('203.0.113.9',password)).status,429,'the failing client is throttled');
+  assert.equal((await attempt('198.51.100.7',password)).status,200,'the correct code from another client still signs in');
+  // Successes consume no budget: many correct sign-ins, then four failures, still leave room for the correct code.
+  for(let i=0;i<8;i++)assert.equal((await attempt('198.51.100.7',password)).status,200);
+  for(let i=0;i<4;i++)assert.equal((await attempt('198.51.100.7','wrong')).status,401);
+  assert.equal((await attempt('198.51.100.7',password)).status,200);
+  // The throttle is a short window, not a lockout.
+  now+=61*1000;assert.equal((await attempt('203.0.113.9',password)).status,200);
+  // Without a trusted proxy the header is ignored, so it cannot be used to dodge the limit.
+  const direct=await harness(t,{failureDelayMs:0});
+  for(let i=0;i<5;i++)assert.equal((await direct.request('/app-api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Forwarded-For':`192.0.2.${i}`},body:'{"password":"bad"}'})).status,401);
+  assert.equal((await direct.request('/app-api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Forwarded-For':'192.0.2.99'},body:'{"password":"bad"}'})).status,429);
+  // A wrong code waits a fixed delay; a correct one does not.
+  const slow=await harness(t,{failureDelayMs:120});
+  let started=performance.now();assert.equal((await slow.request('/app-api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"password":"bad"}'})).status,401);assert.ok(performance.now()-started>=110);
+  started=performance.now();await slow.login();assert.ok(performance.now()-started<110);
+});

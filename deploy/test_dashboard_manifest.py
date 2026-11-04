@@ -73,6 +73,7 @@ class DashboardManifestTests(unittest.TestCase):
         config = self.load()['app'].config
         self.assertEqual(config['env']['DASHBOARD_ALLOW_RECORDING_CHANGES'], '0')
         self.assertEqual(config['env']['DASHBOARD_LOCAL_HTTP'], '0')
+        self.assertEqual(config['env']['DASHBOARD_TRUST_PROXY'], '1')
         self.assertEqual(config['max_containers'], 1)
         self.assertEqual(config['min_containers'], 0)
         self.assertEqual(config['secrets'], ['comms-coach-dashboard'])

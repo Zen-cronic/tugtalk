@@ -33,7 +33,7 @@ Build the assets, then run `npm run dashboard:start` in an environment configure
 
 Generate access codes with a cryptographic random source, not a memorable password. Do not put either secret into command arguments, URLs, frontend build variables, screenshots or a committed file. Do not reuse the connector token as the access code. A read-only connector token provides an additional upstream boundary for read-only use.
 
-The HTTPS ingress must preserve the configured Host and support its same-origin routes. A single process owns in-memory sessions and login throttling; restarting signs everyone out. This is not a multiuser identity system, and sharing its access code shares the configured account. Multiuser deployment needs per-user identity and connector binding, durable session controls and per-user revocation; adding replicas without that work is unsupported.
+The HTTPS ingress must preserve the configured Host and support its same-origin routes. A single process owns in-memory sessions and login throttling; restarting signs everyone out. Throttling counts failed codes only: a client that enters five wrong codes in a minute waits out that minute, while a correct code from any other client still signs in, and every wrong code waits a short delay that grows when many failures arrive. Behind the hosting proxy (`DASHBOARD_TRUST_PROXY=1`) the client is the left-most `X-Forwarded-For` entry; otherwise that header is ignored. This is not a multiuser identity system, and sharing its access code shares the configured account. Multiuser deployment needs per-user identity and connector binding, durable session controls and per-user revocation; adding replicas without that work is unsupported.
 
 ## Data and controls
 

@@ -52,7 +52,9 @@ image = (image.add_local_file(ROOT / 'src' / 'dashboard-gateway.mjs', '/app/src/
     image=image, secrets=[secret], include_source=False, serialized=True,
     env={'DASHBOARD_ORIGIN': origin, 'DASHBOARD_UPSTREAM': upstream,
          'DASHBOARD_BIND': '0.0.0.0', 'DASHBOARD_PORT': '4321',
-         'DASHBOARD_LOCAL_HTTP': '0', 'DASHBOARD_ALLOW_RECORDING_CHANGES': '0'},
+         'DASHBOARD_LOCAL_HTTP': '0', 'DASHBOARD_ALLOW_RECORDING_CHANGES': '0',
+         # Every request arrives through the hosting proxy: sign-in throttling keys on X-Forwarded-For.
+         'DASHBOARD_TRUST_PROXY': '1'},
     min_containers=0, max_containers=1, scaledown_window=300,
     cpu=0.25, memory=512, timeout=60,
 )
