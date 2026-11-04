@@ -140,6 +140,7 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         self.volume.fail = False
         self.assertIn('x-practice-round-id', FORWARDED)
         self.assertIn('x-practice-round-version', FORWARDED)
+        self.assertIn('x-after-round', FORWARDED, 'a device names its last answer when it ends a round')
         self.assertEqual(route_label('GET','/v1/practice-rounds/private-id'),'GET /v1/practice-rounds/{id}')
         self.assertEqual(route_label('GET','/v1/practice-exercises/private-id'),'GET /v1/practice-exercises/{id}')
 

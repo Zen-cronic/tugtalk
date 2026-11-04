@@ -11,7 +11,7 @@ import { createModelClients, inspectWav, measure, MAX_AUDIO_BYTES, LANGUAGES, DE
 import { runEval } from './evaluate.mjs';
 import { createAdjudicationModel, adjudicateCapture } from './adjudicate.mjs';
 import { createScreenModel, handleScreenContext, SCREEN_CONTEXT_PATH } from './screen-context.mjs';
-import { createVoiceModel, handleVoiceRound, voiceParams, endVoiceRound, VOICE_ROUNDS_PATH, VOICE_ROUND_END_PATH } from './voice.mjs';
+import { createVoiceModel, handleVoiceRound, voiceParams, endVoiceRound, VOICE_ROUNDS_PATH, VOICE_ROUND_END_PATH, ROUND_END_AFTER_HEADER } from './voice.mjs';
 import { createSpeechModel, handleSpeech, SPEECH_PATH } from './speech.mjs';
 import { createBudget, MODEL_BUDGET_MS, MIN_START_MS, SKIPPED_FOR_TIME } from './budget.mjs';
 import { createLiveRound, createRealtimeModel, LIVE_PATH } from './live-voice.mjs';
@@ -268,7 +268,7 @@ export function createHandler(store,{baseUrl='http://127.0.0.1:4318',models={...
       // A device ended its practice round without a wrap-up: the next answer is answer 1 (src/voice.mjs). No model call.
       if(req.method==='POST'&&path===VOICE_ROUND_END_PATH) {
         const key=requireIdempotencyKey(req.headers);
-        return send(200,endVoiceRound(store,user,await bodyOf(req),key));
+        return send(200,endVoiceRound(store,user,await bodyOf(req),key,req.headers[ROUND_END_AFTER_HEADER]??null));
       }
       // Hands check at round end (src/replay.mjs). Without REPLAY_ENABLED=1 the route does not exist.
       const replay=req.method==='POST'&&models.replayEnabled?.()&&path.match(REPLAY_PATH);

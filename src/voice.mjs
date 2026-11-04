@@ -274,13 +274,25 @@ export const roundEndedAt = (store, user) => store.list(user, ROUND_END_KIND).fi
 // POST /v1/voice-rounds/end with an Idempotency-Key and the body {}. No model is called. The end is stamped with the
 // server's clock when it is first saved; an exact retry replays its receipt, so a late retry never moves the end past
 // answers given after it.
-export function endVoiceRound(store, user, body, key) {
+// afterRound (the optional X-After-Round header): the device's own last answer in the round it is ending. When another
+// answer, from any device, is newer, the round has moved on without this device and the end changes nothing (the
+// receipt says skipped: 'answered_since'). Without the header the end always applies, as before.
+export const ROUND_END_AFTER_HEADER = 'x-after-round';
+export function endVoiceRound(store, user, body, key, afterRound = null) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ApiError(400, 'invalid_body', 'Expected a JSON object.');
   const extra = Object.keys(body)[0];
   if (extra !== undefined) throw new ApiError(400, 'unknown_field', `Unsupported field: ${extra}`);
+  if (afterRound !== null && (typeof afterRound !== 'string' || !/^[A-Za-z0-9-]{1,64}$/.test(afterRound)))
+    throw new ApiError(400, 'invalid_header', 'X-After-Round must be a round id.');
   return store.mutate(user, 'POST', VOICE_ROUND_END_PATH, body, key, () => {
     const timestamp = new Date().toISOString();
     const current = store.list(user, ROUND_END_KIND).find(r => r.id === ROUND_END_ID);
+    if (afterRound) {
+      const newest = store.list(user, 'voice-rounds').filter(r => !r.deleted)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))[0];
+      if (newest && newest.id !== afterRound)
+        return { ...(current ?? { id: ROUND_END_ID, version: 0, ended_at: null, updated_at: null }), skipped: 'answered_since' };
+    }
     const record = { id: ROUND_END_ID, version: (current?.version ?? 0) + 1, ended_at: timestamp, updated_at: timestamp };
     store.put(user, ROUND_END_KIND, record);
     return record;

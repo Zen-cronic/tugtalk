@@ -39,7 +39,7 @@ FORWARDED = ('authorization', 'content-type', 'idempotency-key', 'x-exercise-id'
              'x-goal-id', 'x-language', 'x-capture-device', 'x-occurred-at',
              'x-screen-context-id', 'x-prompt-ended-at', 'x-camera-metrics',
              'x-counterpart-need', 'x-reply-mode', 'x-replay-segments',
-             'x-practice-round-id', 'x-practice-round-version')
+             'x-practice-round-id', 'x-practice-round-version', 'x-after-round')
 # Requests that call a model get the long deadline; everything else must finish quickly.
 READ_DEADLINE = 20
 MODEL_DEADLINE = 150

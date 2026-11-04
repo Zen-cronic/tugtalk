@@ -55,8 +55,8 @@ async function withCoach(fn) {
         assert.equal(result.status, 200, JSON.stringify(result.body));
         return result.body;
       },
-      end: (key = `end-key-${++n}`, body = {}) => fetch(base + '/v1/voice-rounds/end', { method: 'POST', body: JSON.stringify(body),
-        headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': key } }).then(async r => ({ status: r.status, ...(await r.json()) }))
+      end: (key = `end-key-${++n}`, body = {}, after = null) => fetch(base + '/v1/voice-rounds/end', { method: 'POST', body: JSON.stringify(body),
+        headers: { ...auth, 'Content-Type': 'application/json', 'Idempotency-Key': key, ...(after ? { 'X-After-Round': after } : {}) } }).then(async r => ({ status: r.status, ...(await r.json()) }))
     };
   };
   try { await fn({ account, prompts, store }); }
@@ -123,5 +123,29 @@ test('round end: an end older than the 15-minute window changes nothing', async 
     store.put('old', 'voice-round-ends', { id: 'latest', version: 1, ended_at: new Date(Date.now() - ROUND_WINDOW_MS - 60_000).toISOString() });
     assert.equal((await old.watch()).counterpart.answer, 1);
     assert.equal((await old.watch()).counterpart.answer, 2);
+  });
+});
+
+test('round end: an end that names its last answer changes nothing once another device has answered since', async () => {
+  await withCoach(async ({ account }) => {
+    const both = account('handoff');
+    // The Mac answers, then the round moves to the watch.
+    const macAnswer = await both.mac();
+    assert.equal(macAnswer.counterpart.answer, 1);
+    assert.equal((await both.watch()).counterpart.answer, 2);
+    // The Mac's idle end names its own last answer: the watch answered since, so the round stays open.
+    const stale = await both.end('mac-end-after-1', {}, macAnswer.round_id);
+    assert.equal(stale.status, 200); assert.equal(stale.record.skipped, 'answered_since'); assert.equal(stale.record.ended_at, null);
+    assert.equal((await both.watch()).counterpart.answer, 3, 'the watch round goes on');
+    // The same key again replays the same decision.
+    assert.equal((await both.end('mac-end-after-1', {}, macAnswer.round_id)).replayed, true);
+    // An end that names the newest answer applies.
+    const lastWatch = await both.watch();
+    assert.equal(lastWatch.counterpart.answer, 4);
+    const fresh = await both.end('watch-end-after-1', {}, lastWatch.round_id);
+    assert.equal(fresh.record.skipped, undefined); assert.match(fresh.record.ended_at, /^\d{4}-/);
+    assert.equal((await both.mac()).counterpart.answer, 1);
+    // A malformed round id is refused.
+    assert.equal((await both.end('mac-end-after-2', {}, 'not a round id!')).status, 400);
   });
 });
