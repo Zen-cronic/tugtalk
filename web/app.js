@@ -1,6 +1,8 @@
 import {renderPracticeExercises,renderPracticeRounds,drillBasisStatus,practiceRecords,readyDrills,readStablePractice} from '/app/practice-view.js';
 const root = document.querySelector('#app');
-const state = { csrf: '', demo: false, canWrite: false, tab: 'goals', goal: null, session: null, data: null, error: '', stale: false, loading: false, sequence: 0 };
+const tabs = [['goals','Goals'],['conversations','Conversations'],['recordings','Recordings']];
+const tabFromPath = () => tabs.find(([key])=>location.pathname===`/app/${key}`)?.[0] ?? 'goals';
+const state = { csrf: '', demo: false, canWrite: false, tab: tabFromPath(), goal: null, session: null, data: null, error: '', stale: false, loading: false, sequence: 0 };
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const date = value => { const d = new Date(value); return value && !Number.isNaN(+d) ? d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : 'Time not recorded'; };
 const plural = (n, singular, many=singular+'s') => n===1?singular:many;
@@ -17,9 +19,9 @@ async function api(path, { method = 'GET', body } = {}) {
   return data;
 }
 function signIn(error = '') {
-  state.csrf=''; state.data=null; state.sequence++;
+  state.csrf=''; state.data=null; state.sequence++; document.title='Sign in · TugTalk';
   root.innerHTML=`<div class="login-wrap">${brand}<main class="login-card"><h1>Sign in to your practice</h1><p>Your goals, recordings and feedback from TugTalk.</p><form id="login"><label for="access">Access code</label><input id="access" name="access" type="password" autocomplete="current-password" required minlength="20" aria-describedby="login-note"><div id="login-error" role="alert">${error?`<p class="notice error">${esc(error)}</p>`:''}</div><button class="primary" type="submit">Sign in</button></form><small id="login-note">Not your Muse password. This dashboard has its own code.</small></main></div>`;
-  document.querySelector('#login').onsubmit=async event=>{event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;try{const data=await api('login',{method:'POST',body:{password:document.querySelector('#access').value}});state.csrf=data.csrf;state.demo=data.demo===true;state.canWrite=data.can_change_recordings===true;await refresh();}catch(e){signIn(e.message);}};
+  document.querySelector('#login').onsubmit=async event=>{event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;try{const data=await api('login',{method:'POST',body:{password:document.querySelector('#access').value}});state.csrf=data.csrf;state.demo=data.demo===true;state.canWrite=data.can_change_recordings===true;state.tab=tabFromPath();await refresh();}catch(e){signIn(e.message);}};
 }
 async function refresh() {
   const seq=++state.sequence; state.loading=true; state.error=''; render();
@@ -68,15 +70,16 @@ function recordingsView() {
 }
 function render() {
   if(!state.csrf)return;
-  const o=state.data?.overview;
-  root.innerHTML=`<header class="topbar">${brand}<div class="account"><button id="logout" class="quiet">Sign out</button></div></header><div class="shell"><div class="intro"><h1>Your practice</h1><div class="refresh"><span class="freshness">${state.loading?'Checking…':o?`Updated ${esc(date(o.as_of))}`:'Not connected yet'}</span><button id="refresh" ${state.loading?'disabled':''}>${state.loading?'Refreshing…':'Refresh'}</button></div></div>${state.demo?'<div class="notice">Sample data. Your account is not changed.</div>':''}<nav class="tabs" aria-label="Practice sections">${[['goals','Goals'],['conversations','Conversations'],['recordings','Recordings']].map(([key,label])=>`<button class="tab" data-tab="${key}" ${state.tab===key?'aria-current="page"':''}>${label}</button>`).join('')}</nav><div id="message" role="alert">${state.error?`<p class="notice error">${esc(state.error)}${state.stale?' Showing older results.':''}</p>`:''}</div>${state.data?(state.tab==='goals'?goalsView():state.tab==='conversations'?conversationsView():recordingsView()):`<main class="card loading"><h2>${state.loading?'Loading your practice…':'Your practice is unavailable.'}</h2>${state.loading?'':'<p class="under">Use Refresh to try again.</p>'}</main>`}<footer><a href="/">TugTalk home</a><span>Private to this account.</span></footer></div>`;
+  const o=state.data?.overview;document.title=`${tabs.find(([key])=>key===state.tab)[1]} · TugTalk`;
+  root.innerHTML=`<header class="topbar">${brand}<div class="account"><button id="logout" class="quiet">Sign out</button></div></header><div class="shell"><div class="intro"><h1>Your practice</h1><div class="refresh"><span class="freshness">${state.loading?'Checking…':o?`Updated ${esc(date(o.as_of))}`:'Not connected yet'}</span><button id="refresh" ${state.loading?'disabled':''}>${state.loading?'Refreshing…':'Refresh'}</button></div></div>${state.demo?'<div class="notice">Sample data. Your account is not changed.</div>':''}<nav class="tabs" aria-label="Practice sections">${tabs.map(([key,label])=>`<a class="tab" href="/app/${key}" data-tab="${key}" ${state.tab===key?'aria-current="page"':''}>${label}</a>`).join('')}</nav><div id="message" role="alert">${state.error?`<p class="notice error">${esc(state.error)}${state.stale?' Showing older results.':''}</p>`:''}</div>${state.data?(state.tab==='goals'?goalsView():state.tab==='conversations'?conversationsView():recordingsView()):`<main class="card loading"><h2>${state.loading?'Loading your practice…':'Your practice is unavailable.'}</h2>${state.loading?'':'<p class="under">Use Refresh to try again.</p>'}</main>`}<footer><a href="/">TugTalk home</a><span>Private to this account.</span></footer></div>`;
   document.querySelector('#refresh').onclick=refresh;
   document.querySelector('#logout').onclick=async()=>{try{await api('logout',{method:'POST'});signIn();}catch(e){state.error=e.message;render();}};
-  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();});
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=event=>{if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0)return;event.preventDefault();if(state.tab!==b.dataset.tab){state.tab=b.dataset.tab;history.pushState({tab:state.tab},'',`/app/${state.tab}`);}render();});
   document.querySelectorAll('[data-goal]').forEach(b=>b.onclick=()=>{state.goal=b.dataset.goal;state.session=null;render();});
   document.querySelectorAll('[data-session]').forEach(b=>b.onclick=()=>{state.session=b.dataset.session;render();});
   document.querySelector('#retention')?.addEventListener('click',async event=>{const button=event.currentTarget;button.disabled=true;try{await api('settings',{method:'PATCH',body:{expected_version:state.data.settings.version,keep_recordings:!state.data.settings.keep_recordings}});await refresh();}catch(e){if(e.status===401){signIn();return;}if(e.status===409){await refresh();state.error='This setting changed on another device. The latest is loaded; check it, then try again.';}else{state.error=e.message;}render();}});
   document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this audio for good? Its transcript and counts stay.'))return;b.disabled=true;try{await api(`media/${encodeURIComponent(b.dataset.delete)}`,{method:'DELETE'});await refresh();}catch(e){if(e.status===401){signIn();return;}state.error=e.message;render();}});
 }
+window.addEventListener('popstate',()=>{state.tab=tabFromPath();if(state.csrf)render();});
 window.addEventListener('focus',()=>{if(state.csrf&&!state.loading)refresh();});
 try{const data=await api('session');state.csrf=data.csrf;state.demo=data.demo===true;state.canWrite=data.can_change_recordings===true;await refresh();}catch{signIn();}

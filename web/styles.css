@@ -210,7 +210,12 @@ button.primary:hover{
   border-radius:0;
   background:transparent;
   padding:13px 0 12px;
-  color:var(--muted)
+  color:var(--muted);
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  font-weight:700;
+  text-decoration:none
 }
 .tab[aria-current=page]{
   color:var(--ink);
