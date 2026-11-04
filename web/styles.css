@@ -162,6 +162,9 @@ button.primary:hover{
   font-family:Azeret,monospace;
   font-size:11px
 }
+.account button,.account .pill{
+  white-space:nowrap
+}
 .shell{
   max-width:1320px;
   margin:auto;
@@ -668,6 +671,15 @@ footer a{
 }
 .account small{
   display:none
+}
+.account{
+  gap:4px 8px;
+  flex-wrap:wrap;
+  justify-content:flex-end
+}
+.account .pill{
+  font-size:11px;
+  padding:5px 8px
 }
 .brand{
   font-size:20px
