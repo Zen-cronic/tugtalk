@@ -37,10 +37,8 @@ struct SparringView: View {
                 }
                 #endif
                 // Each new step starts at the top, so the question or the number shows first. On "Your turn" the
-                // question moves to the top, which brings Record into view below it.
-                withAnimation(.easeOut(duration: 0.25)) {
-                    if name == "your turn" { proxy.scrollTo("question", anchor: .top) } else { proxy.scrollTo("top", anchor: .top) }
-                }
+                // question moves to the top. The jump is not animated, so no scroll is still moving when a button is tapped.
+                if name == "your turn" { proxy.scrollTo("question", anchor: .top) } else { proxy.scrollTo("top", anchor: .top) }
             }
         }
             // Stop, and Record on a question, sit below the scroll view, never inside it: on the real watch (build 9)
