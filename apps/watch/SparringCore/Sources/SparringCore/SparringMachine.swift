@@ -184,8 +184,9 @@ public struct SparringMachine: Sendable {
     public mutating func uploadFailed(key: String, _ failure: RoundFailure) -> [Effect] {
         guard case .thinking(let answer, let upload) = phase, upload.idempotencyKey == key else { return [] }
         // The screen card was hidden on the Mac after the overview was read: the same answer goes again without it.
-        // Nothing was saved under this key (the server refused before any model call), so the key is reused.
-        if failure.status == 404, upload.screenContextID != nil {
+        // Nothing was saved under this key (the server refused before any model call), so the key is reused. Only the
+        // server's `screen_context_not_found` means that; another 404 (a deleted goal) is an ordinary failure.
+        if failure.screenCardGone, upload.screenContextID != nil {
             screenContextID = nil
             let again = upload.withoutScreenCard()
             phase = .thinking(answer: answer, upload: again)

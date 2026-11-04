@@ -367,7 +367,7 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         let first = answer(&m, at: t0)
         #expect(first.screenContextID == "card-goal")
         // Hidden on the Mac after the overview was read: the same answer, same key, goes again without the card.
-        let effects = m.uploadFailed(key: first.idempotencyKey, RoundFailure(kind: .serverError, message: "Record not found.", status: 404))
+        let effects = m.uploadFailed(key: first.idempotencyKey, RoundFailure.from(status: 404, code: "screen_context_not_found", message: "Screen card not found."))
         guard case .thinking(1, let again) = m.phase else { Issue.record("not thinking: \(m.phase.name)"); return }
         #expect(effects == [.upload(again)])
         #expect(again.idempotencyKey == first.idempotencyKey && again.screenContextID == nil && again.occurredAt == first.occurredAt)
@@ -379,5 +379,16 @@ private func answer(_ m: inout SparringMachine, at start: Date, seconds: TimeInt
         let up = answer(&plain, at: t0)
         _ = plain.uploadFailed(key: up.idempotencyKey, RoundFailure(kind: .serverError, message: "Record not found.", status: 404))
         guard case .failed = plain.phase else { Issue.record("expected a failure"); return }
+    }
+
+    @Test func aDeletedGoalIsNotMistakenForAHiddenCard() {
+        var m = SparringMachine(goalID: "g-gone", language: .en, screenContextID: "card-goal", newKey: Keys().next)
+        let up = answer(&m, at: t0)
+        let goalGone = RoundFailure.from(status: 404, code: "not_found", message: "Record not found.")
+        #expect(!goalGone.screenCardGone)
+        #expect(m.uploadFailed(key: up.idempotencyKey, goalGone).allSatisfy { if case .upload = $0 { false } else { true } }, "no automatic resend")
+        guard case .failed(1, let failure, _) = m.phase else { Issue.record("expected a failure: \(m.phase.name)"); return }
+        #expect(failure.code == "not_found")
+        #expect(m.screenContextID == "card-goal", "the card is kept")
     }
 }

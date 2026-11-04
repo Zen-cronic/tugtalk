@@ -163,6 +163,20 @@ test('POST /v1/voice-rounds: an exact retry replays with no model call; the same
   });
 });
 
+test('POST /v1/voice-rounds: a missing or hidden screen card has its own 404 code; a missing goal keeps not_found', async () => {
+  const { models, calls } = fakeModels();
+  await withServer(models, async ({ round, store }) => {
+    store.put('alice', 'screen-contexts', { id: 'hidden-card', version: 2, deleted: true });
+    for (const [headers, error] of [[{ 'X-Screen-Context-Id': 'hidden-card' }, 'screen_context_not_found'],
+      [{ 'X-Screen-Context-Id': 'no-such-card' }, 'screen_context_not_found'], [{ 'X-Goal-Id': 'no-such-goal' }, 'not_found'],
+      [{ 'X-Goal-Id': 'no-such-goal', 'X-Screen-Context-Id': 'hidden-card' }, 'not_found']]) {
+      const r = await round(wav(2), { headers, key: `card-${error}-${Object.keys(headers).length}` });
+      assert.equal(r.status, 404, JSON.stringify(headers)); assert.equal(r.data.error, error, JSON.stringify(headers));
+    }
+    assert.deepEqual([calls.transcribe, calls.voiceReply], [0, 0]);
+  });
+});
+
 test('POST /v1/voice-rounds: auth, the goal, headers and the body are checked before any model call', async () => {
   const { models, calls } = fakeModels();
   await withServer(models, async ({ round }) => {
@@ -175,7 +189,7 @@ test('POST /v1/voice-rounds: auth, the goal, headers and the body are checked be
     await expect(400, 'invalid_value', { headers: { 'X-Language': 'de' } });
     await expect(400, 'invalid_value', { headers: { 'X-Prompt-Ended-At': 'soon' } });
     await expect(404, 'not_found', { headers: { 'X-Goal-Id': 'no-such-goal' } });
-    await expect(404, 'not_found', { headers: { 'X-Screen-Context-Id': 'no-such-card' } });
+    await expect(404, 'screen_context_not_found', { headers: { 'X-Screen-Context-Id': 'no-such-card' } });
     await expect(415, 'content_type', { type: 'application/json' });
     await expect(400, 'unsupported_audio', { audio: Buffer.from('not a wav file at all, just text padding it out past 44 bytes') });
     await expect(413, 'too_large', { audio: Buffer.alloc(MAX_AUDIO_BYTES + 1) });

@@ -147,7 +147,8 @@ The usual JSON error shape, `{error, message, request_id}`:
 | 400 | `idempotency_required`, `invalid_value`, `unsupported_audio`, `audio_too_long` | A missing key, a bad header, or audio that is not mono 16-bit PCM WAV of 0.5–180 s |
 | 401 | `unauthorized` | No or wrong Bearer key |
 | 403 | `forbidden` | A read-only key |
-| 404 | `not_found` | `X-Goal-Id` or `X-Screen-Context-Id` not found, not owned, or (screen context) hidden |
+| 404 | `not_found` | `X-Goal-Id` not found or not owned |
+| 404 | `screen_context_not_found` | `X-Screen-Context-Id` not found, not owned, or hidden (a device drops the card and resends) |
 | 409 | `idempotency_conflict` | The key was used for a different request |
 | 413 | `too_large` | Body over 8 MiB |
 | 415 | `content_type` | Not `audio/wav` |

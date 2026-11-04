@@ -237,8 +237,9 @@ export function voiceResponse(receipt, counterpart = null) {
 // model, the latest watch session and the rounds of the last 15 minutes. Throws an ApiError (4xx/503) to refuse.
 export function prepareVoiceRound(store, models, user, params, key = null, fingerprint = null) {
   const goal = params.goalId ? store.get(user, 'goals', params.goalId) : null;
-  const screen = params.screenContextId ? store.get(user, 'screen-contexts', params.screenContextId) : null;
-  if (screen?.deleted) throw new ApiError(404, 'not_found', 'Record not found.');
+  // A missing or hidden screen card has its own code, so a device can drop the card and resend without mistaking a
+  // missing goal for it. The status stays 404, which older watches check.
+  const screen = params.screenContextId ? screenCard(store, user, params.screenContextId) : null;
   // Guards paid calls against a stuck key. Counts saved and model-failed rounds in the last hour (and live rounds
   // that ended before a reply after audio reached the transcriber, status 499).
   if (store.recentRequests(user, 'POST', VOICE_ROUNDS_PATH, VOICE_COUNTED_STATUSES, VOICE_RATE_LIMIT.windowMs) >= VOICE_RATE_LIMIT.requests)
@@ -265,6 +266,13 @@ export function prepareVoiceRound(store, models, user, params, key = null, finge
   const ending = before === -1 ? null : recent[before];
   const lastReplay = !round.length && ending?.reply?.move === 'wrap_up' ? latestReplay(store, user, ending.created_at) : null;
   return { goal, screen, watch, last: round[0] ?? null, roundNumber: round.length + 1, ...(lastReplay ? { lastReplay } : {}) };
+}
+function screenCard(store, user, id) {
+  const missing = () => new ApiError(404, 'screen_context_not_found', 'Screen card not found.');
+  let card;
+  try { card = store.get(user, 'screen-contexts', id); } catch (error) { if (error?.status === 404) throw missing(); throw error; }
+  if (card.deleted) throw missing();
+  return card;
 }
 export const VOICE_COUNTED_STATUSES = [200, 502, 499];
 

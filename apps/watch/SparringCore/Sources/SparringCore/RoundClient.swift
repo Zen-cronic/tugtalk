@@ -10,8 +10,16 @@ public struct RoundFailure: Error, Sendable, Equatable {
     public let kind: Kind
     public let message: String
     public let status: Int?
+    /// The error body's `error` code, when the server sent one (for example `screen_context_not_found`).
+    public let code: String?
 
-    public init(kind: Kind, message: String, status: Int? = nil) { self.kind = kind; self.message = message; self.status = status }
+    public init(kind: Kind, message: String, status: Int? = nil, code: String? = nil) {
+        self.kind = kind; self.message = message; self.status = status; self.code = code
+    }
+
+    /// The screen card sent with the answer is gone (hidden on the Mac, or deleted). Any other 404, such as a deleted
+    /// goal, is not this.
+    public var screenCardGone: Bool { status == 404 && code == "screen_context_not_found" }
 
     /// Network drops and 5xx are worth resending; the hourly limit, a refused key or bad audio are not.
     public var retryable: Bool { [.offline, .serverError, .unreadable].contains(kind) }
@@ -25,6 +33,11 @@ public struct RoundFailure: Error, Sendable, Equatable {
 
     /// From an HTTP status and the error body's `error` and `message`.
     public static func from(status: Int, code: String?, message: String?) -> RoundFailure {
+        let failure = classify(status: status, code: code, message: message)
+        return RoundFailure(kind: failure.kind, message: failure.message, status: status, code: code)
+    }
+
+    private static func classify(status: Int, code: String?, message: String?) -> RoundFailure {
         switch (status, code) {
         case (401, _), (403, _): return RoundFailure(kind: .notSignedIn, message: "The coach refused the connector key.", status: status)
         case (429, _): return RoundFailure(kind: .rateLimited, message: "\(message ?? "Too many voice rounds this hour.") Try again later.", status: status)
