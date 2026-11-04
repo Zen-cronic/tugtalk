@@ -73,7 +73,8 @@ export function createPracticeExercise(store,user,body,key){
   if(goal.version!==body.expected_goal_version)fail('version_conflict','Re-read the goal.');
   if(source.practice_exercise)fail('exercise_chain_unsupported','Use an ordinary practice round as the source; exercise chains are not supported.');
   const objective=source.objectives.find(o=>o.id===body.basis.objective_id),outcome=source.assessment?.objectives.find(o=>o.id===body.basis.objective_id);
-  const e={...body,id:randomUUID(),version:1,content_version:1,goal_version:goal.version,state:'proposed',superseded:false,
+  // Stored trimmed, as a practice request is (brief() in src/practice.mjs).
+  const e={...body,title:body.title.trim(),request_text:body.request_text.trim(),id:randomUUID(),version:1,content_version:1,goal_version:goal.version,state:'proposed',superseded:false,
    objective,activation:null,result:null,latest_attempt:null,created_via:'connector',created_at:now(),updated_at:now(),
    basis:{...body.basis,assessment_digest:digest(JSON.stringify(source.assessment)),source_outcome:outcome?.status??null}};
   delete e.expected_goal_version;

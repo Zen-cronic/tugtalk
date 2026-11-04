@@ -134,3 +134,7 @@ test('a superseded or stale exercise does not block a new proposal; an open one 
  assert.equal(store.get('u','practice-exercises',active.id).superseded,true);assert.equal(store.get('u','practice-exercises',active.id).state,'active');
  assert.equal(propose(s,{title:'After the revision'}).state,'proposed','the superseded exercise no longer blocks');
 }));
+test('the title and scenario are stored trimmed',()=>fixture(async({source,propose,payload})=>{
+ const s=await source(),body=payload(s),e=propose(s,{title:`  ${body.title}\n`,request_text:`\t${body.request_text}  `});
+ assert.equal(e.title,body.title);assert.equal(e.request_text,body.request_text);
+}));
