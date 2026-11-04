@@ -5,7 +5,7 @@ struct ContentView: View {
     @State private var scrolled = false
     /// `-openSetup YES` (Debug builds): opens the setup list on launch, for a screenshot of its rows.
     @State private var showSetup = ContentView.openSetupOnLaunch
-    /// "Practise this answer": a spoken round with the same goal and language.
+    /// `-openSparring YES` (Debug builds): opens the practice round without a tap. The button is a NavigationLink.
     @State private var practise = false
     /// The result whose AI note and exercise are shown in full, after More, so every new result opens short.
     /// `-expandNote YES` (Debug builds) opens the sample result's, for a screenshot.
