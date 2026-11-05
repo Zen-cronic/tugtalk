@@ -1165,3 +1165,8 @@ button.quiet.danger:hover{
     margin-left:0
   }
 }
+
+/* Tug-shaped cursor */
+html { cursor: url("cursor.svg") 3 2, auto; }
+a, button, summary, [role="button"], label, select { cursor: url("cursor-pointer.svg") 3 2, pointer; }
+input, textarea { cursor: text; }
