@@ -17,14 +17,17 @@ Communication practice for interviews, meetings, sales pitches and public speaki
 - **Your assistant remembers.** Every practice lands in one record. Muse, Meta's assistant, reads it through a custom connector, so any new chat on your phone or laptop knows what you practised, and it can save your next drill.
 - **See it all in one place.** The web dashboard at [tugtalk.live/app](https://tugtalk.live/app/) shows the same goals, sessions, conversations and recordings.
 
-## Meta models used
+## Sponsor tech we use
 
-| Model | What it does here |
-|---|---|
-| `muse-voice-transcribe-1.0` (Meta Model API) | Writes down each answer, from a file or live while you talk on the Mac |
-| Muse Spark Open (`meta-models/muse-spark-open-1026`), served on Baseten | Asks the follow-up question, checks each point, and writes a short note |
-| Muse, Meta's assistant | Reads and updates your practice record through the TugTalk connector |
-| Wit.ai voice | Speaks the follow-up question out loud |
+| Tech | From | What it does in TugTalk |
+|---|---|---|
+| `muse-voice-transcribe-1.0` | Meta Model API | Writes down every answer: from the recorded file on the watch, and live while you hold ⌃⌥T on the Mac (with the file as a fallback). The pause counts come from its speech timings |
+| Muse Spark Open (`meta-models/muse-spark-open-1026`) | Meta open-weight model, served on Baseten | Plays the other person: asks one follow-up question, checks whether each point you set was covered, writes a short note, and tells a filler "like" from a normal one |
+| Muse, the agent | Meta's assistant, on your phone and laptop | Reads your practice record in any new chat, quotes your own words back, suggests your next drill and saves it, and can check in on a schedule |
+| TugTalk connector | Built for this project, called by Muse | The custom connector Muse uses: 18 routes to read and update goals, practice sessions, practice rounds and drills. Every save returns a receipt and checks the record's version, and Muse sees only what TugTalk saved, never your other chats |
+| Wit.ai voice | Meta | Speaks the follow-up question out loud (English) |
+| Baseten | Inference partner | Serves Muse Spark Open through its OpenAI-compatible endpoint |
+| Modal | Inference and hosting partner | Hosts the API and its database, the landing page and the dashboard |
 
 Models suggest; the app checks. How each check works is in [docs/technical.md](docs/technical.md).
 
