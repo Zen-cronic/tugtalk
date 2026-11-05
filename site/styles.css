@@ -391,7 +391,7 @@ kbd { font-family: var(--f-body); font-size: 0.6875rem; font-weight: 700; color:
 
 /* Frequently asked questions */
 .claims { background: var(--hedge-tint); padding: var(--s-9) 0 var(--s-8); }
-.limits { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr); gap: var(--s-7); align-items: start; }
+.limits { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-7); align-items: start; }
 .limits h2 { font-size: var(--t-2xl); margin: 0 0 var(--s-5); }
 .limit-points { list-style: none; padding: 0; border-bottom: 2px solid var(--ink); }
 .limit-points li { border-top: 2px solid var(--ink); padding: var(--s-4) 0; min-height: 64px; display: flex; align-items: center; font-size: var(--t-lg); font-weight: 700; line-height: 1.3; }
@@ -696,3 +696,8 @@ html:not(.js-rail) .rail-stop { display: none; }
   .devices-pin { position: static !important; }
   .loops { display: none; }
 }
+
+/* Tug-shaped cursor */
+html { cursor: url("assets/cursor.svg") 3 2, auto; }
+a, button, summary, [role="button"], label, select { cursor: url("assets/cursor-pointer.svg") 3 2, pointer; }
+input, textarea { cursor: text; }
