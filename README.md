@@ -6,7 +6,7 @@ Communication practice for interviews, meetings, sales pitches and public speaki
 
 **Landing:** https://tugtalk.live, **API:** https://kaungzinhein--synthetic-coaching-connector-web.us-east.modal.run, **Mac app:** download link added at release, **Demo video:** link added at submission
 
-**The problem: your assistant forgets how you practise.** Practice apps keep what you said to themselves, so every new chat starts from nothing. TugTalk keeps one record that every device shares. Practise on your watch, your Mac or the web, and Muse, the assistant you already use on your phone and laptop, reads that record in any chat. Your next drill comes from how you actually spoke, and you can practise it on any device.
+**Why TugTalk.** You want to get better at speaking, so you try a practice app. But each app keeps your answers to itself, and the assistant you already ask for help never sees them, so every new chat starts from nothing and the advice stays generic. TugTalk keeps one record that every device shares. Practise on your watch, your Mac or the web, and Muse, the assistant you already use on your phone and laptop, reads that record in any chat. Your next drill comes from how you actually spoke, and you can practise it on any device.
 
 ## What it does
 
