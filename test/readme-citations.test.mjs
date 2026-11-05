@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 
 const root = new URL('../', import.meta.url);
-const readme = readFileSync(new URL('README.md', root), 'utf8');
-const ANCHORED = /\[`([^`]+)`\]\(((?:src|test|deploy|apps|scripts)\/[^)#\s]+)#L(\d+)(?:-L(\d+))?\)/g;
+const readme = readFileSync(new URL('README.md', root), 'utf8') + '\n' + readFileSync(new URL('docs/technical.md', root), 'utf8');
+const ANCHORED = /\[`([^`]+)`\]\((?:\.\.\/)?((?:src|test|deploy|apps|scripts)\/[^)#\s]+)#L(\d+)(?:-L(\d+))?\)/g;
 
 test('README: every anchored code citation names something on the cited lines', () => {
   const cites = [...readme.matchAll(ANCHORED)];

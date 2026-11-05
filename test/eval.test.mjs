@@ -49,7 +49,7 @@ test('phrase precedence is what separates measure() from the flat-list baseline'
 });
 
 test('README eval line states the committed headline numbers', () => {
-  const first = readFileSync(new URL('../README.md', import.meta.url), 'utf8').split('\n').find(line => line.startsWith('**Measured habit counts'));
+  const first = readFileSync(new URL('../docs/technical.md', import.meta.url), 'utf8').split('\n').find(line => line.startsWith('**Measured habit counts'));
   assert.ok(first, 'README has the eval line');
   const m = committed.systems.measure, b = committed.systems.flat_list_baseline;
   for (const value of [m.overall.precision, m.overall.recall, b.overall.precision, b.overall.recall, committed.counts.items, m.negative_control.items])

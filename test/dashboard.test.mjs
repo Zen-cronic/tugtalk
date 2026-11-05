@@ -154,7 +154,7 @@ test('each tab path serves the app shell with the app policy; other app paths an
 
 test('no middle dot (U+00B7) in the landing page, the dashboard or the README, in any spelling', async () => {
  const { readFile } = await import('node:fs/promises');
- const files=['site/index.html','site/main.js','site/styles.css','web/index.html','web/app.js','web/practice-view.js','web/styles.css','README.md'];
+ const files=['site/index.html','site/main.js','site/styles.css','web/index.html','web/app.js','web/practice-view.js','web/styles.css','docs/technical.md','README.md'];
  for (const f of files) {
    const text=await readFile(new URL(`../${f}`,import.meta.url),'utf8');
    assert.doesNotMatch(text,/·|&middot;|&#183;|&#xB7;|\\00B7|\\u00B7/i,f);
