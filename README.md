@@ -27,7 +27,7 @@ Communication practice for interviews, meetings, sales pitches and public speaki
 | TugTalk connector | Built for this project, called by Muse | The custom connector Muse uses: 18 routes to read and update goals, practice sessions, practice rounds and drills. Every save returns a receipt and checks the record's version, and Muse sees only what TugTalk saved, never your other chats |
 | Wit.ai voice | Meta | Speaks the follow-up question out loud (English) |
 | Baseten | Inference partner | Serves Muse Spark Open through its OpenAI-compatible endpoint |
-| Modal | Inference and hosting partner | Hosts the API and its database, the landing page and the dashboard |
+| Modal | Event partner, used here for hosting | Hosts the API and its database, the landing page and the dashboard |
 
 Models suggest; the app checks. How each check works is in [docs/technical.md](docs/technical.md).
 
